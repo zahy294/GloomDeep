@@ -1,0 +1,107 @@
+:root {
+  --letterbox: #05080a;
+  --ink: #d6e0f0;
+  --ink-dim: #95a4c0;
+  --glow: #76e6e0;
+  --gold: #f2cc5a;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--letterbox);
+  color: var(--ink);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+/* The canvas keeps its whole-number CSS size; flex centring letterboxes it. */
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game canvas {
+  image-rendering: pixelated;
+}
+
+/* The DOM overlay is sized to the canvas by main.ts so UI coordinates match the game view. */
+#ui {
+  position: absolute;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+#ui .interactive {
+  pointer-events: auto;
+}
+
+.title-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--px) * 6);
+  cursor: pointer;
+  text-align: center;
+}
+
+.title-screen h1 {
+  margin: 0;
+  font-size: calc(var(--px) * 40);
+  letter-spacing: calc(var(--px) * 4);
+  color: var(--ink);
+  text-shadow:
+    0 0 calc(var(--px) * 8) var(--glow),
+    0 0 calc(var(--px) * 2) var(--glow);
+}
+
+.title-screen .tagline {
+  font-size: calc(var(--px) * 10);
+  color: var(--ink-dim);
+}
+
+.title-screen .prompt {
+  margin-top: calc(var(--px) * 24);
+  font-size: calc(var(--px) * 9);
+  color: var(--gold);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+.game-hint {
+  position: absolute;
+  left: calc(var(--px) * 8);
+  top: calc(var(--px) * 6);
+  font-size: calc(var(--px) * 7);
+  color: var(--ink-dim);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-screen .prompt {
+    animation: none;
+  }
+}

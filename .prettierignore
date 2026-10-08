@@ -1,0 +1,8 @@
+node_modules/
+dist/
+assets/
+screenshots/
+art/raw/
+art/clean/
+package-lock.json
+*.md
