@@ -1,0 +1,8 @@
+node_modules/
+dist/
+screenshots/
+test-results/
+playwright-report/
+*.local
+.claude/settings.local.json
+gloamdeep-starter.zip
