@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
+import { DebugOverlay } from './DebugOverlay';
 
 function useUiState(bridge: UiBridge): UiState {
   const [state, setState] = useState(bridge.state);
@@ -29,14 +30,14 @@ function TitleScreen({ bridge }: { bridge: UiBridge }) {
 }
 
 export function App({ bridge }: { bridge: UiBridge }) {
-  const { screen, showUi } = useUiState(bridge);
+  const { screen, showUi, debug } = useUiState(bridge);
   if (!showUi) return null;
 
   switch (screen) {
     case 'title':
       return <TitleScreen bridge={bridge} />;
     case 'game':
-      return <div class="game-hint">Gloamdeep · M0 · empty world</div>;
+      return debug ? <DebugOverlay info={debug} /> : <div class="game-hint">F3: debug overlay</div>;
     default:
       return null;
   }

@@ -44,9 +44,39 @@ describe('FixedStepLoop', () => {
   });
 });
 
+const STONE = 4;
+
+/** A 40×20 world with a stone floor at row 15; spawn on the floor in the middle. */
+function smallSim(): Simulation {
+  return new Simulation({
+    size: { width: 40, height: 20, chunkSize: 16 },
+    generate: (world) => {
+      for (let y = 15; y < 20; y++) for (let x = 0; x < 40; x++) world.set(x, y, STONE);
+      return { spawnX: 20 * 16, spawnY: 15 * 16 };
+    },
+    stepsPerSecond: 60,
+    maxStepsPerFrame: 10,
+  });
+}
+
 describe('Simulation', () => {
+  it('spawns the player standing on the generated ground', () => {
+    const sim = smallSim();
+    for (let i = 0; i < 12; i++) sim.update(1000 / 60);
+    expect(sim.player.onGround).toBe(true);
+    expect(sim.player.body.y + sim.player.body.height).toBeCloseTo(15 * 16, 6);
+  });
+
+  it('moves the player from input actions', () => {
+    const sim = smallSim();
+    const startX = sim.player.body.x;
+    sim.input.setHeld('moveRight', true);
+    for (let i = 0; i < 30; i++) sim.update(1000 / 60); // half a second of frames
+    expect(sim.player.body.x).toBeGreaterThan(startX + 20);
+  });
+
   it('emits a stepped event with an increasing step number for every fixed step', () => {
-    const sim = new Simulation(60, 10);
+    const sim = smallSim();
     const seen: number[] = [];
     sim.events.on('stepped', ({ step }) => seen.push(step));
 

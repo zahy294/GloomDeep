@@ -105,3 +105,22 @@ body {
     animation: none;
   }
 }
+
+.debug-overlay {
+  position: absolute;
+  left: calc(var(--px) * 4);
+  top: calc(var(--px) * 4);
+  padding: calc(var(--px) * 3) calc(var(--px) * 4);
+  font-size: calc(var(--px) * 6);
+  line-height: 1.35;
+  color: var(--ink);
+  background: rgb(5 8 10 / 0.72);
+  border: 1px solid rgb(118 230 224 / 0.35);
+  white-space: nowrap;
+}
+
+.debug-overlay .label {
+  display: inline-block;
+  min-width: 11ch;
+  color: var(--glow);
+}

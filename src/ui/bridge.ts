@@ -3,9 +3,30 @@ import { EventBus } from '../sim/events';
 /** Which top-level screen is showing. Scenes set this; the overlay renders to match. */
 export type Screen = 'boot' | 'title' | 'game';
 
+/** F3 overlay contents (plan 7). Fields for later systems read "—" until those systems exist. */
+export interface DebugInfo {
+  fps: number;
+  drawCalls: number | null;
+  /** Average / worst CPU time per frame spent in simulation + chunk rendering, ms. */
+  frameCpuAvgMs: number;
+  frameCpuMaxMs: number;
+  chunksLoaded: number;
+  lateChunkLoads: number;
+  entities: number;
+  playerTileX: number;
+  playerTileY: number;
+  chunkX: number;
+  chunkY: number;
+  light: string;
+  biome: string;
+  gloam: string;
+}
+
 export interface UiState {
   screen: Screen;
   showUi: boolean;
+  /** Non-null while the F3 overlay is open. */
+  debug: DebugInfo | null;
 }
 
 /** Commands the UI sends. The UI never changes game state directly (CLAUDE.md rule 3). */

@@ -12,14 +12,15 @@ import { App } from './ui/App';
 import { UiBridge } from './ui/bridge';
 
 const debug = parseDebugParams(window.location.search);
-const bridge = new UiBridge({ screen: 'boot', showUi: debug.showUi });
+const bridge = new UiBridge({ screen: 'boot', showUi: debug.showUi, debug: null });
 
 const gameParent = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
 if (!gameParent || !uiRoot) throw new Error('index.html is missing #game or #ui');
 
 const game = new Phaser.Game({
-  type: Phaser.AUTO,
+  // WebGL only: TilemapGPULayer (and later filters/lighting) have no Canvas fallback.
+  type: Phaser.WEBGL,
   parent: gameParent,
   width: DISPLAY.width,
   height: DISPLAY.height,
@@ -33,7 +34,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.NO_CENTER,
   },
-  scene: [new BootScene(debug.scene), new TitleScene(bridge), new GameScene(bridge)],
+  scene: [new BootScene(debug.scene), new TitleScene(bridge), new GameScene(bridge, debug)],
 });
 
 keepIntegerScale(game, uiRoot);
@@ -43,8 +44,8 @@ render(h(App, { bridge }), uiRoot);
 window.gloamdeep = {
   game,
   bridge,
-  simSteps: () => {
+  probe: () => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
-    return scene?.sys.isActive() ? scene.simulation.steps : 0;
+    return scene?.sys.isActive() ? scene.probe() : null;
   },
 };

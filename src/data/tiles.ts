@@ -51,3 +51,10 @@ export const TILES: readonly TileDef[] = [
 export function tileById(id: number): TileDef | undefined {
   return TILES[id];
 }
+
+/** Id for a tile key. Throws on unknown keys so typos fail loudly at startup, not as air. */
+export function tileId(key: string): number {
+  const tile = TILES.find((t) => t.key === key);
+  if (!tile) throw new Error(`Unknown tile key "${key}"`);
+  return tile.id;
+}
