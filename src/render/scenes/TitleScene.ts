@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { DISPLAY, TILE_SIZE } from '../../config';
 import { PALETTE } from '../../data/palette';
 import { TILES } from '../../data/tiles';
+import { iconFrame } from '../../sim/world/autotile';
 import type { UiBridge } from '../../ui/bridge';
 import { SceneKey, TextureKey } from './keys';
 
@@ -33,7 +34,7 @@ export class TitleScene extends Phaser.Scene {
         const tile = solidTiles[(x / TILE_SIZE + row) % solidTiles.length];
         if (!tile) continue;
         this.add
-          .image(x, top + row * TILE_SIZE, TextureKey.placeholderTiles, tile.id)
+          .image(x, top + row * TILE_SIZE, TextureKey.tiles, iconFrame(tile.id))
           .setOrigin(0, 0);
       }
     }

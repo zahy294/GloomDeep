@@ -16,7 +16,7 @@ import { DrawCallCounter } from '../drawCallCounter';
 import { DropRenderer } from '../DropRenderer';
 import { InputMapper } from '../InputMapper';
 import { ParticleFX } from '../ParticleFX';
-import { PlayerRenderer } from '../PlayerRenderer';
+import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
 import { TileCursor } from '../TileCursor';
 import { SceneKey, TextureKey } from './keys';
 
@@ -64,6 +64,7 @@ export class GameScene extends Phaser.Scene {
   private readonly timer = new FrameTimer();
   private readonly view = { x: 0, y: 0, width: 0, height: 0 };
   private readonly preloadBudget: PreloadBudget = { remaining: 0 };
+  private readonly activity: PlayerActivity = { use: 'none', aimX: 0, aimY: 0 };
 
   constructor(
     private readonly bridge: UiBridge,
@@ -99,17 +100,17 @@ export class GameScene extends Phaser.Scene {
     this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));
     this.walls = new ChunkRenderer(this, world, sim.events, {
       layer: 'bg',
-      textureKey: TextureKey.placeholderWalls,
+      textureKey: TextureKey.walls,
       depth: Depth.backgroundWalls,
     });
     this.chunks = new ChunkRenderer(this, world, sim.events, {
       layer: 'fg',
-      textureKey: TextureKey.placeholderTiles,
+      textureKey: TextureKey.tiles,
       depth: Depth.foregroundTiles,
     });
-    this.playerView = new PlayerRenderer(this, player);
+    this.playerView = new PlayerRenderer(this, player, TextureKey.sprites);
     this.cursor = new TileCursor(this, sim.events, sim.input, player, TextureKey.cracks);
-    this.dropView = new DropRenderer(this, sim.drops, TextureKey.placeholderTiles);
+    this.dropView = new DropRenderer(this, sim.drops, TextureKey.tiles);
     this.fx = new ParticleFX(
       this,
       sim.events,
@@ -171,7 +172,15 @@ export class GameScene extends Phaser.Scene {
 
     const alpha = this.sim.alpha;
     const body = this.sim.player.body;
-    this.playerView.update(alpha, delta / 1000);
+    const input = this.sim.input;
+    this.activity.use = this.sim.mining.active
+      ? 'mine'
+      : input.isHeld('useAlt') && this.inputMapper.pointerEnabled
+        ? 'place'
+        : 'none';
+    this.activity.aimX = input.aimX;
+    this.activity.aimY = input.aimY;
+    this.playerView.update(alpha, delta / 1000, this.activity);
     this.cameraDirector.update(
       this.playerView.feetX(alpha),
       this.playerView.feetY(alpha) - body.height / 2,

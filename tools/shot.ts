@@ -2,6 +2,7 @@
  * Opens the built game in headless Chromium, saves screenshots to screenshots/ and runs a few
  * behaviour checks (movement, chunk loading, mining/building). Run via `npm run shot` (which builds first).
  */
+import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +25,8 @@ interface Shot {
   query: string;
   /** Runs after the page loads and before the screenshot. Throw to fail the shot. */
   prepare: (page: Page) => Promise<void>;
+  /** Screenshot only this region (viewport pixels). */
+  clip?: { x: number; y: number; width: number; height: number };
 }
 
 async function waitForScreen(page: Page, screen: string): Promise<void> {
@@ -126,6 +129,14 @@ async function stopFrameRecorder(page: Page): Promise<{ fps: number; p95: number
     max: deltas[deltas.length - 1] ?? 0,
   };
 }
+
+/** 4× close-up around the screen centre, where the camera keeps the player. */
+const PLAYER_CLOSEUP = {
+  x: VIEWPORT.width / 2 - 120,
+  y: VIEWPORT.height / 2 - 110,
+  width: 240,
+  height: 160,
+};
 
 const GRASS = tileId('elderglade_grass');
 const PLANKS = tileId('elderwood_planks');
@@ -236,6 +247,54 @@ const SHOTS: Shot[] = [
     },
   },
   {
+    // M2b: the player is drawn from parts and animated in code. Close-ups mid-stride and mid-swing.
+    name: 'player-parts-walking',
+    query: '?scene=game&ui=0',
+    clip: PLAYER_CLOSEUP,
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await page.keyboard.down('KeyD');
+      await page.waitForTimeout(450);
+    },
+  },
+  {
+    name: 'player-parts-mining',
+    query: '?scene=game&ui=0',
+    clip: PLAYER_CLOSEUP,
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = (await probe(page)) as GameProbe;
+      await pointAtTile(
+        page,
+        Math.floor(p.playerX / TILE_SIZE) + 2,
+        Math.round(p.playerY / TILE_SIZE),
+      );
+      await page.mouse.down();
+      await page.waitForTimeout(220);
+    },
+  },
+  {
+    name: 'art-test-mushroom-day',
+    query: '?scene=art-test&pack=packed-demo&id=demo_mushroom&time=day',
+    prepare: (page) => waitForScreen(page, 'art-test'),
+  },
+  {
+    name: 'art-test-mushroom-night',
+    query: '?scene=art-test&pack=packed-demo&id=demo_mushroom&time=night',
+    prepare: (page) => waitForScreen(page, 'art-test'),
+  },
+  {
+    name: 'art-test-soil-autotiles',
+    query: '?scene=art-test&pack=packed-demo&id=demo_soil&time=day',
+    prepare: (page) => waitForScreen(page, 'art-test'),
+  },
+  {
+    // The whole game running on the demo pack: forest soil now uses the generated autotile set.
+    name: 'game-demo-pack-soil',
+    query: '?scene=game&ui=0&pack=packed-demo',
+    prepare: waitForPlayerReady,
+  },
+  {
     name: 'game-cave',
     query: '?scene=game&ui=0&x=2374&y=453',
     prepare: waitForPlayerReady,
@@ -288,6 +347,19 @@ const SHOTS: Shot[] = [
   },
 ];
 
+// Art pipeline demo (M2b): fake AI images → import → autotiles → pack, into dist/packed-demo.
+process.stdout.write(
+  execFileSync(
+    process.execPath,
+    [
+      resolve(root, 'node_modules/tsx/dist/cli.mjs'),
+      'tools/demo-art.ts',
+      resolve(root, 'dist/packed-demo'),
+    ],
+    { cwd: root, encoding: 'utf8' },
+  ),
+);
+
 const server = await preview({
   root,
   preview: { port: 4317, strictPort: false },
@@ -313,7 +385,7 @@ try {
     try {
       await page.goto(new URL(shot.query, baseUrl).href);
       await shot.prepare(page);
-      await page.screenshot({ path: resolve(outDir, `${shot.name}.png`) });
+      await page.screenshot({ path: resolve(outDir, `${shot.name}.png`), clip: shot.clip });
       console.log(`saved screenshots/${shot.name}.png`);
     } catch (err) {
       failed = true;

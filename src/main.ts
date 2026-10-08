@@ -4,9 +4,10 @@ import './ui/style.css';
 import { DISPLAY } from './config';
 import { parseDebugParams } from './debugParams';
 import { keepIntegerScale } from './render/integerScale';
+import { ArtTestScene } from './render/scenes/ArtTestScene';
 import { BootScene } from './render/scenes/BootScene';
 import { GameScene } from './render/scenes/GameScene';
-import { SceneKey } from './render/scenes/keys';
+import { DEFAULT_PACK_DIR, SceneKey } from './render/scenes/keys';
 import { TitleScene } from './render/scenes/TitleScene';
 import { App } from './ui/App';
 import { UiBridge } from './ui/bridge';
@@ -18,6 +19,7 @@ const bridge = new UiBridge({
   debug: null,
   inventory: null,
   inventoryOpen: false,
+  packDir: debug.pack ?? DEFAULT_PACK_DIR,
 });
 
 const gameParent = document.getElementById('game');
@@ -40,7 +42,12 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.NO_CENTER,
   },
-  scene: [new BootScene(debug.scene), new TitleScene(bridge), new GameScene(bridge, debug)],
+  scene: [
+    new BootScene(debug),
+    new TitleScene(bridge),
+    new GameScene(bridge, debug),
+    new ArtTestScene(bridge, debug),
+  ],
 });
 
 keepIntegerScale(game, uiRoot);

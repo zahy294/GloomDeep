@@ -7,3 +7,4 @@ playwright-report/
 .claude/settings.local.json
 gloamdeep-starter.zip
 assets/placeholder/
+assets/packed/

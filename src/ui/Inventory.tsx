@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIconFrame } from '../render/itemIcons';
-import { AtlasUrl } from '../render/scenes/keys';
+import { PackFile } from '../render/scenes/keys';
 import type { InventoryView, UiBridge } from './bridge';
 
 type Slot = InventoryView['slots'][number];
 
 /** An item icon cut from the tile atlas with CSS, scaled by whole game pixels (--px). */
-function ItemIcon({ itemId }: { itemId: number }) {
+function ItemIcon({ itemId, packDir }: { itemId: number; packDir: string }) {
   const frame = itemIconFrame(itemId);
   if (frame < 0) return null;
   const { x, y } = framePixelOffset(frame);
@@ -14,7 +14,7 @@ function ItemIcon({ itemId }: { itemId: number }) {
     <span
       class="item-icon"
       style={{
-        backgroundImage: `url(${AtlasUrl.tiles})`,
+        backgroundImage: `url(${packDir}/${PackFile.tiles})`,
         backgroundPosition: `calc(var(--px) * ${-x}) calc(var(--px) * ${-y})`,
         backgroundSize: `calc(var(--px) * ${ATLAS_PIXEL_SIZE.width}) calc(var(--px) * ${ATLAS_PIXEL_SIZE.height})`,
       }}
@@ -27,12 +27,14 @@ function SlotView({
   index,
   selected,
   marked,
+  packDir,
   onClick,
 }: {
   slot: Slot;
   index: number;
   selected: boolean;
   marked?: boolean;
+  packDir: string;
   onClick: () => void;
 }) {
   const classes = ['slot', selected ? 'selected' : '', marked ? 'marked' : ''].join(' ');
@@ -43,7 +45,7 @@ function SlotView({
       onClick={onClick}
       aria-label={`Slot ${index + 1}`}
     >
-      {slot && <ItemIcon itemId={slot.itemId} />}
+      {slot && <ItemIcon itemId={slot.itemId} packDir={packDir} />}
       {slot && slot.count > 1 && <span class="count">{slot.count}</span>}
     </button>
   );
@@ -66,6 +68,7 @@ export function Hotbar({ bridge, view }: { bridge: UiBridge; view: InventoryView
           slot={slot}
           index={i}
           selected={i === view.selected}
+          packDir={bridge.state.packDir}
           onClick={() => bridge.commands.emit('selectSlot', { slot: i })}
         />
       ))}
@@ -102,6 +105,7 @@ export function InventoryPanel({ bridge, view }: { bridge: UiBridge; view: Inven
             slot={slot}
             index={i}
             selected={i === view.selected}
+            packDir={bridge.state.packDir}
             marked={i === picked}
             onClick={() => click(i)}
           />

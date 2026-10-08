@@ -93,6 +93,34 @@ export const PHYSICS = {
   groundProbe: 1,
 } as const;
 
+/** Code-driven player animation from parts (plan 2.9.8). Radians, pixels and seconds. */
+export const PLAYER_ANIM = {
+  /** Horizontal distance per walk frame (4 frames per stride). */
+  strideFramePx: 7,
+  /** Below this speed the player counts as standing (px/s). */
+  walkSpeedThreshold: 12,
+  /** Arms swing ± this while walking, opposite to each other. */
+  walkArmSwing: 0.55,
+  /** Body bobs up this many pixels on the passing frames. */
+  walkBob: 1,
+  /** Idle breathing: bob amplitude (px) and speed (rad/s). */
+  idleBob: 1,
+  idleBreathRate: 2.2,
+  /** Arms lift while rising and spread while falling. */
+  jumpArmRise: 2.4,
+  fallArmSpread: 1.2,
+  /** The back arm moves this fraction of the front arm, the other way, while airborne. */
+  jumpBackArmFactor: 0.5,
+  /** Mining swing: arc from (aim - back) to (aim + forward), full swings per second. */
+  swingBack: 1.3,
+  swingForward: 0.5,
+  swingRate: 3.2,
+  /** Hood trails behind horizontal motion (px per px/s), clamped, eased at this rate. */
+  hoodTrailPerSpeed: 0.012,
+  hoodTrailMax: 2,
+  hoodTrailRate: 10,
+} as const;
+
 /** Render-side smoothing for the player sprite (purely visual). */
 export const PLAYER_VIEW = {
   /** A 1-tile auto step-up snaps the body 16 px; the sprite eases over it at this rate (1/s). */

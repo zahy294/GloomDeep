@@ -36,6 +36,9 @@ describe('parseDebugParams', () => {
     x: null,
     y: null,
     debugOverlay: false,
+    assetId: null,
+    time: 'day',
+    pack: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -50,7 +53,25 @@ describe('parseDebugParams', () => {
       x: 2100,
       y: 300,
       debugOverlay: true,
+      assetId: null,
+      time: 'day',
+      pack: null,
     });
+  });
+
+  it('reads the art-test scene, asset id, time and pack folder', () => {
+    expect(
+      parseDebugParams('?scene=art-test&id=soil_base&time=night&pack=packed-demo'),
+    ).toMatchObject({
+      scene: 'art-test',
+      assetId: 'soil_base',
+      time: 'night',
+      pack: 'packed-demo',
+    });
+  });
+
+  it('rejects ids and pack names with path characters', () => {
+    expect(parseDebugParams('?id=../secret&pack=a/b')).toMatchObject({ assetId: null, pack: null });
   });
 
   it('ignores malformed values', () => {

@@ -1,7 +1,7 @@
 import { EventBus } from '../sim/events';
 
 /** Which top-level screen is showing. Scenes set this; the overlay renders to match. */
-export type Screen = 'boot' | 'title' | 'game';
+export type Screen = 'boot' | 'title' | 'game' | 'art-test';
 
 /** F3 overlay contents (plan 7). Fields for later systems read "—" until those systems exist. */
 export interface DebugInfo {
@@ -38,6 +38,8 @@ export interface UiState {
   inventory: InventoryView | null;
   /** The full inventory panel (E) is open. */
   inventoryOpen: boolean;
+  /** Pack folder the game loaded (icons are cut from its tile atlas). */
+  packDir: string;
 }
 
 /** Commands the UI sends. The UI never changes game state directly (CLAUDE.md rule 3). */

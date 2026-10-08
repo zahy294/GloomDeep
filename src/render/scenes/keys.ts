@@ -2,22 +2,38 @@ export const SceneKey = {
   Boot: 'Boot',
   Title: 'Title',
   Game: 'Game',
+  ArtTest: 'ArtTest',
 } as const;
 
 export const TextureKey = {
   /** Foreground blob atlas (frame layout in src/sim/world/autotile.ts). */
-  placeholderTiles: 'placeholder-tiles',
+  tiles: 'tiles',
   /** Background wall blob atlas, same layout, darker. */
-  placeholderWalls: 'placeholder-walls',
+  walls: 'walls',
   /** Mining crack overlay, one frame per stage. */
-  cracks: 'placeholder-cracks',
+  cracks: 'cracks',
+  /** Every sprite asset (frames named by spriteFrame(id, n)). */
+  sprites: 'sprites',
   /** 2×2 white pixel, tinted per particle. */
   particle: 'particle-pixel',
 } as const;
 
-/** Atlas image URLs, also used by the DOM UI for item icons. */
-export const AtlasUrl = {
-  tiles: 'placeholder/tiles.png',
-  walls: 'placeholder/walls.png',
-  cracks: 'placeholder/cracks.png',
+export const DataKey = {
+  sprites: 'sprites-info',
 } as const;
+
+/**
+ * The game loads only the packed output of `npm run art:pack` (approved art merged with
+ * placeholders), never raw or unapproved art. Paths are relative to the pack folder, which is
+ * `packed/` inside the Vite public dir (assets/) unless `?pack=` names another one.
+ */
+export const PackFile = {
+  tiles: 'tiles.png',
+  walls: 'walls.png',
+  cracks: 'cracks.png',
+  sprites: 'sprites.png',
+  spritesInfo: 'sprites.json',
+  preview: 'preview/',
+} as const;
+
+export const DEFAULT_PACK_DIR = 'packed';

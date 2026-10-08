@@ -1,7 +1,7 @@
 /**
  * Generates placeholder art from the master palette so the game always runs without real art.
  * Output in assets/placeholder/: tiles.png (foreground blob atlas), walls.png (background walls),
- * cracks.png (4 mining stages) and tiles.json (layout metadata).
+ * cracks.png (4 mining stages), sprites/player-parts.png and tiles.json (layout metadata).
  *
  *   npm run art:placeholder
  */
@@ -18,6 +18,8 @@ import {
   buildPlaceholderAtlas,
   type Atlas,
 } from './lib/placeholderAtlas';
+import { writePng as writeImage } from './lib/image';
+import { buildPlayerParts } from './lib/placeholderSprites';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(root, 'assets/placeholder');
@@ -39,6 +41,7 @@ await mkdir(outDir, { recursive: true });
 await writePng('tiles.png', tiles);
 await writePng('walls.png', walls);
 await writePng('cracks.png', cracks);
+await writeImage(resolve(outDir, 'sprites/player-parts.png'), buildPlayerParts());
 
 const meta = {
   tileSize: TILE_SIZE,

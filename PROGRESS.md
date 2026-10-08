@@ -4,6 +4,63 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M2b — Art pipeline tools ✅ (2026-10-08)
+
+### Built
+
+- **`npm run art:import [id|category]`** (`tools/import-art.ts`, `tools/lib/importArt.ts`): magenta chroma key + fringe removal, grid detection from block edges (handles uneven 6/7 px and fractional 6.5 px "pixels"), downscale by majority colour of each block's centre (never averaging), OKLab palette matching with a "far from palette" report, trim + anchor, sheet slicing, seam check, 4× preview next to the raw file, manifest status → `cleaned`. Never touches `art/raw/` except writing the `.preview.png`.
+- **`npm run art:palette`**: weighted k-means in OKLab on the style reference → up to 16 hue ramps × 4 shades, dark → light; writes `art/reference/palette-suggestion.json` + `palette.png`. Never overwrites `src/data/palette.ts` (you adjust and copy it).
+- **`npm run art:autotiles [material]`**: one cleaned seamless base texture → 47 blob shapes × 3 variations (cut from different areas of the texture), outlines in the darkest shade of the texture's own ramp, inner-corner notches, top highlight. Output matches the game's atlas frame layout.
+- **`npm run art:pack`**: builds everything the game loads into `assets/packed/` — tile and wall atlases (approved terrain replaces only its own tile's frames; walls derived one shade darker within each palette ramp), cracks, a sprite atlas + `sprites.json`, `pack.json`, and `preview/` for the art-test scene. Runs automatically before `dev` and `build`.
+- **Manifest-driven loading:** the game now loads only `assets/packed/` — approved art merged with placeholders, so it always runs and never shows unapproved art.
+- **Player from parts** (`src/data/playerParts.ts`, `PlayerRenderer`, `playerAnimation.ts`): placeholder hooded lamplighter in 12 part frames (arms, body, head, hood, 4 walk + idle + jump legs, lantern). Animated in code: walk cycle from distance travelled, body bob, swinging arms, trailing hood, jump/fall poses, a mining swing towards the target, an arm that points where you build, lantern in the back hand, faces the cursor while working.
+- **Art-test scene** `?scene=art-test&id=<asset>&time=day|night`: the asset on real ground at 1× plus a 4× copy, the style reference beside it when it exists; terrain shows an autotiled sample patch.
+- **`npm run shot`** now also runs a pipeline demo (`tools/demo-art.ts`): fake AI images → import → autotiles → pack into `dist/packed-demo/`, then screenshots of the demo mushroom (day/night), the generated soil autotiles, the whole game using that soil, and player close-ups walking and mining.
+- **Tests:** 188 (each import step + pixel-exact end-to-end on fake-AI fixtures at pitches 6/7, 8 and 6.5, palette extraction, autotile generation, packing, player poses).
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Raw AI image → clean, palette-matched pixel art at the right size | ✅ on synthetic fake-AI fixtures: the original sprite comes back **pixel-exact** (uneven 6/7 px pitch, fractional 6.5 px, magenta fringe, noise, colour drift), also when it sits inside a much larger magenta canvas at an off-grid offset. **Needs a real Nano Banana image** — not available yet |
+| One base texture becomes a full autotile set in the game | ✅ `screenshots/game-demo-pack-soil.png`: the whole world's forest soil uses a set generated from one 32×32 texture; `art-test-soil-autotiles.png` shows edges, corners and holes |
+| The player animates from parts | ✅ `screenshots/player-parts-walking.png`, `player-parts-mining.png` |
+
+### Decisions and deviations
+
+- **Synthetic fixtures instead of a real AI image** (none exists yet). They reproduce the known Nano Banana problems; the first real image you drop in is the real test.
+- **Sprites are cropped to their content before downscaling.** AI images are big canvases with the sprite somewhere inside; the first version squashed the whole canvas into `targetSize` (caught by testing a realistic canvas). The sprite's size now comes from the detected pixel grid when both axes agree, else it is fitted to `targetSize`.
+- **Seam check is relative:** a seamless texture's last column should *continue into* its first, not equal it. Wrap differences are compared with the texture's own neighbour differences, so grainy textures no longer fail falsely.
+- **Night in the art-test scene is a multiply overlay** until M3 lighting.
+- **Pack always produces a complete set** (placeholders fill gaps), so code never depends on a particular asset existing.
+- **Autotile outline colour** comes from the base texture's dominant palette ramp (darkest shade), not from per-tile rules in `tiles.ts` as plan 2.9.7 suggests — simpler and keeps outlines in the material's own colour (plan 2.9.1). A per-tile override can be added when real art needs one.
+- **Top decorations** for autotiles (grass tufts, moss overhang; plan 2.9.7) are left as a TODO in `autotileGen.ts` — they need real art to be worth designing.
+- The title strip had used pre-M2 frame numbers; it now shows each tile's icon frame.
+
+### Reviewer pass
+
+A first review run was cut off by a usage limit while probing "a realistic canvas" — which exposed the real bug: the importer squashed the whole AI canvas into `targetSize`. Fixed (sprites are cropped to their content first) and covered by tests. The second review found no blockers and confirmed pixel-exact imports at pitches up to 42 px with off-grid margins and a noisy background. Fixed from it: stray specks or a corner watermark no longer stretch the crop (small detached blobs are ignored, with a warning); sheets/textures that don't match their grid now warn (non-square pixels) instead of importing silently; `art:pack` leaves out approved third-party (`source: "pack"`) art without a license, with a warning; short sprite sheets warn; no per-frame allocations in the player animation; the art-test ground is autotiled; the demo deletes its temp art folder.
+
+### How to use the pipeline
+
+1. Add a manifest entry (`art-import` skill / prompt templates in `art/prompts/`), generate the image, save it to `art/raw/<category>/<id>.png`.
+2. `npm run art:import <id>` → check the report and `art/raw/<category>/<id>.preview.png`.
+3. Terrain: `npm run art:autotiles <material>`.
+4. Look at it in the game: `npm run dev`, open `?scene=art-test&id=<id>` (and `&time=night`).
+5. Approve by setting `"status": "approved"` in `art/manifest.json`, then `npm run art:pack` (or just restart `npm run dev`).
+
+### Known issues
+
+- Grid detection needs blocks ≥ 5 px; without a trustworthy grid a sprite is fitted to its `targetSize`.
+- **Sheets** (and textures) still treat the whole image as the grid: crop a real AI sheet to its grid before importing. Single sprites are found anywhere in the canvas.
+- The fringe pass can occasionally eat non-palette pink/green edge pixels.
+
+### Next step
+
+**M3 — Lighting:** lighting worker (sunlight, flood fill, coloured light, material absorption), smooth light map, torches, the lantern with the Amber lens, glow pass, day–night cycle. **In parallel (you):** create and approve the style reference (plan 2.9.4) and run `npm run art:palette` on it.
+
+---
+
 ## M2 — Mining, building and tile visuals ✅ (2026-10-08)
 
 ### Built

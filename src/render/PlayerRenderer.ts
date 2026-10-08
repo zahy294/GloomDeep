@@ -1,32 +1,92 @@
 import type * as Phaser from 'phaser';
-import { PLAYER_VIEW } from '../config';
-import { PALETTE } from '../data/palette';
+import { PLAYER_ANIM, PLAYER_VIEW } from '../config';
+import { ARM_LENGTH, PART_FRAME, PART_RIG, type PartPlacement } from '../data/playerParts';
 import type { Player } from '../sim/entities/Player';
-import { approach } from './cameraMath';
+import { approach, clampAbs } from './cameraMath';
 import { Depth } from './depth';
+import {
+  armAngleTowards,
+  computePose,
+  type ArmUse,
+  type Pose,
+  type PoseInput,
+} from './playerAnimation';
+import { spriteAsset } from '../data/spriteAssets';
+import { spriteFrame } from './spriteFrames';
 
-/** Placeholder look until the parts-based player arrives in M2b: a cloaked body and a lantern. */
-const SPRITE = { width: 20, height: 40, lanternSize: 4, lanternOffsetX: 9, lanternOffsetY: 22 };
+const ASSET = 'player-parts';
+const FRAME_SIZE = spriteAsset(ASSET)?.frameWidth ?? 16;
 
+/** What the player is doing with their hands this frame (decided by the scene from sim state). */
+export interface PlayerActivity {
+  use: ArmUse;
+  /** Cursor in world pixels. */
+  aimX: number;
+  aimY: number;
+}
+
+/**
+ * Draws the player from separate parts (plan 2.9.8) and animates them in code: walk cycle from
+ * distance travelled, body bob, swinging arms, a trailing hood, a mining swing and an arm that
+ * points where you build. The lantern hangs from the back hand. Purely visual — nothing here
+ * feeds back into the simulation.
+ */
 export class PlayerRenderer {
-  private readonly body: Phaser.GameObjects.Rectangle;
-  private readonly lantern: Phaser.GameObjects.Rectangle;
+  private readonly root: Phaser.GameObjects.Container;
+  private readonly legs: Phaser.GameObjects.Image;
+  private readonly body: Phaser.GameObjects.Image;
+  private readonly head: Phaser.GameObjects.Image;
+  private readonly hood: Phaser.GameObjects.Image;
+  private readonly backArm: Phaser.GameObjects.Image;
+  private readonly frontArm: Phaser.GameObjects.Image;
+  private readonly lantern: Phaser.GameObjects.Image;
   /** Visual-only vertical lag after an auto step-up, decaying to 0 (px, positive = lower). */
   private stepOffsetY = 0;
   private seenSteppedUp: number;
+  private walkDistance = 0;
+  private time = 0;
+  private hoodTrail = 0;
+  private facing: 1 | -1 = 1;
+  /** Reused every frame so animating allocates nothing. */
+  private readonly poseInput: PoseInput = {
+    vx: 0,
+    vy: 0,
+    onGround: true,
+    walkDistance: 0,
+    time: 0,
+    use: 'none',
+    aimAngle: 0,
+  };
+  private readonly pose: Pose = { legsFrame: 0, bodyOffsetY: 0, backArmAngle: 0, frontArmAngle: 0 };
 
   constructor(
     scene: Phaser.Scene,
     private readonly player: Player,
+    textureKey: string,
   ) {
     this.seenSteppedUp = player.steppedUpTotal;
-    this.body = scene.add
-      .rectangle(0, 0, SPRITE.width, SPRITE.height, PALETTE.emerald[2])
-      .setStrokeStyle(1, PALETTE.emerald[0])
-      .setOrigin(0.5, 1)
-      .setDepth(Depth.entities);
-    this.lantern = scene.add
-      .rectangle(0, 0, SPRITE.lanternSize, SPRITE.lanternSize, PALETTE.honey[3])
+    const part = (frame: number, rig: PartPlacement) =>
+      scene.add
+        .image(rig.x, rig.y, textureKey, spriteFrame(ASSET, frame))
+        .setOrigin(rig.pivotX / FRAME_SIZE, rig.pivotY / FRAME_SIZE);
+    // Back to front: back arm (with lantern), legs, body, head, hood, front arm.
+    this.backArm = part(PART_FRAME.backArm, PART_RIG.backArm);
+    this.lantern = part(PART_FRAME.lantern, PART_RIG.lantern);
+    this.legs = part(PART_FRAME.legsIdle, PART_RIG.legs);
+    this.body = part(PART_FRAME.body, PART_RIG.body);
+    this.head = part(PART_FRAME.head, PART_RIG.head);
+    this.hood = part(PART_FRAME.hood, PART_RIG.hood);
+    this.frontArm = part(PART_FRAME.frontArm, PART_RIG.frontArm);
+    this.root = scene.add
+      .container(0, 0, [
+        this.backArm,
+        this.lantern,
+        this.legs,
+        this.body,
+        this.head,
+        this.hood,
+        this.frontArm,
+      ])
       .setDepth(Depth.entities);
   }
 
@@ -42,17 +102,57 @@ export class PlayerRenderer {
     return prevY + (body.y - prevY) * alpha + body.height + this.stepOffsetY;
   }
 
-  update(alpha: number, dt: number): void {
-    const climbed = this.player.steppedUpTotal - this.seenSteppedUp;
-    this.seenSteppedUp = this.player.steppedUpTotal;
+  update(alpha: number, dt: number, activity: PlayerActivity): void {
+    const { player } = this;
+    const climbed = player.steppedUpTotal - this.seenSteppedUp;
+    this.seenSteppedUp = player.steppedUpTotal;
     this.stepOffsetY = approach(this.stepOffsetY + climbed, 0, PLAYER_VIEW.stepUpSmoothRate, dt);
+    this.time += dt;
+    if (player.onGround) this.walkDistance += Math.abs(player.body.vx) * dt;
 
     const x = Math.round(this.feetX(alpha));
     const y = Math.round(this.feetY(alpha));
-    this.body.setPosition(x, y);
+    // Face the cursor while using something, otherwise the movement direction.
+    this.facing = activity.use !== 'none' ? (activity.aimX >= x ? 1 : -1) : player.facing;
+
+    const shoulderX = x + PART_RIG.frontArm.x * this.facing;
+    const shoulderY = y + PART_RIG.frontArm.y;
+    const input = this.poseInput;
+    input.vx = player.body.vx;
+    input.vy = player.body.vy;
+    input.onGround = player.onGround;
+    input.walkDistance = this.walkDistance;
+    input.time = this.time;
+    input.use = activity.use;
+    input.aimAngle = armAngleTowards(
+      shoulderX,
+      shoulderY,
+      activity.aimX,
+      activity.aimY,
+      this.facing,
+    );
+    const pose = computePose(input, this.pose);
+
+    const trailTarget = -clampAbs(
+      Math.abs(player.body.vx) * PLAYER_ANIM.hoodTrailPerSpeed,
+      PLAYER_ANIM.hoodTrailMax,
+    );
+    this.hoodTrail = approach(this.hoodTrail, trailTarget, PLAYER_ANIM.hoodTrailRate, dt);
+
+    const bob = pose.bodyOffsetY;
+    this.root.setPosition(x, y).setScale(this.facing, 1);
+    this.legs.setFrame(spriteFrame(ASSET, pose.legsFrame));
+    this.body.setY(PART_RIG.body.y + bob);
+    this.head.setY(PART_RIG.head.y + bob);
+    this.hood.setPosition(PART_RIG.hood.x + Math.round(this.hoodTrail), PART_RIG.hood.y + bob);
+    // Forward-positive arm angles → screen rotation (y down, clockwise positive).
+    this.backArm.setPosition(PART_RIG.backArm.x, PART_RIG.backArm.y + bob);
+    this.backArm.setRotation(-pose.backArmAngle);
+    this.frontArm.setPosition(PART_RIG.frontArm.x, PART_RIG.frontArm.y + bob);
+    this.frontArm.setRotation(-pose.frontArmAngle);
     this.lantern.setPosition(
-      x + this.player.facing * SPRITE.lanternOffsetX,
-      y - SPRITE.lanternOffsetY,
+      Math.round(PART_RIG.backArm.x + Math.sin(pose.backArmAngle) * ARM_LENGTH),
+      Math.round(PART_RIG.backArm.y + bob + Math.cos(pose.backArmAngle) * ARM_LENGTH),
     );
   }
 }

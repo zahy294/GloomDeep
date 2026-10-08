@@ -13,8 +13,12 @@
     "format": "prettier --write .",
     "shot": "npm run build && tsx tools/shot.ts",
     "art:placeholder": "tsx tools/gen-placeholder-art.ts",
-    "predev": "npm run art:placeholder",
-    "prebuild": "npm run art:placeholder"
+    "predev": "npm run art:placeholder && npm run art:pack",
+    "prebuild": "npm run art:placeholder && npm run art:pack",
+    "art:palette": "tsx tools/extract-palette.ts",
+    "art:autotiles": "tsx tools/gen-autotiles.ts",
+    "art:pack": "tsx tools/pack-atlases.ts",
+    "art:import": "tsx tools/import-art.ts"
   },
   "dependencies": {
     "phaser": "~4.2.1",
