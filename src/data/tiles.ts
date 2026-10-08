@@ -6,37 +6,109 @@ export interface TileDef {
   readonly key: string;
   readonly name: string;
   readonly solid: boolean;
-  /** Ramp used by the placeholder art generator until real art is approved. */
+  /** Seconds to mine at base mining power (tool tiers scale this in M6). */
+  readonly hardness: number;
+  /** Item key dropped when mined, or null for nothing. */
+  readonly drop: string | null;
+  /**
+   * Tile keys this tile visually joins with (no outline between them), e.g. grass into soil.
+   * Merging is symmetric: listing it on either tile is enough.
+   */
+  readonly mergesWith: readonly string[];
+  /** Ramp used by the placeholder art generator and for mining particles. */
   readonly placeholderRamp: RampName | null;
 }
 
 /** First-pass tile registry. Add tiles here; no engine code should need to change. */
 export const TILES: readonly TileDef[] = [
-  { id: 0, key: 'air', name: 'Air', solid: false, placeholderRamp: null },
-  { id: 1, key: 'forest_soil', name: 'Forest Soil', solid: true, placeholderRamp: 'soil' },
+  {
+    id: 0,
+    key: 'air',
+    name: 'Air',
+    solid: false,
+    hardness: 0,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: null,
+  },
+  {
+    id: 1,
+    key: 'forest_soil',
+    name: 'Forest Soil',
+    solid: true,
+    hardness: 0.35,
+    drop: 'forest_soil',
+    mergesWith: ['mud'],
+    placeholderRamp: 'soil',
+  },
   {
     id: 2,
     key: 'elderglade_grass',
     name: 'Elderglade Grass',
     solid: true,
+    hardness: 0.4,
+    drop: 'forest_soil',
+    mergesWith: ['forest_soil'],
     placeholderRamp: 'leaf',
   },
-  { id: 3, key: 'moss', name: 'Moss', solid: true, placeholderRamp: 'moss' },
-  { id: 4, key: 'stone', name: 'Stone', solid: true, placeholderRamp: 'stone' },
-  { id: 5, key: 'mud', name: 'Mud', solid: true, placeholderRamp: 'mud' },
+  {
+    id: 3,
+    key: 'moss',
+    name: 'Moss',
+    solid: true,
+    hardness: 0.4,
+    drop: 'moss',
+    mergesWith: ['stone'],
+    placeholderRamp: 'moss',
+  },
+  {
+    id: 4,
+    key: 'stone',
+    name: 'Stone',
+    solid: true,
+    hardness: 0.9,
+    drop: 'stone',
+    mergesWith: ['forest_soil'],
+    placeholderRamp: 'stone',
+  },
+  {
+    id: 5,
+    key: 'mud',
+    name: 'Mud',
+    solid: true,
+    hardness: 0.35,
+    drop: 'mud',
+    mergesWith: [],
+    placeholderRamp: 'mud',
+  },
   {
     id: 6,
     key: 'elderwood_planks',
     name: 'Elderwood Planks',
     solid: true,
+    hardness: 0.5,
+    drop: 'elderwood_planks',
+    mergesWith: [],
     placeholderRamp: 'bark',
   },
-  { id: 7, key: 'lumen_crystal', name: 'Lumen Crystal', solid: true, placeholderRamp: 'cyan' },
+  {
+    id: 7,
+    key: 'lumen_crystal',
+    name: 'Lumen Crystal',
+    solid: true,
+    hardness: 1.4,
+    drop: 'lumen_crystal',
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+  },
   {
     id: 8,
     key: 'moonstone_crystal',
     name: 'Moonstone Crystal',
     solid: true,
+    hardness: 1.6,
+    drop: 'moonstone_crystal',
+    mergesWith: [],
     placeholderRamp: 'moonSilver',
   },
   {
@@ -44,6 +116,9 @@ export const TILES: readonly TileDef[] = [
     key: 'gloam_veined_stone',
     name: 'Gloam-veined Stone',
     solid: true,
+    hardness: 1.2,
+    drop: 'stone',
+    mergesWith: ['stone'],
     placeholderRamp: 'gloam',
   },
 ];

@@ -3,6 +3,8 @@ export const Depth = {
   sky: 1,
   backgroundWalls: 5,
   foregroundTiles: 8,
+  /** Crack overlay and the tile cursor sit just above the tiles they mark. */
+  tileOverlay: 9,
   entities: 10,
   particles: 12,
   debug: 100,

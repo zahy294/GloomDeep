@@ -99,6 +99,68 @@ export const PLAYER_VIEW = {
   stepUpSmoothRate: 30,
 } as const;
 
+/** Mining and building (plan 3.4 MiningSystem / BuildingSystem). */
+export const MINING = {
+  /** Max distance (tiles) from the player's centre to the target tile's centre. */
+  reachTiles: 6,
+  /** Hardness units removed per second at base power (tool tiers multiply this in M6). */
+  basePower: 1,
+  /** Visible crack stages drawn over a tile while it is mined. */
+  crackStages: 4,
+} as const;
+
+export const BUILDING = {
+  reachTiles: 6,
+  /** Seconds between placements while the button is held. */
+  placeInterval: 0.1,
+} as const;
+
+export const INVENTORY = {
+  slots: 40,
+  /** The first N slots are the hotbar. */
+  hotbarSlots: 10,
+} as const;
+
+/** Dropped item entities (plan 2.8: "item flies to the player"). Pixels and seconds. */
+export const ITEM_DROP = {
+  size: 8,
+  gravity: 900,
+  maxFallSpeed: 480,
+  /** Random upward/sideways pop when a drop spawns. */
+  popSpeedX: 60,
+  popSpeedY: 140,
+  /** Horizontal slow-down on the ground (px/s²). */
+  groundFriction: 600,
+  /** Can't be collected for this long after spawning, so the pop is visible. */
+  pickupDelay: 0.25,
+  /**
+   * Within this distance (px, centre to centre) the drop flies towards the player. Covers the
+   * mining reach (6 tiles) plus a tile, so anything you can mine comes to you...
+   */
+  magnetRadius: 112,
+  magnetAcceleration: 2400,
+  magnetMaxSpeed: 420,
+  /** ...and within this distance it is collected. */
+  pickupRadius: 14,
+  /** Drops left lying around longer than this vanish (keeps entity counts bounded). */
+  despawnAfter: 600,
+} as const;
+
+/** Feedback on mining and building (plan 2.8). */
+export const FEEDBACK = {
+  /** Debris particles when a tile breaks / while it is being mined / when one is placed. */
+  breakParticles: 10,
+  mineParticlesPerSecond: 14,
+  placeParticles: 5,
+  particleLifespanMs: 450,
+  particleSpeedMin: 30,
+  particleSpeedMax: 110,
+  particleGravity: 500,
+  /** Screen shake when a tile breaks: peak offset (px) and how long it takes to fade (s). */
+  breakShakeAmplitude: 2,
+  breakShakeDuration: 0.12,
+} as const;
+
 export const CAMERA = {
   /** Fraction of the remaining distance covered per second, as 1 - exp(-rate·dt). Higher = snappier. */
   followRate: 9,
@@ -108,6 +170,8 @@ export const CAMERA = {
   maxLookAheadY: 48,
   /** How fast the look-ahead offset itself eases in/out. */
   lookAheadRate: 3,
+  /** Shake never exceeds this many pixels, however many shakes stack up. */
+  maxShake: 6,
 } as const;
 
 export const CHUNK_RENDER = {
@@ -127,9 +191,17 @@ export const DEBUG = {
   overlayRefreshHz: 4,
 } as const;
 
+/** Blob autotiling (plan 2.6). */
+export const AUTOTILE = {
+  /** Distinct shapes in an 8-neighbour blob tileset. */
+  blobShapes: 47,
+  /** Visual variations per shape, chosen by a hash of the tile position. */
+  variations: 3,
+} as const;
+
 export const PLACEHOLDER_ATLAS = {
-  /** Tiles per row in the generated placeholder tile atlas. */
-  columns: 8,
+  /** Frames per row in the generated placeholder atlases. */
+  columns: 48,
   /** Seed for the speckle pattern; keeps the generated atlas byte-identical between runs. */
   seed: 0x9e3779b9,
   /** Out of 256: chance a pixel gets a light or dark speckle. */

@@ -1,5 +1,5 @@
 import { TILES } from '../../data/tiles';
-import type { EventBus, SimEvents } from '../events';
+import type { EventBus, SimEvents, TileLayer } from '../events';
 import { Chunk } from './Chunk';
 
 export interface WorldSize {
@@ -38,7 +38,13 @@ export class World {
   readonly damage = new Map<number, number>();
   readonly chunks: readonly Chunk[];
 
-  private readonly tileChangedPayload = { x: 0, y: 0, id: 0 };
+  private readonly tileChangedPayload = {
+    x: 0,
+    y: 0,
+    id: 0,
+    previous: 0,
+    layer: 'fg' as TileLayer,
+  };
 
   constructor(
     size: WorldSize,
@@ -92,24 +98,21 @@ export class World {
 
   /** Sets a foreground tile, marks its chunk changed and emits `tileChanged`. */
   set(x: number, y: number, id: number): void {
-    if (!this.inBounds(x, y)) return;
-    const i = y * this.width + x;
-    if (this.fg[i] === id) return;
-    this.fg[i] = id;
-    this.touch(x, y);
-    const payload = this.tileChangedPayload;
-    payload.x = x;
-    payload.y = y;
-    payload.id = id;
-    this.events?.emit('tileChanged', payload);
+    this.write(this.fg, 'fg', x, y, id);
   }
 
+  /** Sets a background wall, marks its chunk changed and emits `tileChanged`. */
   setBg(x: number, y: number, id: number): void {
-    if (!this.inBounds(x, y)) return;
-    const i = y * this.width + x;
-    if (this.bg[i] === id) return;
-    this.bg[i] = id;
-    this.touch(x, y);
+    this.write(this.bg, 'bg', x, y, id);
+  }
+
+  /** Reads a tile from either layer (air outside the world). */
+  getLayer(layer: TileLayer, x: number, y: number): number {
+    return layer === 'fg' ? this.get(x, y) : this.getBg(x, y);
+  }
+
+  setLayer(layer: TileLayer, x: number, y: number, id: number): void {
+    this.write(layer === 'fg' ? this.fg : this.bg, layer, x, y, id);
   }
 
   chunkAt(cx: number, cy: number): Chunk | undefined {
@@ -120,6 +123,22 @@ export class World {
   /** Marks every chunk changed (after bulk generation, which writes the arrays directly). */
   touchAll(): void {
     for (const chunk of this.chunks) chunk.markChanged();
+  }
+
+  private write(data: Uint16Array, layer: TileLayer, x: number, y: number, id: number): void {
+    if (!this.inBounds(x, y)) return;
+    const i = y * this.width + x;
+    const previous = data[i] ?? AIR;
+    if (previous === id) return;
+    data[i] = id;
+    this.touch(x, y);
+    const payload = this.tileChangedPayload;
+    payload.x = x;
+    payload.y = y;
+    payload.id = id;
+    payload.previous = previous;
+    payload.layer = layer;
+    this.events?.emit('tileChanged', payload);
   }
 
   private touch(x: number, y: number): void {

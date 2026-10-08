@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
 import { DebugOverlay } from './DebugOverlay';
+import { Hotbar, InventoryPanel } from './Inventory';
 
 function useUiState(bridge: UiBridge): UiState {
   const [state, setState] = useState(bridge.state);
@@ -30,14 +31,24 @@ function TitleScreen({ bridge }: { bridge: UiBridge }) {
 }
 
 export function App({ bridge }: { bridge: UiBridge }) {
-  const { screen, showUi, debug } = useUiState(bridge);
+  const { screen, showUi, debug, inventory, inventoryOpen } = useUiState(bridge);
   if (!showUi) return null;
 
   switch (screen) {
     case 'title':
       return <TitleScreen bridge={bridge} />;
     case 'game':
-      return debug ? <DebugOverlay info={debug} /> : <div class="game-hint">F3: debug overlay</div>;
+      return (
+        <>
+          {debug ? (
+            <DebugOverlay info={debug} />
+          ) : (
+            <div class="game-hint">F3: debug · E: inventory</div>
+          )}
+          {inventory && <Hotbar bridge={bridge} view={inventory} />}
+          {inventory && inventoryOpen && <InventoryPanel bridge={bridge} view={inventory} />}
+        </>
+      );
     default:
       return null;
   }

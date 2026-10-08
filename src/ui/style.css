@@ -124,3 +124,77 @@ body {
   min-width: 11ch;
   color: var(--glow);
 }
+
+/* Hotbar and inventory: sizes are whole game pixels (--px) so they scale with the canvas. */
+.hotbar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--px) * 6);
+  transform: translateX(-50%);
+  display: flex;
+  gap: calc(var(--px) * 2);
+}
+
+.slot {
+  position: relative;
+  width: calc(var(--px) * 22);
+  height: calc(var(--px) * 22);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(5 8 10 / 0.7);
+  border: var(--px) solid rgb(149 164 192 / 0.35);
+  cursor: pointer;
+}
+
+.slot.selected {
+  border-color: var(--gold);
+  background: rgb(42 30 12 / 0.75);
+}
+
+.slot.marked {
+  border-color: var(--glow);
+}
+
+.slot:focus-visible {
+  outline: var(--px) solid var(--glow);
+}
+
+.item-icon {
+  display: block;
+  width: calc(var(--px) * 16);
+  height: calc(var(--px) * 16);
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.slot .count {
+  position: absolute;
+  right: calc(var(--px) * 1);
+  bottom: 0;
+  font-size: calc(var(--px) * 6);
+  color: var(--ink);
+  text-shadow: 0 0 calc(var(--px) * 1) #000;
+}
+
+.inventory-panel {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--px) * 40);
+  transform: translateX(-50%);
+  padding: calc(var(--px) * 5);
+  background: rgb(5 8 10 / 0.85);
+  border: var(--px) solid rgb(118 230 224 / 0.35);
+}
+
+.panel-title {
+  margin-bottom: calc(var(--px) * 4);
+  font-size: calc(var(--px) * 8);
+  color: var(--glow);
+}
+
+.inventory-grid {
+  display: grid;
+  gap: calc(var(--px) * 2);
+}

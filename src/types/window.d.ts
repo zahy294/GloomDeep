@@ -14,6 +14,12 @@ export interface GameProbe {
   chunkUnloads: number;
   frameCpuAvgMs: number;
   frameCpuMaxMs: number;
+  selectedSlot: number;
+  inventory: ({ itemId: number; count: number } | null)[];
+  drops: number;
+  /** Camera scroll (world px at the view's top-left). */
+  cameraX: number;
+  cameraY: number;
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */
@@ -24,6 +30,10 @@ declare global {
       bridge: UiBridge;
       /** Null unless the Game scene is running. */
       probe: () => GameProbe | null;
+      /** Clears the worst-frame CPU measurement. */
+      resetFrameStats: () => void;
+      /** Tile id at a world tile coordinate (foreground or background), -1 outside the game. */
+      tile: (x: number, y: number, layer?: 'fg' | 'bg') => number;
     };
   }
 }

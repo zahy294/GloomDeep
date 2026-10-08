@@ -18,7 +18,7 @@ describe('World', () => {
   it('set() writes the tile, bumps only that chunk and emits tileChanged', () => {
     const events = new EventBus<SimEvents>();
     const world = new World({ width: 256, height: 128, chunkSize: 128 }, events);
-    const seen: { x: number; y: number; id: number }[] = [];
+    const seen: object[] = [];
     events.on('tileChanged', (e) => seen.push({ ...e }));
 
     world.set(200, 5, STONE);
@@ -26,7 +26,10 @@ describe('World', () => {
     expect(world.get(200, 5)).toBe(STONE);
     expect(world.chunkAt(1, 0)?.version).toBe(1);
     expect(world.chunkAt(0, 0)?.version).toBe(0);
-    expect(seen).toEqual([{ x: 200, y: 5, id: STONE }]);
+    expect(seen).toEqual([{ x: 200, y: 5, id: STONE, previous: AIR, layer: 'fg' }]);
+
+    world.setBg(3, 3, STONE);
+    expect(seen[1]).toEqual({ x: 3, y: 3, id: STONE, previous: AIR, layer: 'bg' });
   });
 
   it('ignores no-op and out-of-bounds writes', () => {

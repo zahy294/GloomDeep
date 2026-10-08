@@ -1,5 +1,20 @@
-import { PALETTE, type RampName } from '../../src/data/palette';
+import { AUTOTILE } from '../../src/config';
+import { PALETTE } from '../../src/data/palette';
 import type { TileDef } from '../../src/data/tiles';
+import {
+  BLOB_MASKS,
+  E,
+  FRAMES_PER_TILE,
+  N,
+  RESERVED_FRAMES,
+  NE,
+  NW,
+  S,
+  SE,
+  SW,
+  W,
+  frameBase,
+} from '../../src/sim/world/autotile';
 
 export interface AtlasOptions {
   tileSize: number;
@@ -16,9 +31,12 @@ export interface Atlas {
   data: Uint8Array;
   tileSize: number;
   columns: number;
-  /** Tile key → frame index (frame index === tile id, so the world array maps straight to frames). */
-  frames: Record<string, number>;
+  frameCount: number;
 }
+
+export type AtlasKind = 'tiles' | 'walls';
+
+export const CRACK_STAGES = 4;
 
 /** Integer hash of a pixel position; gives a stable speckle pattern without a stateful RNG. */
 export function hash3(x: number, y: number, z: number, seed: number): number {
@@ -28,54 +46,230 @@ export function hash3(x: number, y: number, z: number, seed: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
-/** Picks the palette colour for one pixel of a placeholder tile: outline, top-left bevel, speckles. */
-function placeholderPixel(
-  ramp: RampName,
+interface Colors {
+  outline: number;
+  dark: number;
+  base: number;
+  light: number;
+  highlight: number;
+}
+
+function colorsFor(tile: TileDef, kind: AtlasKind): Colors | null {
+  if (!tile.placeholderRamp) return null;
+  const [dark, base, light, highlight] = PALETTE[tile.placeholderRamp];
+  if (kind === 'tiles') return { outline: dark, dark, base, light, highlight };
+  // Walls: one step down the ramp, outlined in the darkest teal, so they recede behind the foreground.
+  return { outline: PALETTE.tealShadow[0], dark, base: dark, light: base, highlight: base };
+}
+
+function put(data: Uint8Array, width: number, x: number, y: number, color: number): void {
+  const i = (y * width + x) * 4;
+  data[i] = (color >> 16) & 0xff;
+  data[i + 1] = (color >> 8) & 0xff;
+  data[i + 2] = color & 0xff;
+  data[i + 3] = 0xff;
+}
+
+/**
+ * One shape pixel. Outline only where the edge neighbour is missing (outer corners follow from
+ * that); an inner corner (both edges joined, diagonal missing) gets a 2x2 dark notch; a light bevel
+ * runs just inside an exposed top or left edge (light from the top-left).
+ */
+function framePixel(
+  c: Colors,
+  mask: number,
   px: number,
   py: number,
   tileId: number,
+  variation: number,
   opts: AtlasOptions,
 ): number {
-  const [dark, base, light, highlight] = PALETTE[ramp];
   const last = opts.tileSize - 1;
-  if (px === 0 || py === 0 || px === last || py === last) return dark;
-  if (py === 1 || px === 1) return light;
+  const exN = (mask & N) === 0;
+  const exE = (mask & E) === 0;
+  const exS = (mask & S) === 0;
+  const exW = (mask & W) === 0;
 
-  const h = hash3(px, py, tileId, opts.seed);
-  const roll = h & 0xff;
-  if (roll < opts.speckleChance) return (h >>> 8) & 1 ? highlight : dark;
-  return base;
+  if ((exN && py === 0) || (exS && py === last) || (exW && px === 0) || (exE && px === last)) {
+    return c.outline;
+  }
+  if ((mask & (N | E)) === (N | E) && (mask & NE) === 0 && px >= last - 1 && py <= 1)
+    return c.outline;
+  if ((mask & (S | E)) === (S | E) && (mask & SE) === 0 && px >= last - 1 && py >= last - 1) {
+    return c.outline;
+  }
+  if ((mask & (S | W)) === (S | W) && (mask & SW) === 0 && px <= 1 && py >= last - 1) {
+    return c.outline;
+  }
+  if ((mask & (N | W)) === (N | W) && (mask & NW) === 0 && px <= 1 && py <= 1) return c.outline;
+
+  if ((exN && py === 1) || (exW && px === 1)) return c.light;
+
+  const h = hash3(px, py, tileId * 16 + variation, opts.seed);
+  if ((h & 0xff) < opts.speckleChance) return (h >>> 8) & 1 ? c.highlight : c.dark;
+  return c.base;
 }
 
-/** Builds the placeholder tile atlas. Air (and any tile without a ramp) stays transparent. */
-export function buildPlaceholderAtlas(tiles: readonly TileDef[], opts: AtlasOptions): Atlas {
+function atlasSize(frames: number, opts: AtlasOptions) {
+  const rows = Math.max(1, Math.ceil(frames / opts.columns));
+  return { width: opts.columns * opts.tileSize, height: rows * opts.tileSize };
+}
+
+/**
+ * Builds a blob atlas: for each tile with a ramp, 47 shapes x 3 variations, laid out row-major with
+ * the frame numbering of `autotile.ts`. Frame 0 stays transparent (see RESERVED_FRAMES there), so
+ * tile id 1 starts at frame 1.
+ */
+export function buildPlaceholderAtlas(
+  tiles: readonly TileDef[],
+  opts: AtlasOptions,
+  kind: AtlasKind = 'tiles',
+): Atlas {
   const { tileSize, columns } = opts;
-  const rows = Math.max(1, Math.ceil(tiles.length / columns));
-  const width = columns * tileSize;
-  const height = rows * tileSize;
+  const frameCount = RESERVED_FRAMES + (tiles.length - 1) * FRAMES_PER_TILE;
+  const { width, height } = atlasSize(frameCount, opts);
   const data = new Uint8Array(width * height * 4);
-  const frames: Record<string, number> = {};
 
   tiles.forEach((tile, index) => {
     if (tile.id !== index) {
       throw new Error(`Tile "${tile.key}" has id ${tile.id} but is at index ${index}.`);
     }
-    frames[tile.key] = tile.id;
-    if (!tile.placeholderRamp) return;
-
-    const ox = (tile.id % columns) * tileSize;
-    const oy = Math.floor(tile.id / columns) * tileSize;
-    for (let py = 0; py < tileSize; py++) {
-      for (let px = 0; px < tileSize; px++) {
-        const color = placeholderPixel(tile.placeholderRamp, px, py, tile.id, opts);
-        const i = ((oy + py) * width + (ox + px)) * 4;
-        data[i] = (color >> 16) & 0xff;
-        data[i + 1] = (color >> 8) & 0xff;
-        data[i + 2] = color & 0xff;
-        data[i + 3] = 0xff;
-      }
-    }
   });
 
-  return { width, height, data, tileSize, columns, frames };
+  for (const tile of tiles) {
+    if (tile.id === 0) continue;
+    const colors = colorsFor(tile, kind);
+    if (!colors) continue;
+    for (let shape = 0; shape < BLOB_MASKS.length; shape++) {
+      const mask = BLOB_MASKS[shape] ?? 0;
+      for (let variation = 0; variation < AUTOTILE.variations; variation++) {
+        const frame = frameBase(tile.id) + shape * AUTOTILE.variations + variation;
+        const ox = (frame % columns) * tileSize;
+        const oy = Math.floor(frame / columns) * tileSize;
+        for (let py = 0; py < tileSize; py++) {
+          for (let px = 0; px < tileSize; px++) {
+            const color = framePixel(colors, mask, px, py, tile.id, variation, opts);
+            put(data, width, ox + px, oy + py, color);
+          }
+        }
+      }
+    }
+  }
+
+  return { width, height, data, tileSize, columns, frameCount };
+}
+
+/** Crack polylines per stage; each stage draws its own and every earlier one, so cracks grow. */
+const CRACK_LINES: readonly (readonly (readonly [number, number])[])[][] = [
+  [
+    [
+      [8, 2],
+      [6, 6],
+      [8, 9],
+    ],
+  ],
+  [
+    [
+      [8, 9],
+      [5, 12],
+      [6, 15],
+    ],
+    [
+      [6, 6],
+      [2, 7],
+    ],
+  ],
+  [
+    [
+      [8, 9],
+      [12, 11],
+      [11, 15],
+    ],
+    [
+      [8, 2],
+      [11, 0],
+    ],
+    [
+      [2, 7],
+      [0, 9],
+    ],
+  ],
+  [
+    [
+      [6, 6],
+      [4, 3],
+      [3, 0],
+    ],
+    [
+      [12, 11],
+      [15, 10],
+    ],
+    [
+      [8, 9],
+      [9, 13],
+    ],
+    [
+      [11, 3],
+      [8, 5],
+    ],
+    [
+      [5, 12],
+      [1, 14],
+    ],
+  ],
+];
+
+function line(
+  data: Uint8Array,
+  width: number,
+  ox: number,
+  size: number,
+  from: readonly [number, number],
+  to: readonly [number, number],
+  color: number,
+): void {
+  let [x, y] = from;
+  const dx = Math.abs(to[0] - x);
+  const dy = -Math.abs(to[1] - y);
+  const sx = x < to[0] ? 1 : -1;
+  const sy = y < to[1] ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    if (x >= 0 && y >= 0 && x < size && y < size) put(data, width, ox + x, y, color);
+    if (x === to[0] && y === to[1]) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+}
+
+/** Four crack-overlay frames in one row, transparent except for the crack lines. */
+export function buildCracksAtlas(opts: Pick<AtlasOptions, 'tileSize'>): Atlas {
+  const size = opts.tileSize;
+  const width = size * CRACK_STAGES;
+  const data = new Uint8Array(width * size * 4);
+  const color = PALETTE.tealShadow[0];
+  for (let stage = 0; stage < CRACK_STAGES; stage++) {
+    for (let s = 0; s <= stage; s++) {
+      for (const path of CRACK_LINES[s] ?? []) {
+        for (let i = 0; i + 1 < path.length; i++) {
+          line(data, width, stage * size, size, path[i]!, path[i + 1]!, color);
+        }
+      }
+    }
+  }
+  return {
+    width,
+    height: size,
+    data,
+    tileSize: size,
+    columns: CRACK_STAGES,
+    frameCount: CRACK_STAGES,
+  };
 }

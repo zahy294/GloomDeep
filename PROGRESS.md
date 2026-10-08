@@ -4,6 +4,57 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M2 — Mining, building and tile visuals ✅ (2026-10-08)
+
+### Built
+
+- **Controls:** left mouse mines the tile under the cursor, right mouse places the selected hotbar block, **Shift** switches both to background walls. 1–0 and the mouse wheel select hotbar slots, **E** opens the inventory.
+- **Data:** tiles gained `hardness`, `drop` and `mergesWith`; new item registry (`src/data/items.ts`, block items) with a starting inventory (99 planks, 50 stone) until crafting arrives in M6.
+- **MiningSystem:** progress = base power × time ÷ hardness, 4 crack stages (`tileDamaged` events), resets when you release or change target; breaking emits `tileBroken` and spawns the tile's drop. Walls can only be mined where no block covers them. Reach 6 tiles.
+- **BuildingSystem:** placement needs an empty, in-reach tile that touches a block or wall (or has a wall behind it), never inside the player; one item per tile; 0.1 s repeat while held.
+- **Inventory** (40 slots, first 10 = hotbar) and **item drops**: drops pop out, fall with tile collision, then fly to the player when within range and are collected (`itemPickedUp`, `inventoryChanged`); despawn after 10 min.
+- **UI commands:** `selectSlot`, `cycleSlot`, `swapSlots` are queued and applied at the start of the next simulation step (the UI never edits state directly).
+- **Blob autotiling** (`src/sim/world/autotile.ts`): 8-neighbour masks reduced to the 47 blob shapes, merge rules (e.g. grass ↔ soil, moss ↔ stone), 3 position-hashed variations. The chunk renderer recomputes only the edited tile and its 8 neighbours, and re-uploads each touched chunk at most once per frame.
+- **Background walls** rendered as a second chunk layer (darker atlas), with the foreground and wall layers sharing one chunk preload per frame.
+- **Placeholder atlases:** blob shapes × 3 variations for every tile (`tiles.png`), darker walls (`walls.png`) and 4 crack stages (`cracks.png`), palette colours only.
+- **Feedback:** tile cursor (dimmed out of reach), crack overlay, debris particles in the tile's colours while mining and on break, a puff on placement, a sparkle on pickup, small screen shake on break.
+- **Hotbar + basic inventory panel** (DOM, Preact): icons are cut from the tile atlas with CSS; click two slots to swap. Clicks over UI panels don't reach the world.
+- **`npm run shot`** adds a mine-and-build check: dig a 3×2 pit with the real mouse (all 6 drops must reach the inventory), place a 3-tile plank pillar and 3 plank walls, and confirm 6 planks were used. Plus an inventory-open screenshot.
+- **Tests:** 116 (autotile masks/merges/frames, atlases, mining, building, inventory, drops, world events).
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Digging and building feel responsive | ✅ mining time = hardness (soil 0.35 s, stone 0.9 s), cracks + debris while mining, placement repeats every 0.1 s; checked with real mouse input in the shot run. **Please try it yourself** |
+| Tile edges join correctly after every edit | ✅ only edited tiles + neighbours are recomputed (tested); screenshots show seamless joins around the dug pit and the pillar |
+| Mined blocks show up in the hotbar | ✅ the shot run digs 6 tiles and requires 6 soil in the inventory/hotbar |
+| Performance | streaming CPU ≤ 2.2 ms worst frame, 0 late chunk loads, 60 FPS in headless Chromium |
+
+### Decisions and deviations
+
+- **Second Phaser 4.2.1 quirk — empty tiles in `TilemapGPULayer` are not transparent:** the shader samples atlas texel (0, 0) for empty cells instead of discarding them. With the new atlas layout, that texel belonged to the soil tile, so the whole sky turned soil-coloured. **Fix:** atlas frame 0 is reserved and fully transparent (`RESERVED_FRAMES` in `autotile.ts`); tile frames start at 1. No workaround code, only the frame layout.
+- **Walls use the same items as blocks** (Shift + right click), instead of separate wall items and a hammer. Simplest scheme that keeps M6 open.
+- **Drop magnet radius 112 px** (mining reach + 1 tile): with a smaller radius, blocks mined at the edge of reach stayed on the ground.
+- **Mining progress tolerance:** summing `dt / hardness` drifts just under 1 (e.g. 54 × (1/60) / 0.9), which made tiles take one extra step; a 1e-9 tolerance absorbs it.
+- **Item icons** are the tile's isolated autotile shape until real item art exists.
+- **The basic inventory panel swaps slots by clicking**; full drag and drop, sorting, tooltips and splitting stacks are M6.
+
+### Reviewer pass
+
+No architecture or Phaser API problems; the frame-0 shader reasoning was confirmed independently. Fixed from the review: a Prettier failure in a test file; the crack overlay stayed over a hole after a tile broke (break now clears it, test updated); the mouse stayed disabled if the inventory panel closed under the cursor (guard released on close/unmount); screen shake could show a few pixels outside the world at its edges (now clamped after shake); a stale comment about empty GPU tiles.
+
+### Known issues
+
+- The placeholder blob art is plain; real terrain comes from `gen-autotiles` in M2b.
+- No sounds yet (audio arrives with M5's ambient layer; the plan's "pop" on pickup is pending).
+
+### Next step
+
+**M2b — Art pipeline tools:** `extract-palette`, `import-art`, `gen-autotiles`, `pack-atlases` with fixture tests; manifest-driven asset loading; player rendered from parts; the `?scene=art-test` scene.
+
+---
+
 ## M1 — World rendering and player movement ✅ (2026-10-08)
 
 ### Built

@@ -1,19 +1,23 @@
 import * as Phaser from 'phaser';
-import { DEBUG, PLAYER, TEST_WORLD, TILE_SIZE, WORLD } from '../../config';
-import { DEBUG_KEYS } from '../../data/keybindings';
+import { CHUNK_RENDER, DEBUG, FEEDBACK, PLAYER, TEST_WORLD, TILE_SIZE, WORLD } from '../../config';
+import { itemById } from '../../data/items';
+import { DEBUG_KEYS, UI_KEYS } from '../../data/keybindings';
 import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
 import { Simulation } from '../../sim/Simulation';
 import { findOpenFeetRow } from '../../sim/world/queries';
 import type { GameProbe } from '../../types/window';
-import type { UiBridge } from '../../ui/bridge';
+import type { InventoryView, UiBridge } from '../../ui/bridge';
 import { generateTestWorld } from '../../workers/worldgen/testWorld';
 import { CameraDirector } from '../CameraDirector';
-import { ChunkRenderer } from '../ChunkRenderer';
+import { ChunkRenderer, type PreloadBudget } from '../ChunkRenderer';
 import { Depth } from '../depth';
 import { DrawCallCounter } from '../drawCallCounter';
+import { DropRenderer } from '../DropRenderer';
 import { InputMapper } from '../InputMapper';
+import { ParticleFX } from '../ParticleFX';
 import { PlayerRenderer } from '../PlayerRenderer';
+import { TileCursor } from '../TileCursor';
 import { SceneKey, TextureKey } from './keys';
 
 /** Rolling CPU timing of the per-frame work this scene owns (simulation + chunk rendering). */
@@ -46,6 +50,11 @@ export class GameScene extends Phaser.Scene {
   private sim!: Simulation;
   private inputMapper!: InputMapper;
   private chunks!: ChunkRenderer;
+  private walls!: ChunkRenderer;
+  private cursor!: TileCursor;
+  private dropView!: DropRenderer;
+  private fx!: ParticleFX;
+  private inventoryOpen = false;
   private cameraDirector!: CameraDirector;
   private playerView!: PlayerRenderer;
   private chunkBorders!: Phaser.GameObjects.Graphics;
@@ -54,6 +63,7 @@ export class GameScene extends Phaser.Scene {
   private debugAccumulator = 0;
   private readonly timer = new FrameTimer();
   private readonly view = { x: 0, y: 0, width: 0, height: 0 };
+  private readonly preloadBudget: PreloadBudget = { remaining: 0 };
 
   constructor(
     private readonly bridge: UiBridge,
@@ -74,7 +84,9 @@ export class GameScene extends Phaser.Scene {
         const feetRow = findOpenFeetRow(world, x, y, Math.ceil(PLAYER.height / TILE_SIZE));
         return { spawnX: (x + 0.5) * TILE_SIZE, spawnY: feetRow * TILE_SIZE };
       },
+      seed,
     });
+    this.inventoryOpen = false;
     this.debugOpen = this.params.debugOverlay;
     this.debugAccumulator = 0;
   }
@@ -83,9 +95,29 @@ export class GameScene extends Phaser.Scene {
     const { world, player } = this.sim;
     this.cameras.main.setBackgroundColor(PALETTE.moonSilver[1]);
 
-    this.inputMapper = new InputMapper(this, this.sim.input);
-    this.chunks = new ChunkRenderer(this, world, TextureKey.placeholderTiles);
+    const sim = this.sim;
+    this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));
+    this.walls = new ChunkRenderer(this, world, sim.events, {
+      layer: 'bg',
+      textureKey: TextureKey.placeholderWalls,
+      depth: Depth.backgroundWalls,
+    });
+    this.chunks = new ChunkRenderer(this, world, sim.events, {
+      layer: 'fg',
+      textureKey: TextureKey.placeholderTiles,
+      depth: Depth.foregroundTiles,
+    });
     this.playerView = new PlayerRenderer(this, player);
+    this.cursor = new TileCursor(this, sim.events, sim.input, player, TextureKey.cracks);
+    this.dropView = new DropRenderer(this, sim.drops, TextureKey.placeholderTiles);
+    this.fx = new ParticleFX(
+      this,
+      sim.events,
+      sim.mining,
+      (layer, x, y) => world.getLayer(layer, x, y),
+      TextureKey.particle,
+      () => this.cameraDirector.shake(FEEDBACK.breakShakeAmplitude, FEEDBACK.breakShakeDuration),
+    );
     this.cameraDirector = new CameraDirector(
       this.cameras.main,
       world.width * TILE_SIZE,
@@ -102,11 +134,33 @@ export class GameScene extends Phaser.Scene {
       this.debugOpen = !this.debugOpen;
       if (!this.debugOpen) this.bridge.set({ debug: null });
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.sim.events.clear();
-      this.bridge.set({ debug: null });
+    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleInventory}`, () => {
+      this.inventoryOpen = !this.inventoryOpen;
+      if (!this.inventoryOpen) this.setPointerOverUi(false); // the panel may close under the cursor
+      this.bridge.set({ inventoryOpen: this.inventoryOpen });
     });
-    this.bridge.set({ screen: 'game' });
+
+    // UI → simulation commands (the UI never touches game state itself).
+    const offCommands = [
+      this.bridge.commands.on('selectSlot', ({ slot }) =>
+        sim.enqueue({ type: 'selectSlot', slot }),
+      ),
+      this.bridge.commands.on('swapSlots', ({ a, b }) => sim.enqueue({ type: 'swapSlots', a, b })),
+      this.bridge.commands.on('pointerOverUi', ({ over }) => this.setPointerOverUi(over)),
+    ];
+    sim.events.on('inventoryChanged', () => this.publishInventory());
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      for (const off of offCommands) off();
+      this.chunks.destroy();
+      this.walls.destroy();
+      this.cursor.destroy();
+      this.fx.destroy();
+      sim.events.clear();
+      this.bridge.set({ debug: null, inventory: null, inventoryOpen: false });
+    });
+    this.bridge.set({ screen: 'game', inventoryOpen: false });
+    this.publishInventory();
   }
 
   override update(_time: number, delta: number): void {
@@ -131,7 +185,12 @@ export class GameScene extends Phaser.Scene {
     this.view.y = cam.scrollY;
     this.view.width = cam.width;
     this.view.height = cam.height;
-    this.chunks.update(this.view);
+    this.preloadBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
+    this.chunks.update(this.view, this.preloadBudget);
+    this.walls.update(this.view, this.preloadBudget);
+    this.cursor.update();
+    this.dropView.update(alpha);
+    this.fx.update(delta / 1000);
 
     this.timer.add(performance.now() - start);
     this.updateDebug(delta);
@@ -150,7 +209,37 @@ export class GameScene extends Phaser.Scene {
       chunkUnloads: this.chunks.stats.unloads,
       frameCpuAvgMs: this.timer.avg,
       frameCpuMaxMs: this.timer.max,
+      selectedSlot: this.sim.inventory.selected,
+      inventory: this.sim.inventory.slots.map((s) =>
+        s ? { itemId: s.itemId, count: s.count } : null,
+      ),
+      drops: this.sim.drops.length,
+      cameraX: this.cameras.main.scrollX,
+      cameraY: this.cameras.main.scrollY,
     };
+  }
+
+  /** Pushes an inventory snapshot to the UI. Runs on change only, never per frame. */
+  private publishInventory(): void {
+    const inv = this.sim.inventory;
+    const view: InventoryView = {
+      slots: inv.slots.map((s) =>
+        s ? { itemId: s.itemId, count: s.count, name: itemById(s.itemId)?.name ?? '?' } : null,
+      ),
+      selected: inv.selected,
+      hotbarSize: inv.hotbarSize,
+    };
+    this.bridge.set({ inventory: view });
+  }
+
+  private setPointerOverUi(over: boolean): void {
+    this.inputMapper.pointerEnabled = !over;
+    this.cursor.visible = !over;
+  }
+
+  /** Starts a fresh CPU-time measurement window (e.g. after the initial world load). */
+  resetFrameStats(): void {
+    this.timer.resetMax();
   }
 
   get simulation(): Simulation {

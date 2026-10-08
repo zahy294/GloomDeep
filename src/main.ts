@@ -12,7 +12,13 @@ import { App } from './ui/App';
 import { UiBridge } from './ui/bridge';
 
 const debug = parseDebugParams(window.location.search);
-const bridge = new UiBridge({ screen: 'boot', showUi: debug.showUi, debug: null });
+const bridge = new UiBridge({
+  screen: 'boot',
+  showUi: debug.showUi,
+  debug: null,
+  inventory: null,
+  inventoryOpen: false,
+});
 
 const gameParent = document.getElementById('game');
 const uiRoot = document.getElementById('ui');
@@ -47,5 +53,13 @@ window.gloamdeep = {
   probe: () => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
     return scene?.sys.isActive() ? scene.probe() : null;
+  },
+  resetFrameStats: () => {
+    const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
+    if (scene?.sys.isActive()) scene.resetFrameStats();
+  },
+  tile: (x, y, layer = 'fg') => {
+    const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
+    return scene?.sys.isActive() ? scene.simulation.world.getLayer(layer, x, y) : -1;
   },
 };

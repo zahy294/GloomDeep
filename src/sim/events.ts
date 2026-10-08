@@ -1,8 +1,51 @@
-/** Events the simulation emits. Rendering, audio and UI subscribe; the simulation never calls them. */
+/** Which tile layer an event refers to. */
+export type TileLayer = 'fg' | 'bg';
+
+/**
+ * Events the simulation emits. Rendering, audio and UI subscribe; the simulation never calls them.
+ * Payload objects may be reused by the emitter: listeners must copy what they keep.
+ */
 export interface SimEvents {
   /** Fired once after every fixed simulation step. */
   stepped: { readonly step: number };
-  tileChanged: { readonly x: number; readonly y: number; readonly id: number };
+  /** Any tile write (mining, placing, worldgen edits after load, ...). */
+  tileChanged: {
+    readonly x: number;
+    readonly y: number;
+    readonly id: number;
+    readonly previous: number;
+    readonly layer: TileLayer;
+  };
+  /** Mining progress changed. `stage` 0 = undamaged/cleared, 1..CRACK_STAGES = visible cracks. */
+  tileDamaged: {
+    readonly x: number;
+    readonly y: number;
+    readonly layer: TileLayer;
+    readonly stage: number;
+  };
+  /** A tile was mined out. `id` is the tile that was removed. */
+  tileBroken: {
+    readonly x: number;
+    readonly y: number;
+    readonly id: number;
+    readonly layer: TileLayer;
+  };
+  /** The player placed a tile. */
+  tilePlaced: {
+    readonly x: number;
+    readonly y: number;
+    readonly id: number;
+    readonly layer: TileLayer;
+  };
+  /** An item drop was collected; x/y is where it was picked up (pixels). */
+  itemPickedUp: {
+    readonly itemId: number;
+    readonly count: number;
+    readonly x: number;
+    readonly y: number;
+  };
+  /** Inventory contents or the selected slot changed. */
+  inventoryChanged: Record<string, never>;
 }
 
 type Listener<T> = (payload: T) => void;

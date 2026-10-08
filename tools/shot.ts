@@ -1,13 +1,16 @@
 /**
  * Opens the built game in headless Chromium, saves screenshots to screenshots/ and runs a few
- * behaviour checks (movement, chunk pop-in). Run via `npm run shot` (which builds first).
+ * behaviour checks (movement, chunk loading, mining/building). Run via `npm run shot` (which builds first).
  */
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { preview } from 'vite';
-import { CHUNK_RENDER, TILE_SIZE, WORLD } from '../src/config';
+import { CHUNK_RENDER, DISPLAY, TILE_SIZE, WORLD } from '../src/config';
+import { itemId } from '../src/data/items';
+import { tileId } from '../src/data/tiles';
+import { integerZoom } from '../src/render/integerScale';
 import type { GameProbe } from '../src/types/window';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,6 +57,48 @@ function check(condition: boolean, message: string): void {
 }
 
 const report: string[] = [];
+
+/** Canvas zoom for the shot viewport (device pixel ratio 1), and its letterbox offset. */
+const ZOOM = integerZoom(VIEWPORT.width, VIEWPORT.height, 1);
+const CANVAS_LEFT = (VIEWPORT.width - DISPLAY.width * ZOOM) / 2;
+const CANVAS_TOP = (VIEWPORT.height - DISPLAY.height * ZOOM) / 2;
+
+/** Moves the real mouse over the centre of a world tile. */
+async function pointAtTile(page: Page, tx: number, ty: number): Promise<void> {
+  const p = (await probe(page)) as GameProbe;
+  await page.mouse.move(
+    CANVAS_LEFT + ((tx + 0.5) * TILE_SIZE - p.cameraX) * ZOOM,
+    CANVAS_TOP + ((ty + 0.5) * TILE_SIZE - p.cameraY) * ZOOM,
+  );
+}
+
+const tileAt = (page: Page, x: number, y: number, layer: 'fg' | 'bg' = 'fg') =>
+  page.evaluate(([tx, ty, l]) => window.gloamdeep?.tile(tx, ty, l) ?? -1, [x, y, layer] as const);
+
+function countOf(p: GameProbe, item: number): number {
+  return p.inventory.reduce((n, s) => n + (s && s.itemId === item ? s.count : 0), 0);
+}
+
+/** Holds a mouse button on a tile until `done` holds, or fails after a timeout. */
+async function holdOnTile(
+  page: Page,
+  tx: number,
+  ty: number,
+  button: 'left' | 'right',
+  done: () => Promise<boolean>,
+): Promise<void> {
+  await pointAtTile(page, tx, ty);
+  await page.mouse.down({ button });
+  const deadline = Date.now() + 5000;
+  try {
+    while (!(await done())) {
+      check(Date.now() < deadline, `${button} click on tile ${tx},${ty} had no effect`);
+      await page.waitForTimeout(50);
+    }
+  } finally {
+    await page.mouse.up({ button });
+  }
+}
 const RUN_TIMEOUT_MS = 40_000;
 
 /** Records requestAnimationFrame timestamps in the page, to measure real frame pacing. */
@@ -82,6 +127,11 @@ async function stopFrameRecorder(page: Page): Promise<{ fps: number; p95: number
   };
 }
 
+const GRASS = tileId('elderglade_grass');
+const PLANKS = tileId('elderwood_planks');
+const SOIL_ITEM = itemId('forest_soil');
+const PLANKS_ITEM = itemId('elderwood_planks');
+
 const SHOTS: Shot[] = [
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
@@ -108,6 +158,84 @@ const SHOTS: Shot[] = [
     },
   },
   {
+    // M2 "Done when": digging and building respond, edges join after edits, mined blocks reach
+    // the hotbar.
+    name: 'game-mine-and-build',
+    query: '?scene=game',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const start = (await probe(page)) as GameProbe;
+      const px = Math.floor(start.playerX / TILE_SIZE);
+      const ground = Math.round(start.playerY / TILE_SIZE);
+      check((await tileAt(page, px + 2, ground)) === GRASS, 'expected grass beside the spawn');
+
+      // Mine a 3-wide, 2-deep pit to the right; the soil must fly into the inventory.
+      for (const [dx, dy] of [
+        [2, 0],
+        [3, 0],
+        [4, 0],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+      ] as const) {
+        await holdOnTile(
+          page,
+          px + dx,
+          ground + dy,
+          'left',
+          async () => (await tileAt(page, px + dx, ground + dy)) === 0,
+        );
+      }
+      // Every drop must fly into the inventory: 3 grass + 3 soil tiles all drop forest soil.
+      await page.waitForFunction(() => window.gloamdeep?.probe()?.drops === 0, undefined, {
+        timeout: TIMEOUT_MS,
+      });
+      const dug = (await probe(page)) as GameProbe;
+      check(countOf(dug, SOIL_ITEM) === 6, `expected 6 soil, got ${countOf(dug, SOIL_ITEM)}`);
+
+      // Build: planks (hotbar slot 1) as a little pillar left of the player, then a wall behind it.
+      await page.keyboard.press('Digit1');
+      const planksBefore = countOf(start, PLANKS_ITEM);
+      for (const dy of [1, 2, 3]) {
+        await holdOnTile(
+          page,
+          px - 3,
+          ground - dy,
+          'right',
+          async () => (await tileAt(page, px - 3, ground - dy)) === PLANKS,
+        );
+      }
+      await page.keyboard.down('Shift');
+      for (const dy of [1, 2, 3]) {
+        await holdOnTile(
+          page,
+          px - 4,
+          ground - dy,
+          'right',
+          async () => (await tileAt(page, px - 4, ground - dy, 'bg')) === PLANKS,
+        );
+      }
+      await page.keyboard.up('Shift');
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 4);
+      await page.waitForTimeout(300);
+
+      const end = (await probe(page)) as GameProbe;
+      check(countOf(end, PLANKS_ITEM) === planksBefore - 6, 'placing did not use 6 planks');
+      report.push(
+        `mine/build: dug 6 tiles → ${countOf(end, SOIL_ITEM)} soil in inventory; placed 3 planks + 3 plank walls`,
+      );
+    },
+  },
+  {
+    name: 'game-inventory-open',
+    query: '?scene=game',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await page.keyboard.press('KeyE');
+      await page.waitForSelector('.inventory-panel', { timeout: TIMEOUT_MS });
+    },
+  },
+  {
     name: 'game-cave',
     query: '?scene=game&ui=0&x=2374&y=453',
     prepare: waitForPlayerReady,
@@ -129,6 +257,7 @@ const SHOTS: Shot[] = [
       // (x >= 16 * CHUNK_PX) unloads once the view + preload margin no longer reaches it.
       // Jump now and then so 2-tile bumps don't stop the run.
       const target = 16 * CHUNK_PX - 1100;
+      await page.evaluate(() => window.gloamdeep?.resetFrameStats());
       await startFrameRecorder(page);
       await page.keyboard.down('KeyA');
       const deadline = Date.now() + RUN_TIMEOUT_MS;
@@ -151,7 +280,7 @@ const SHOTS: Shot[] = [
       report.push(
         `run: ${((start.playerX - end.playerX) / TILE_SIZE).toFixed(0)} tiles west; chunks: ` +
           `${end.chunksLoaded} loaded, ${end.chunkUnloads} unloaded, ${end.lateChunkLoads} late loads; ` +
-          `CPU/frame avg ${end.frameCpuAvgMs.toFixed(2)} ms, max ${end.frameCpuMaxMs.toFixed(2)} ms`,
+          `streaming CPU/frame avg ${end.frameCpuAvgMs.toFixed(2)} ms, max ${end.frameCpuMaxMs.toFixed(2)} ms`,
         `frame pacing (headless SwiftShader, not representative of real GPUs): ` +
           `${pacing.fps.toFixed(1)} FPS avg, p95 frame ${pacing.p95.toFixed(1)} ms, worst ${pacing.max.toFixed(1)} ms`,
       );

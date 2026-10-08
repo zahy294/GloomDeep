@@ -2,17 +2,42 @@ import type { Action } from '../sim/input';
 
 /**
  * Default key bindings: action → Phaser key names (Phaser.Input.Keyboard.KeyCodes keys).
- * The settings menu (M13) will let players rebind these.
+ * Actions bound to mouse buttons are listed in MOUSE_BINDINGS. The settings menu (M13) will let
+ * players rebind both.
  */
-export const DEFAULT_BINDINGS: Readonly<Record<Action, readonly string[]>> = {
+export const DEFAULT_BINDINGS: Readonly<Partial<Record<Action, readonly string[]>>> = {
   moveLeft: ['A', 'LEFT'],
   moveRight: ['D', 'RIGHT'],
   moveUp: ['W', 'UP'],
   moveDown: ['S', 'DOWN'],
   jump: ['SPACE', 'W', 'UP'],
+  wallMode: ['SHIFT'],
 };
+
+export const MOUSE_BINDINGS: Readonly<Partial<Record<Action, 'left' | 'right'>>> = {
+  useItem: 'left',
+  useAlt: 'right',
+};
+
+/** Keys that select hotbar slots 1–10, in slot order. */
+export const HOTBAR_KEYS = [
+  'ONE',
+  'TWO',
+  'THREE',
+  'FOUR',
+  'FIVE',
+  'SIX',
+  'SEVEN',
+  'EIGHT',
+  'NINE',
+  'ZERO',
+] as const;
 
 /** Keys outside the action system. */
 export const DEBUG_KEYS = {
   toggleOverlay: 'F3',
+} as const;
+
+export const UI_KEYS = {
+  toggleInventory: 'E',
 } as const;
