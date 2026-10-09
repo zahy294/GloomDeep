@@ -18,6 +18,8 @@ export class InputMapper {
   private readonly bindings: Binding[] = [];
   /** While false (e.g. the cursor is over a UI panel) mouse buttons don't reach the game. */
   pointerEnabled = true;
+  /** Set by the scene while a click in the world means something else (throwing a held stack). */
+  mouseBlocked = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -62,8 +64,9 @@ export class InputMapper {
     const pointer = this.scene.input.activePointer;
     pointer.updateWorldPoint(this.scene.cameras.main);
     this.actions.setAim(pointer.worldX, pointer.worldY);
-    const left = this.pointerEnabled && pointer.leftButtonDown();
-    const right = this.pointerEnabled && pointer.rightButtonDown();
+    const mouse = this.pointerEnabled && !this.mouseBlocked;
+    const left = mouse && pointer.leftButtonDown();
+    const right = mouse && pointer.rightButtonDown();
 
     for (let i = 0; i < this.bindings.length; i++) {
       const binding = this.bindings[i];

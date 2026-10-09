@@ -1,4 +1,5 @@
 import { EventBus } from '../sim/events';
+import type { SlotButton } from '../sim/inventory/Inventory';
 import type { WorldSizeKey } from '../sim/world/worldData';
 
 export type { WorldSizeKey };
@@ -39,19 +40,48 @@ export interface DebugInfo {
 
 /** Heads-up display values, refreshed a few times per second. */
 export interface HudView {
+  health: number;
+  healthMax: number;
   lumen: number;
   lumenMax: number;
   lanternOn: boolean;
   lensName: string;
+  /** Lens colour as CSS, for the lens gem. */
+  lensColor: string;
   /** Clock text, e.g. "18:05". */
   clock: string;
 }
 
+export interface StackView {
+  itemId: number;
+  count: number;
+}
+
 /** Read-only snapshot of the player's inventory for the UI (rebuilt when it changes). */
 export interface InventoryView {
-  slots: readonly ({ itemId: number; count: number; name: string } | null)[];
+  slots: readonly (StackView | null)[];
   selected: number;
   hotbarSize: number;
+  /** The stack held by the mouse (drag and drop), or null. */
+  cursor: StackView | null;
+  /** Crafting station keys within reach of the player. */
+  stations: readonly string[];
+}
+
+/** Where an item icon sits in one of the pack's images, in game pixels. */
+export interface IconRect {
+  url: string;
+  x: number;
+  y: number;
+  /** Size of the whole image, for CSS `background-size`. */
+  sheetWidth: number;
+  sheetHeight: number;
+}
+
+/** A short message over the hotbar (e.g. "Needs a Copper Pickaxe"); `id` changes per message. */
+export interface Notice {
+  text: string;
+  id: number;
 }
 
 export interface UiState {
@@ -65,6 +95,9 @@ export interface UiState {
   inventoryOpen: boolean;
   /** Null outside the game scene. */
   hud: HudView | null;
+  /** Icon per item id (null = no icon); set once the game scene has loaded the pack. */
+  icons: readonly (IconRect | null)[];
+  notice: Notice | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
   packDir: string;
   worlds: WorldListEntry[];
@@ -79,7 +112,12 @@ export interface UiState {
 /** Commands the UI sends. The UI never changes game state directly (CLAUDE.md rule 3). */
 export interface UiCommands {
   selectSlot: { slot: number };
-  swapSlots: { a: number; b: number };
+  /** Inventory screen click (drag and drop is a press on one slot and a release on another). */
+  slotClick: { slot: number; button: SlotButton; quick: boolean };
+  sortInventory: Record<string, never>;
+  /** Throw the stack on the cursor into the world (released outside the panels). */
+  dropCursor: Record<string, never>;
+  craft: { recipe: string; times: number };
   /** The mouse is over an interactive panel, so clicks must not mine/place in the world. */
   pointerOverUi: { over: boolean };
   openWorlds: Record<string, never>;

@@ -4,6 +4,11 @@
   --ink-dim: #95a4c0;
   --glow: #76e6e0;
   --gold: #f2cc5a;
+  --rose: #c4637e;
+  --rose-light: #f0a0b0;
+  --danger: #ff8a7a;
+  --panel: rgb(5 8 10 / 0.88);
+  --panel-edge: rgb(118 230 224 / 0.35);
 }
 
 html,
@@ -153,10 +158,6 @@ body {
   background: rgb(42 30 12 / 0.75);
 }
 
-.slot.marked {
-  border-color: var(--glow);
-}
-
 .slot:focus-visible {
   outline: var(--px) solid var(--glow);
 }
@@ -169,7 +170,17 @@ body {
   image-rendering: pixelated;
 }
 
-.slot .count {
+.slot .slot-key {
+  position: absolute;
+  left: calc(var(--px) * 1);
+  top: 0;
+  font-size: calc(var(--px) * 5);
+  color: var(--ink-dim);
+}
+
+.slot .count,
+.held-stack .count,
+.recipe-output .count {
   position: absolute;
   right: calc(var(--px) * 1);
   bottom: 0;
@@ -178,20 +189,214 @@ body {
   text-shadow: 0 0 calc(var(--px) * 1) #000;
 }
 
-.inventory-panel {
+/* Inventory screen (E): the bag on the left, crafting on the right. */
+.inventory-screen {
   position: absolute;
   left: 50%;
-  top: calc(var(--px) * 40);
+  top: calc(var(--px) * 30);
   transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--px) * 6);
+}
+
+.inventory-panel,
+.crafting-panel {
   padding: calc(var(--px) * 5);
-  background: rgb(5 8 10 / 0.85);
-  border: var(--px) solid rgb(118 230 224 / 0.35);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--px) * 4);
+  margin-bottom: calc(var(--px) * 4);
 }
 
 .panel-title {
-  margin-bottom: calc(var(--px) * 4);
   font-size: calc(var(--px) * 8);
   color: var(--glow);
+}
+
+.panel-hint {
+  margin-top: calc(var(--px) * 4);
+  color: var(--ink-dim);
+  font-size: calc(var(--px) * 5);
+}
+
+.panel-button {
+  padding: calc(var(--px) * 1) calc(var(--px) * 4);
+  font: inherit;
+  font-size: calc(var(--px) * 6);
+  color: var(--ink);
+  background: rgb(149 164 192 / 0.12);
+  border: var(--px) solid rgb(149 164 192 / 0.4);
+  cursor: pointer;
+}
+
+.panel-button:hover:not(:disabled),
+.panel-button:focus-visible {
+  border-color: var(--glow);
+  outline: none;
+}
+
+.panel-button:disabled {
+  color: var(--ink-dim);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 1);
+  color: var(--ink-dim);
+}
+
+.crafting-panel {
+  width: calc(var(--px) * 190);
+}
+
+.crafting-search {
+  box-sizing: border-box;
+  width: 100%;
+  padding: calc(var(--px) * 2);
+  font: inherit;
+  color: var(--ink);
+  background: rgb(5 8 10 / 0.8);
+  border: var(--px) solid rgb(149 164 192 / 0.4);
+}
+
+.crafting-search:focus-visible {
+  border-color: var(--glow);
+  outline: none;
+}
+
+.crafting-stations {
+  margin: calc(var(--px) * 3) 0;
+  color: var(--ink-dim);
+  font-size: calc(var(--px) * 5);
+}
+
+.recipe-list {
+  max-height: calc(var(--px) * 150);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.recipe,
+.recipe-empty {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 3);
+  padding: calc(var(--px) * 2);
+  border-bottom: var(--px) solid rgb(149 164 192 / 0.15);
+  color: var(--ink-dim);
+}
+
+.recipe.ready {
+  color: var(--ink);
+}
+
+.recipe-output {
+  position: relative;
+  flex: none;
+  display: flex;
+  padding: calc(var(--px) * 2);
+  background: rgb(5 8 10 / 0.7);
+  border: var(--px) solid rgb(149 164 192 / 0.35);
+}
+
+.recipe.ready .recipe-output {
+  border-color: var(--gold);
+}
+
+.recipe-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 1);
+}
+
+.recipe.ready .recipe-name {
+  color: var(--gold);
+}
+
+.recipe-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--px) * 2);
+  font-size: calc(var(--px) * 5);
+}
+
+.recipe-input {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 1);
+}
+
+.recipe-input.missing,
+.recipe-station {
+  color: var(--danger);
+}
+
+/* The stack held by the mouse, drawn beside the pointer so the pointer stays visible. */
+.held-stack {
+  position: absolute;
+  z-index: 10;
+  transform: translate(calc(var(--px) * 2), calc(var(--px) * 2));
+  pointer-events: none;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 11;
+  max-width: calc(var(--px) * 140);
+  transform: translate(calc(var(--px) * 8), calc(var(--px) * 6));
+  padding: calc(var(--px) * 3) calc(var(--px) * 4);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+  pointer-events: none;
+}
+
+.tooltip-title {
+  color: var(--gold);
+}
+
+.tooltip-line {
+  margin-top: calc(var(--px) * 1);
+  color: var(--ink-dim);
+}
+
+.notice {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--px) * 36);
+  transform: translateX(-50%);
+  padding: calc(var(--px) * 2) calc(var(--px) * 5);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+  white-space: nowrap;
+  animation: notice-fade 2.6s ease-in forwards;
+}
+
+@keyframes notice-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .inventory-grid {
@@ -202,10 +407,18 @@ body {
 .hud {
   position: absolute;
   left: calc(var(--px) * 6);
-  bottom: calc(var(--px) * 8);
+  bottom: calc(var(--px) * 6);
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--px) * 5);
   font-size: calc(var(--px) * 6);
   color: var(--ink);
   text-shadow: 0 0 calc(var(--px) * 1) #000;
+}
+
+.hud-bars {
+  display: flex;
+  flex-direction: column;
 }
 
 .hud-row {
@@ -223,22 +436,87 @@ body {
   color: var(--gold);
 }
 
-.lumen-bar {
+.health-bar {
   position: relative;
   width: calc(var(--px) * 60);
   height: calc(var(--px) * 5);
   background: rgb(5 8 10 / 0.7);
-  border: var(--px) solid rgb(242 204 90 / 0.5);
+  border: var(--px) solid rgb(196 99 126 / 0.7);
 }
 
-.lumen-fill {
+.health-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--gold);
+  background: linear-gradient(var(--rose-light), var(--rose));
 }
 
-.lumen-fill.off {
+/* Lumen gauge shaped like the lantern: ring, cap, glass that fills with light, base. */
+.lantern {
+  position: relative;
+  width: calc(var(--px) * 16);
+  height: calc(var(--px) * 30);
+}
+
+.lantern > span {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.lantern-ring {
+  top: 0;
+  width: calc(var(--px) * 6);
+  height: calc(var(--px) * 4);
+  border: var(--px) solid var(--gold);
+  border-bottom: 0;
+  border-radius: calc(var(--px) * 3) calc(var(--px) * 3) 0 0;
+}
+
+.lantern-cap,
+.lantern-base {
+  width: calc(var(--px) * 14);
+  height: calc(var(--px) * 3);
+  background: #9a6e24;
+  border: var(--px) solid #6a4a1c;
+}
+
+.lantern-cap {
+  top: calc(var(--px) * 4);
+}
+
+.lantern-base {
+  bottom: 0;
+}
+
+.lantern-glass {
+  top: calc(var(--px) * 8);
+  width: calc(var(--px) * 10);
+  height: calc(var(--px) * 17);
+  overflow: hidden;
+  background: rgb(5 8 10 / 0.75);
+  border: var(--px) solid #9a6e24;
+}
+
+.lantern-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(#ffd88a, var(--gold));
+  box-shadow: 0 0 calc(var(--px) * 4) var(--gold);
+}
+
+.lantern.off .lantern-fill {
   background: var(--ink-dim);
+  box-shadow: none;
+}
+
+.lens-gem {
+  display: inline-block;
+  width: calc(var(--px) * 5);
+  height: calc(var(--px) * 5);
+  transform: rotate(45deg);
+  border: var(--px) solid rgb(255 255 255 / 0.6);
 }
 
 /* Menus: world select, generation progress, pause. */

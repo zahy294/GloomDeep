@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
 import { DebugOverlay } from './DebugOverlay';
-import { Hud } from './Hud';
+import { Hud, NoticeView } from './Hud';
 import { Generating } from './Generating';
-import { Hotbar, InventoryPanel } from './Inventory';
+import { Hotbar, InventoryScreen } from './Inventory';
 import { PauseMenu } from './PauseMenu';
 import { WorldSelect } from './WorldSelect';
 
@@ -42,6 +42,8 @@ export function App({ bridge }: { bridge: UiBridge }) {
     inventory,
     inventoryOpen,
     hud,
+    icons,
+    notice,
     worlds,
     generation,
     paused,
@@ -65,8 +67,11 @@ export function App({ bridge }: { bridge: UiBridge }) {
             <div class="game-hint">F3: debug · E: inventory</div>
           )}
           {hud && <Hud hud={hud} />}
-          {inventory && <Hotbar bridge={bridge} view={inventory} />}
-          {inventory && inventoryOpen && <InventoryPanel bridge={bridge} view={inventory} />}
+          {notice && <NoticeView key={notice.id} notice={notice} />}
+          {inventory && <Hotbar bridge={bridge} view={inventory} icons={icons} />}
+          {inventory && inventoryOpen && (
+            <InventoryScreen bridge={bridge} view={inventory} icons={icons} />
+          )}
           {paused && <PauseMenu bridge={bridge} error={error} />}
         </>
       );

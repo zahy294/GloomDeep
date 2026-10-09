@@ -53,6 +53,7 @@ describe('parseDebugParams', () => {
     spot: null,
     size: null,
     rain: null,
+    kit: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -75,6 +76,7 @@ describe('parseDebugParams', () => {
       spot: null,
       size: null,
       rain: null,
+      kit: null,
     });
   });
 
@@ -89,6 +91,11 @@ describe('parseDebugParams', () => {
       spot: null,
       size: null,
     });
+  });
+
+  it('reads a debug kit name', () => {
+    expect(parseDebugParams('?kit=build').kit).toBe('build');
+    expect(parseDebugParams('?kit=a/b').kit).toBeNull();
   });
 
   it('reads a forced rain intensity, clamped to 0..1', () => {

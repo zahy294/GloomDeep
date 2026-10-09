@@ -14,6 +14,8 @@ const initial: UiState = {
   inventory: null,
   inventoryOpen: false,
   hud: null,
+  icons: [],
+  notice: null,
   packDir: 'packed',
   worlds: [],
   generation: null,

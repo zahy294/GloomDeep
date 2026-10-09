@@ -189,14 +189,22 @@ describe('MIGRATIONS', () => {
   it('upgrades a v1 save: full health, empty cursor, default pickup delay', () => {
     const state = makeState(4, 4);
     state.version = 1;
-    const { health: _health, ...v1Player } = state.player;
-    const { cursor: _cursor, ...v1Inventory } = state.inventory;
+    // A v1 header lacks the v2 fields.
+    const v1Player: Partial<SaveState['player']> = { ...state.player };
+    delete v1Player.health;
+    const v1Inventory: Partial<SaveState['inventory']> = { ...state.inventory };
+    delete v1Inventory.cursor;
+    const v1Drops = state.drops.map((d) => {
+      const old: Partial<SaveState['drops'][number]> = { ...d };
+      delete old.pickupAfter;
+      return old;
+    });
     const v1 = {
       ...state,
       player: v1Player,
       inventory: v1Inventory,
-      drops: state.drops.map(({ pickupAfter: _p, ...d }) => d),
-    } as unknown as SaveState; // a v1 header lacks the v2 fields on purpose
+      drops: v1Drops,
+    } as SaveState; // the missing fields are the point of the test
     const out = decodeSave(encodeSave(v1));
     expect(out.version).toBe(SAVE_VERSION);
     expect(out.player.health).toBe(HEALTH.max);

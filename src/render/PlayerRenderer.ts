@@ -13,6 +13,7 @@ import {
 } from './playerAnimation';
 import { spriteAsset } from '../data/spriteAssets';
 import { spriteFrame } from './spriteFrames';
+import type { ItemIconRef } from './itemIcons';
 
 const ASSET = 'player-parts';
 const FRAME_SIZE = spriteAsset(ASSET)?.frameWidth ?? 16;
@@ -23,7 +24,14 @@ export interface PlayerActivity {
   /** Cursor in world pixels. */
   aimX: number;
   aimY: number;
+  /** Icon of the pickaxe being swung (shown in the front hand while mining), or null. */
+  tool: ItemIconRef | null;
 }
+
+/** Grip of a tool icon (bottom-left of the handle), in icon pixels. */
+const TOOL_GRIP = { x: 2, y: 13 } as const;
+/** Tool icons point up-right from the grip; this turns them to continue the arm's direction. */
+const TOOL_ALONG_ARM = (3 * Math.PI) / 4;
 
 /**
  * Draws the player from separate parts (plan 2.9.8) and animates them in code: walk cycle from
@@ -40,6 +48,7 @@ export class PlayerRenderer {
   private readonly backArm: Phaser.GameObjects.Image;
   private readonly frontArm: Phaser.GameObjects.Image;
   private readonly lantern: Phaser.GameObjects.Image;
+  private readonly tool: Phaser.GameObjects.Image;
   /** Visual-only vertical lag after an auto step-up, decaying to 0 (px, positive = lower). */
   private stepOffsetY = 0;
   private seenSteppedUp: number;
@@ -77,6 +86,10 @@ export class PlayerRenderer {
     this.head = part(PART_FRAME.head, PART_RIG.head);
     this.hood = part(PART_FRAME.hood, PART_RIG.hood);
     this.frontArm = part(PART_FRAME.frontArm, PART_RIG.frontArm);
+    this.tool = scene.add
+      .image(0, 0, textureKey, spriteFrame(ASSET, 0))
+      .setOrigin(TOOL_GRIP.x / FRAME_SIZE, TOOL_GRIP.y / FRAME_SIZE)
+      .setVisible(false);
     this.root = scene.add
       .container(0, 0, [
         this.backArm,
@@ -85,6 +98,7 @@ export class PlayerRenderer {
         this.body,
         this.head,
         this.hood,
+        this.tool, // under the front arm, so the hand covers the grip
         this.frontArm,
       ])
       .setDepth(Depth.entities);
@@ -154,5 +168,18 @@ export class PlayerRenderer {
       Math.round(PART_RIG.backArm.x + Math.sin(pose.backArmAngle) * ARM_LENGTH),
       Math.round(PART_RIG.backArm.y + bob + Math.cos(pose.backArmAngle) * ARM_LENGTH),
     );
+    const tool = activity.use === 'mine' ? activity.tool : null;
+    this.tool.setVisible(tool !== null);
+    if (tool) {
+      if (this.tool.texture.key !== tool.texture || this.tool.frame.name !== String(tool.frame)) {
+        this.tool.setTexture(tool.texture, tool.frame);
+      }
+      this.tool
+        .setPosition(
+          Math.round(PART_RIG.frontArm.x + Math.sin(pose.frontArmAngle) * ARM_LENGTH),
+          Math.round(PART_RIG.frontArm.y + bob + Math.cos(pose.frontArmAngle) * ARM_LENGTH),
+        )
+        .setRotation(-pose.frontArmAngle + TOOL_ALONG_ARM);
+    }
   }
 }

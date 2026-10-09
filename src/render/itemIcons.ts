@@ -2,18 +2,34 @@ import { PLACEHOLDER_ATLAS, TILE_SIZE } from '../config';
 import { ITEMS } from '../data/items';
 import { tileId } from '../data/tiles';
 import { FRAME_COUNT, iconFrame } from '../sim/world/autotile';
+import { TextureKey } from './scenes/keys';
+import { spriteFrame } from './spriteFrames';
+
+/** Sprite sheet holding dedicated item icons (frame = `icon` in src/data/items.ts). */
+export const ITEM_ICON_SHEET = 'items';
 
 /**
- * Atlas frame used as each item's icon (tiles atlas), or -1. Block items show their tile's
- * isolated shape; dedicated item icons arrive with the item art (M6 / art pipeline).
+ * Where an item's icon lives: its own frame in the sprite atlas, or (blocks, stations) the
+ * isolated shape of the tile it places in the tile atlas. Null for items with neither.
  */
-const ICON_FRAME = ITEMS.map((item) => (item.placesTile ? iconFrame(tileId(item.placesTile)) : -1));
+export type ItemIconRef =
+  | { readonly texture: typeof TextureKey.sprites; readonly frame: string }
+  | { readonly texture: typeof TextureKey.tiles; readonly frame: number };
 
-export function itemIconFrame(itemId: number): number {
-  return ICON_FRAME[itemId] ?? -1;
+const ICONS: readonly (ItemIconRef | null)[] = ITEMS.map((item) => {
+  if (item.icon !== undefined) {
+    return { texture: TextureKey.sprites, frame: spriteFrame(ITEM_ICON_SHEET, item.icon) };
+  }
+  if (item.placesTile)
+    return { texture: TextureKey.tiles, frame: iconFrame(tileId(item.placesTile)) };
+  return null;
+});
+
+export function itemIcon(itemId: number): ItemIconRef | null {
+  return ICONS[itemId] ?? null;
 }
 
-/** Pixel offset of an atlas frame, for CSS `background-position` in the DOM UI. */
+/** Pixel offset of a tile-atlas frame, for CSS `background-position` in the DOM UI. */
 export function framePixelOffset(frame: number): { x: number; y: number } {
   return {
     x: (frame % PLACEHOLDER_ATLAS.columns) * TILE_SIZE,

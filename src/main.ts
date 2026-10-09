@@ -26,6 +26,8 @@ const bridge = new UiBridge({
   inventory: null,
   inventoryOpen: false,
   hud: null,
+  icons: [],
+  notice: null,
   packDir: debug.pack ?? DEFAULT_PACK_DIR,
   worlds: [],
   generation: null,

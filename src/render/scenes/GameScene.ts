@@ -9,9 +9,10 @@ import {
   TILE_SIZE,
   WORLD_SIZES,
   CAMERA,
+  HEALTH,
 } from '../../config';
 import { NAMED_TIMES } from '../../data/dayCycle';
-import { itemById } from '../../data/items';
+import { DEBUG_KITS, itemById } from '../../data/items';
 import { lensByKey } from '../../data/lenses';
 import { loadSettings, qualityFeatures } from '../../settings';
 import { LANTERN_HAND } from '../../sim/systems/LightSystem';
@@ -27,7 +28,8 @@ import type { DebugParams } from '../../debugParams';
 import { Simulation, type SimulationRuntimeOptions } from '../../sim/Simulation';
 import { findOpenFeetRow } from '../../sim/world/queries';
 import type { GameProbe } from '../../types/window';
-import type { InventoryView, UiBridge } from '../../ui/bridge';
+import type { IconRect, InventoryView, UiBridge } from '../../ui/bridge';
+import { pickaxeForTier, withArticle } from '../../ui/craftingHelpers';
 import { generateWorld } from '../../workers/worldgen/generateWorld';
 import type { GameStart } from '../../flow/WorldFlow';
 import { SAVE_VERSION } from '../../persistence/saveFormat';
@@ -56,7 +58,9 @@ import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
 import { TileCursor } from '../TileCursor';
 import type { FrontScene } from './FrontScene';
 import type { GlowScene } from './GlowScene';
-import { SceneKey, TextureKey } from './keys';
+import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIcon } from '../itemIcons';
+import { PackFile, SceneKey, TextureKey } from './keys';
+import { ITEMS } from '../../data/items';
 
 /** Rolling CPU timing of the per-frame work this scene owns (simulation + chunk rendering). */
 class FrameTimer {
@@ -124,7 +128,7 @@ export class GameScene extends Phaser.Scene {
   private readonly view = { x: 0, y: 0, width: 0, height: 0 };
   private readonly preloadBudget: PreloadBudget = { remaining: 0 };
   private readonly foliageBudget: PreloadBudget = { remaining: 0 };
-  private readonly activity: PlayerActivity = { use: 'none', aimX: 0, aimY: 0 };
+  private readonly activity: PlayerActivity = { use: 'none', aimX: 0, aimY: 0, tool: null };
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
   private paused = false;
@@ -135,6 +139,9 @@ export class GameScene extends Phaser.Scene {
   private saving: Promise<void> | null = null;
   /** A newly generated world is saved as soon as the scene is up. */
   private saveOnStart = false;
+  /** Station keys last published to the UI, joined (re-published when they change). */
+  private stationsKey = '';
+  private noticeId = 0;
 
   constructor(
     private readonly bridge: UiBridge,
@@ -162,6 +169,9 @@ export class GameScene extends Phaser.Scene {
       this.meta = null;
       this.sim = this.createDebugSimulation(runtime);
     }
+    // `?kit=` adds a debug kit to new and debug worlds (never to a saved world).
+    const kit = this.params.kit ? DEBUG_KITS[this.params.kit] : undefined;
+    if (kit && start.kind !== 'saved') this.sim.giveItems(kit);
     // The world now lives in the simulation (loadArrays copies). Drop the scene manager's reference
     // to the start data, or the generated/saved arrays (tens of MB) stay alive for the session.
     this.sys.settings.data = {};
@@ -172,6 +182,7 @@ export class GameScene extends Phaser.Scene {
     this.saving = null;
     this.saveOnStart = start.kind === 'new';
     this.inventoryOpen = false;
+    this.stationsKey = '';
     this.debugOpen = this.params.debugOverlay;
     this.debugAccumulator = 0;
   }
@@ -229,7 +240,13 @@ export class GameScene extends Phaser.Scene {
     this.weatherFx = new WeatherParticles(this, world, TextureKey.sprites);
     this.playerView = new PlayerRenderer(this, player, TextureKey.sprites);
     this.cursor = new TileCursor(this, sim.events, sim.input, player, TextureKey.cracks);
-    this.dropView = new DropRenderer(this, sim.drops, TextureKey.tiles);
+    this.dropView = new DropRenderer(this, sim.drops);
+    // A click in the world while holding a stack from the inventory throws it.
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      if (this.inventoryOpen && sim.inventory.cursor && this.inputMapper.pointerEnabled) {
+        sim.enqueue({ type: 'dropCursor' });
+      }
+    });
     this.fx = new ParticleFX(
       this,
       sim.events,
@@ -301,12 +318,27 @@ export class GameScene extends Phaser.Scene {
       this.bridge.commands.on('selectSlot', ({ slot }) =>
         sim.enqueue({ type: 'selectSlot', slot }),
       ),
-      this.bridge.commands.on('swapSlots', ({ a, b }) => sim.enqueue({ type: 'swapSlots', a, b })),
+      this.bridge.commands.on('slotClick', ({ slot, button, quick }) =>
+        sim.enqueue({ type: 'slotClick', slot, button, quick }),
+      ),
+      this.bridge.commands.on('sortInventory', () => sim.enqueue({ type: 'sortInventory' })),
+      this.bridge.commands.on('dropCursor', () => sim.enqueue({ type: 'dropCursor' })),
+      this.bridge.commands.on('craft', ({ recipe, times }) =>
+        sim.enqueue({ type: 'craft', recipe, times }),
+      ),
       this.bridge.commands.on('pointerOverUi', ({ over }) => this.setPointerOverUi(over)),
       this.bridge.commands.on('resume', () => this.setPaused(false)),
       this.bridge.commands.on('saveAndQuit', () => void this.saveAndQuit()),
     ];
     sim.events.on('inventoryChanged', () => this.publishInventory());
+    sim.events.on('miningBlocked', ({ reason, tier }) => {
+      const pick = pickaxeForTier(tier);
+      if (reason === 'support') this.notify('Something stands on that block');
+      else this.notify(pick ? `Needs ${withArticle(pick)}` : 'Too hard to mine');
+    });
+    sim.events.on('crafted', ({ itemId, count }) =>
+      this.notify(`Crafted ${count > 1 ? `${count} × ` : ''}${itemById(itemId)?.name ?? '?'}`),
+    );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       document.removeEventListener('visibilitychange', onVisibility);
@@ -332,10 +364,18 @@ export class GameScene extends Phaser.Scene {
         inventory: null,
         inventoryOpen: false,
         hud: null,
+        notice: null,
         paused: false,
       });
     });
-    this.bridge.set({ screen: 'game', inventoryOpen: false, paused: false, error: null });
+    this.bridge.set({
+      screen: 'game',
+      inventoryOpen: false,
+      paused: false,
+      error: null,
+      notice: null,
+      icons: this.iconRects(),
+    });
     this.publishInventory();
     // A new world is saved straight away, so it is in the list even if the tab closes now.
     if (this.saveOnStart) {
@@ -345,8 +385,49 @@ export class GameScene extends Phaser.Scene {
 
   private toggleInventory(): void {
     this.inventoryOpen = !this.inventoryOpen;
-    if (!this.inventoryOpen) this.setPointerOverUi(false); // the panel may close under the cursor
+    if (!this.inventoryOpen) {
+      this.setPointerOverUi(false); // the panel may close under the cursor
+      this.sim.enqueue({ type: 'stowCursor' }); // a held stack goes back into the bag
+    }
     this.bridge.set({ inventoryOpen: this.inventoryOpen });
+  }
+
+  /** Shows a short message above the hotbar (it fades by itself). */
+  private notify(text: string): void {
+    this.bridge.set({ notice: { text, id: ++this.noticeId } });
+  }
+
+  /**
+   * Where each item's icon sits in the pack images, for the DOM UI: the tile atlas for blocks
+   * and stations, the sprite atlas (frames from sprites.json) for dedicated item icons.
+   */
+  private iconRects(): (IconRect | null)[] {
+    const packDir = this.bridge.state.packDir;
+    const sprites = this.textures.get(TextureKey.sprites);
+    const source = sprites.source[0];
+    return ITEMS.map((item) => {
+      const icon = itemIcon(item.id);
+      if (!icon) return null;
+      if (icon.texture === TextureKey.tiles) {
+        const { x, y } = framePixelOffset(icon.frame);
+        return {
+          url: `${packDir}/${PackFile.tiles}`,
+          x,
+          y,
+          sheetWidth: ATLAS_PIXEL_SIZE.width,
+          sheetHeight: ATLAS_PIXEL_SIZE.height,
+        };
+      }
+      if (!sprites.has(icon.frame) || !source) return null;
+      const frame = sprites.get(icon.frame);
+      return {
+        url: `${packDir}/${PackFile.sprites}`,
+        x: frame.cutX,
+        y: frame.cutY,
+        sheetWidth: source.width,
+        sheetHeight: source.height,
+      };
+    });
   }
 
   /**
@@ -421,6 +502,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // While the inventory holds a stack on the cursor, world clicks throw it instead of mining.
+    this.inputMapper.mouseBlocked = this.inventoryOpen && this.sim.inventory.cursor !== null;
     this.inputMapper.update();
     this.sim.update(delta);
 
@@ -432,6 +515,8 @@ export class GameScene extends Phaser.Scene {
       : input.isHeld('useAlt') && this.inputMapper.pointerEnabled
         ? 'place'
         : 'none';
+    const toolItem = this.sim.mining.toolItem;
+    this.activity.tool = toolItem >= 0 ? itemIcon(toolItem) : null;
     this.activity.aimX = input.aimX;
     this.activity.aimY = input.aimY;
     this.playerView.update(alpha, delta / 1000, this.activity);
@@ -525,14 +610,22 @@ export class GameScene extends Phaser.Scene {
   /** Pushes an inventory snapshot to the UI. Runs on change only, never per frame. */
   private publishInventory(): void {
     const inv = this.sim.inventory;
+    const stations = [...this.sim.stationsNearby()].sort();
+    this.stationsKey = stations.join(',');
     const view: InventoryView = {
-      slots: inv.slots.map((s) =>
-        s ? { itemId: s.itemId, count: s.count, name: itemById(s.itemId)?.name ?? '?' } : null,
-      ),
+      slots: inv.slots.map((s) => (s ? { itemId: s.itemId, count: s.count } : null)),
       selected: inv.selected,
       hotbarSize: inv.hotbarSize,
+      cursor: inv.cursor ? { itemId: inv.cursor.itemId, count: inv.cursor.count } : null,
+      stations,
     };
     this.bridge.set({ inventory: view });
+  }
+
+  /** Walking up to (or away from) a station changes the crafting list: re-publish then. */
+  private refreshStations(): void {
+    const key = [...this.sim.stationsNearby()].sort().join(',');
+    if (key !== this.stationsKey) this.publishInventory();
   }
 
   private setPointerOverUi(over: boolean): void {
@@ -557,6 +650,7 @@ export class GameScene extends Phaser.Scene {
       this.timer.roll();
       if (this.debugOpen) this.publishDebug();
       this.publishHud();
+      this.refreshStations();
     }
 
     this.chunkBorders.clear();
@@ -571,15 +665,26 @@ export class GameScene extends Phaser.Scene {
     const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
     const hud = this.bridge.state.hud;
     const lumen = Math.round(player.lumen);
-    if (hud && hud.lumen === lumen && hud.lanternOn === player.lanternOn && hud.clock === clock) {
+    const health = Math.round(player.health);
+    if (
+      hud &&
+      hud.lumen === lumen &&
+      hud.health === health &&
+      hud.lanternOn === player.lanternOn &&
+      hud.clock === clock
+    ) {
       return;
     }
+    const lens = lensByKey(player.lens);
     this.bridge.set({
       hud: {
+        health,
+        healthMax: HEALTH.max,
         lumen,
         lumenMax: LUMEN.max,
         lanternOn: player.lanternOn,
-        lensName: lensByKey(player.lens).name,
+        lensName: lens.name,
+        lensColor: `rgb(${lens.color.join(' ')})`,
         clock,
       },
     });

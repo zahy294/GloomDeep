@@ -1,65 +1,50 @@
 import { useEffect, useState } from 'preact/hooks';
-import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIconFrame } from '../render/itemIcons';
-import { PackFile } from '../render/scenes/keys';
-import type { InventoryView, UiBridge } from './bridge';
+import type { TargetedMouseEvent } from 'preact';
+import type { IconRect, InventoryView, StackView, UiBridge } from './bridge';
+import { Crafting } from './Crafting';
+import { itemTooltip } from './craftingHelpers';
+import { ItemIcon, pointerGuard } from './ItemIcon';
+import type { SlotButton } from '../sim/inventory/Inventory';
 
-type Slot = InventoryView['slots'][number];
-
-/** An item icon cut from the tile atlas with CSS, scaled by whole game pixels (--px). */
-function ItemIcon({ itemId, packDir }: { itemId: number; packDir: string }) {
-  const frame = itemIconFrame(itemId);
-  if (frame < 0) return null;
-  const { x, y } = framePixelOffset(frame);
-  return (
-    <span
-      class="item-icon"
-      style={{
-        backgroundImage: `url(${packDir}/${PackFile.tiles})`,
-        backgroundPosition: `calc(var(--px) * ${-x}) calc(var(--px) * ${-y})`,
-        backgroundSize: `calc(var(--px) * ${ATLAS_PIXEL_SIZE.width}) calc(var(--px) * ${ATLAS_PIXEL_SIZE.height})`,
-      }}
-    />
-  );
-}
-
-function SlotView({
-  slot,
-  index,
-  selected,
-  marked,
-  packDir,
-  onClick,
-}: {
-  slot: Slot;
+interface SlotProps {
+  slot: StackView | null;
   index: number;
   selected: boolean;
-  marked?: boolean;
-  packDir: string;
-  onClick: () => void;
-}) {
-  const classes = ['slot', selected ? 'selected' : '', marked ? 'marked' : ''].join(' ');
+  icons: readonly (IconRect | null)[];
+  onMouseDown?: (e: TargetedMouseEvent<HTMLElement>) => void;
+  onMouseUp?: (e: TargetedMouseEvent<HTMLElement>) => void;
+  onClick?: () => void;
+  onHover?: (itemId: number | null) => void;
+}
+
+function SlotView({ slot, index, selected, icons, ...on }: SlotProps) {
   return (
     <button
-      class={classes}
-      title={slot?.name ?? ''}
-      onClick={onClick}
+      class={`slot${selected ? ' selected' : ''}`}
       aria-label={`Slot ${index + 1}`}
+      onMouseDown={on.onMouseDown}
+      onMouseUp={on.onMouseUp}
+      onClick={on.onClick}
+      onContextMenu={(e) => e.preventDefault()}
+      onMouseEnter={() => on.onHover?.(slot ? slot.itemId : null)}
+      onMouseLeave={() => on.onHover?.(null)}
     >
-      {slot && <ItemIcon itemId={slot.itemId} packDir={packDir} />}
+      {slot && <ItemIcon itemId={slot.itemId} icons={icons} />}
       {slot && slot.count > 1 && <span class="count">{slot.count}</span>}
+      {index < 10 && <span class="slot-key">{(index + 1) % 10}</span>}
     </button>
   );
 }
 
-/** Events that tell the game the pointer is over UI, so clicks don't mine behind the panel. */
-function pointerGuard(bridge: UiBridge) {
-  return {
-    onMouseEnter: () => bridge.commands.emit('pointerOverUi', { over: true }),
-    onMouseLeave: () => bridge.commands.emit('pointerOverUi', { over: false }),
-  };
-}
-
-export function Hotbar({ bridge, view }: { bridge: UiBridge; view: InventoryView }) {
+export function Hotbar({
+  bridge,
+  view,
+  icons,
+}: {
+  bridge: UiBridge;
+  view: InventoryView;
+  icons: readonly (IconRect | null)[];
+}) {
   return (
     <div class="hotbar interactive" {...pointerGuard(bridge)}>
       {view.slots.slice(0, view.hotbarSize).map((slot, i) => (
@@ -68,7 +53,7 @@ export function Hotbar({ bridge, view }: { bridge: UiBridge; view: InventoryView
           slot={slot}
           index={i}
           selected={i === view.selected}
-          packDir={bridge.state.packDir}
+          icons={icons}
           onClick={() => bridge.commands.emit('selectSlot', { slot: i })}
         />
       ))}
@@ -76,41 +61,114 @@ export function Hotbar({ bridge, view }: { bridge: UiBridge; view: InventoryView
   );
 }
 
+/** The mouse position inside the overlay, in CSS pixels (for the held stack and tooltips). */
+function useMouse(): { x: number; y: number } {
+  const [pos, setPos] = useState({ x: -1000, y: -1000 });
+  useEffect(() => {
+    const overlay = document.getElementById('ui');
+    const move = (e: MouseEvent) => {
+      const r = overlay?.getBoundingClientRect();
+      setPos({ x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) });
+    };
+    window.addEventListener('mousemove', move);
+    return () => window.removeEventListener('mousemove', move);
+  }, []);
+  return pos;
+}
+
+function Tooltip({ itemId, x, y }: { itemId: number; x: number; y: number }) {
+  const [title, ...rest] = itemTooltip(itemId);
+  return (
+    <div class="tooltip" style={{ left: `${x}px`, top: `${y}px` }}>
+      <div class="tooltip-title">{title}</div>
+      {rest.map((line, i) => (
+        <div key={i} class="tooltip-line">
+          {line}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
- * Basic inventory panel (full drag-and-drop, sorting and tooltips come in M6): click one slot, then
- * another, to swap them.
+ * The inventory screen (E): the 40-slot grid and the crafting panel. Drag and drop: pressing a
+ * slot picks its stack up onto the cursor (right button: half), releasing over another slot puts
+ * it down (merge, swap); click-and-click works the same way. Shift-click moves a stack between
+ * hotbar and bag. Releasing the held stack outside the panels throws it into the world.
  */
-export function InventoryPanel({ bridge, view }: { bridge: UiBridge; view: InventoryView }) {
-  const [picked, setPicked] = useState<number | null>(null);
+export function InventoryScreen({
+  bridge,
+  view,
+  icons,
+}: {
+  bridge: UiBridge;
+  view: InventoryView;
+  icons: readonly (IconRect | null)[];
+}) {
+  const mouse = useMouse();
+  const [hover, setHover] = useState<number | null>(null);
+  const [downSlot, setDownSlot] = useState<number | null>(null);
   // Unmounting under the cursor fires no mouseleave; release the pointer guard explicitly.
   useEffect(() => () => bridge.commands.emit('pointerOverUi', { over: false }), [bridge]);
-  const click = (i: number) => {
-    if (picked === null) {
-      if (view.slots[i]) setPicked(i);
-      return;
-    }
-    if (picked !== i) bridge.commands.emit('swapSlots', { a: picked, b: i });
-    setPicked(null);
+
+  const button = (e: MouseEvent): SlotButton => (e.button === 2 ? 'secondary' : 'primary');
+  const down = (i: number) => (e: TargetedMouseEvent<HTMLElement>) => {
+    if (e.button !== 0 && e.button !== 2) return;
+    setDownSlot(i);
+    bridge.commands.emit('slotClick', { slot: i, button: button(e), quick: e.shiftKey });
   };
+  const up = (i: number) => (e: TargetedMouseEvent<HTMLElement>) => {
+    // A press on one slot and a release on another is a drag: drop the stack here.
+    if (downSlot !== null && downSlot !== i && e.button === 0 && !e.shiftKey) {
+      bridge.commands.emit('slotClick', { slot: i, button: 'primary', quick: false });
+    }
+    setDownSlot(null);
+  };
+
   return (
-    <div class="inventory-panel interactive" {...pointerGuard(bridge)}>
-      <div class="panel-title">Inventory</div>
-      <div
-        class="inventory-grid"
-        style={{ gridTemplateColumns: `repeat(${view.hotbarSize}, auto)` }}
-      >
-        {view.slots.map((slot, i) => (
-          <SlotView
-            key={i}
-            slot={slot}
-            index={i}
-            selected={i === view.selected}
-            packDir={bridge.state.packDir}
-            marked={i === picked}
-            onClick={() => click(i)}
-          />
-        ))}
+    <>
+      <div class="inventory-screen">
+        <div class="inventory-panel interactive" {...pointerGuard(bridge)}>
+          <div class="panel-header">
+            <span class="panel-title">Inventory</span>
+            <button
+              class="panel-button"
+              onClick={() => bridge.commands.emit('sortInventory', {})}
+              title="Sort the bag (the hotbar stays as it is)"
+            >
+              Sort
+            </button>
+          </div>
+          <div
+            class="inventory-grid"
+            style={{ gridTemplateColumns: `repeat(${view.hotbarSize}, auto)` }}
+          >
+            {view.slots.map((slot, i) => (
+              <SlotView
+                key={i}
+                slot={slot}
+                index={i}
+                selected={i === view.selected}
+                icons={icons}
+                onMouseDown={down(i)}
+                onMouseUp={up(i)}
+                onHover={setHover}
+              />
+            ))}
+          </div>
+          <div class="panel-hint">
+            Drag to move · right-click: half / one · Shift-click: hotbar ↔ bag
+          </div>
+        </div>
+        <Crafting bridge={bridge} view={view} icons={icons} onHover={setHover} />
       </div>
-    </div>
+      {view.cursor && (
+        <div class="held-stack" style={{ left: `${mouse.x}px`, top: `${mouse.y}px` }}>
+          <ItemIcon itemId={view.cursor.itemId} icons={icons} />
+          {view.cursor.count > 1 && <span class="count">{view.cursor.count}</span>}
+        </div>
+      )}
+      {!view.cursor && hover !== null && <Tooltip itemId={hover} x={mouse.x} y={mouse.y} />}
+    </>
   );
 }

@@ -15,6 +15,7 @@ import {
   W,
   frameBase,
 } from '../../src/sim/world/autotile';
+import { drawStation } from './placeholderItems';
 
 export interface AtlasOptions {
   tileSize: number;
@@ -245,6 +246,16 @@ export function buildPlaceholderAtlas(
         }
         if (tile.placeholderShape === 'platform') {
           if (kind === 'tiles') drawBranch(data, width, ox, oy);
+          continue;
+        }
+        if (
+          tile.placeholderShape === 'workbench' ||
+          tile.placeholderShape === 'furnace' ||
+          tile.placeholderShape === 'anvil'
+        ) {
+          if (kind === 'tiles') {
+            drawStation(tile.placeholderShape, (x, y, c) => put(data, width, ox + x, oy + y, c));
+          }
           continue;
         }
         for (let py = 0; py < tileSize; py++) {

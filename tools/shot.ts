@@ -8,7 +8,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { preview } from 'vite';
-import { CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../src/config';
+import { CAMERA, CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../src/config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
 import { TILES, tileId } from '../src/data/tiles';
@@ -90,6 +90,25 @@ function countOf(p: GameProbe, item: number): number {
   return p.inventory.reduce((n, s) => n + (s && s.itemId === item ? s.count : 0), 0);
 }
 
+/** Presses the number key of the hotbar slot holding an item. */
+async function selectItem(page: Page, item: number): Promise<void> {
+  const p = (await probe(page)) as GameProbe;
+  const slot = p.inventory.findIndex((s) => s?.itemId === item);
+  check(slot >= 0 && slot < 10, `item ${item} is not in the hotbar`);
+  await page.keyboard.press(`Digit${(slot + 1) % 10}`);
+}
+
+/** Waits until the probe satisfies a condition (the simulation applies UI commands next step). */
+async function waitForProbe(page: Page, ok: (p: GameProbe) => boolean, what: string) {
+  const deadline = Date.now() + TIMEOUT_MS;
+  for (;;) {
+    const p = (await probe(page)) as GameProbe;
+    if (ok(p)) return p;
+    check(Date.now() < deadline, `timed out waiting for ${what}`);
+    await page.waitForTimeout(50);
+  }
+}
+
 /** Holds a mouse button on a tile until `done` holds, or fails after a timeout. */
 async function holdOnTile(
   page: Page,
@@ -138,10 +157,13 @@ async function stopFrameRecorder(page: Page): Promise<{ fps: number; p95: number
   };
 }
 
-/** 4× close-up around the screen centre, where the camera keeps the player. */
+/**
+ * Close-up around the player: the screen centre, lowered by the camera's surface lift (outdoors the
+ * camera frames more forest above the player).
+ */
 const PLAYER_CLOSEUP = {
   x: VIEWPORT.width / 2 - 120,
-  y: VIEWPORT.height / 2 - 110,
+  y: VIEWPORT.height / 2 - 110 + CAMERA.surfaceLift * ZOOM,
   width: 240,
   height: 160,
 };
@@ -285,6 +307,11 @@ const GRASS = tileId('elderglade_grass');
 const PLANKS = tileId('elderwood_planks');
 const SOIL_ITEM = itemId('forest_soil');
 const PLANKS_ITEM = itemId('elderwood_planks');
+const TORCH_ITEM = itemId('torch');
+const WORKBENCH_ITEM = itemId('workbench');
+const WORKBENCH = tileId('workbench');
+const LIVING_WOOD_ITEM = itemId('living_wood');
+const ELDER_PICK_ITEM = itemId('elderwood_pickaxe');
 
 /**
  * Ad-hoc shots from the command line, e.g.
@@ -372,7 +399,7 @@ const SHOTS: Shot[] = [
     // through IndexedDB and the gzip save format).
     name: 'save-reload-restored',
     // Low quality: a behaviour check, and software rendering keeps the sim at full speed there.
-    query: '?ui=1&quality=low',
+    query: '?ui=1&quality=low&kit=build',
     prepare: async (page) => {
       await openWorldList(page);
       await createWorld(page, 'Save test', 42, 'Small');
@@ -390,7 +417,7 @@ const SHOTS: Shot[] = [
       await holdOnTile(page, px + 2, ground, 'left', async () => {
         return (await tileAt(page, px + 2, ground)) === 0;
       });
-      await page.keyboard.press('Digit1');
+      await selectItem(page, PLANKS_ITEM);
       await page.keyboard.down('Shift');
       const [wx, wy] = await placeableNear(page, px, ground, 'bg', [
         [-2, -1],
@@ -479,7 +506,7 @@ const SHOTS: Shot[] = [
     // M2 "Done when": digging and building respond, edges join after edits, mined blocks reach
     // the hotbar.
     name: 'game-mine-and-build',
-    query: '?scene=game',
+    query: '?scene=game&kit=build',
     prepare: async (page) => {
       await waitForPlayerReady(page);
       const start = (await probe(page)) as GameProbe;
@@ -511,8 +538,8 @@ const SHOTS: Shot[] = [
       const dug = (await probe(page)) as GameProbe;
       check(countOf(dug, SOIL_ITEM) === 6, `expected 6 soil, got ${countOf(dug, SOIL_ITEM)}`);
 
-      // Build: planks (hotbar slot 1) as a little pillar left of the player, then a wall behind it.
-      await page.keyboard.press('Digit1');
+      // Build: planks as a little pillar left of the player, then a wall behind it.
+      await selectItem(page, PLANKS_ITEM);
       const planksBefore = countOf(start, PLANKS_ITEM);
       for (const dy of [1, 2, 3]) {
         await holdOnTile(
@@ -545,12 +572,114 @@ const SHOTS: Shot[] = [
     },
   },
   {
-    name: 'game-inventory-open',
-    query: '?scene=game',
+    // M6: by hand you can't break stone, and the game says which pickaxe it needs.
+    name: 'game-needs-pickaxe',
+    query: `?scene=game&time=noon&${CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      // Any tile within reach that needs a pickaxe (stone, ore...).
+      let target: [number, number] | null = null;
+      for (let r = 1; r <= 4 && !target; r++) {
+        for (let dy = -r; dy <= r && !target; dy++) {
+          for (let dx = -r; dx <= r && !target; dx++) {
+            const id = await tileAt(page, px + dx, ground + dy);
+            if ((TILES[id]?.tier ?? 0) >= 1) target = [px + dx, ground + dy];
+          }
+        }
+      }
+      check(target !== null, 'no pickaxe-tier tile beside the cave spawn');
+      const [tx, ty] = target ?? [0, 0];
+      await pointAtTile(page, tx, ty);
+      await page.mouse.down();
+      await page.waitForSelector('.notice', { timeout: TIMEOUT_MS });
+      await page.waitForTimeout(1500);
+      await page.mouse.up();
+      const hard = await tileAt(page, tx, ty);
+      check((TILES[hard]?.tier ?? 0) >= 1, 'a pickaxe-tier tile broke by hand');
+      const text = await page.textContent('.notice');
+      check(text?.startsWith('Needs ') === true, `notice said "${text}"`);
+      report.push(`needs pickaxe: ${TILES[hard]?.name} holds by hand for 1.5 s, notice "${text}"`);
+    },
+  },
+  {
+    // M6: the crafting screen with real mouse input — place a workbench, craft planks by hand and
+    // a pickaxe at the bench, drag a stack to another slot; ends on a tooltip.
+    name: 'game-inventory-crafting',
+    query: '?scene=game&time=noon&kit=crafting',
     prepare: async (page) => {
       await waitForPlayerReady(page);
+      const start = (await probe(page)) as GameProbe;
+      const px = Math.floor(start.playerX / TILE_SIZE);
+      const ground = Math.round(start.playerY / TILE_SIZE);
+      await selectItem(page, WORKBENCH_ITEM);
+      // On flat ground beside the player; a grass tuft there is fine (placing replaces it).
+      let spot: [number, number] | null = null;
+      for (const dx of [2, 3, -2, -3, 4, -4]) {
+        const here = await tileAt(page, px + dx, ground - 1);
+        const below = await tileAt(page, px + dx, ground);
+        if ((here === 0 || TILES[here]?.decor) && TILES[below]?.solid) {
+          spot = [px + dx, ground - 1];
+          break;
+        }
+      }
+      check(spot !== null, 'no flat ground beside the spawn for the workbench');
+      const [bx, by] = spot ?? [0, 0];
+      await holdOnTile(
+        page,
+        bx,
+        by,
+        'right',
+        async () => (await tileAt(page, bx, by)) === WORKBENCH,
+      );
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
       await page.keyboard.press('KeyE');
-      await page.waitForSelector('.inventory-panel', { timeout: TIMEOUT_MS });
+      await page.waitForSelector('.crafting-panel', { timeout: TIMEOUT_MS });
+
+      // Shift-click crafts all the living wood into planks.
+      const planks = page.locator('.recipe.ready', { hasText: 'Elderwood Planks' }).first();
+      await planks.locator('button').click({ modifiers: ['Shift'] });
+      const wood = countOf(start, LIVING_WOOD_ITEM);
+      await waitForProbe(
+        page,
+        (p) => countOf(p, PLANKS_ITEM) === wood * 4 && countOf(p, LIVING_WOOD_ITEM) === 0,
+        `${wood * 4} planks`,
+      );
+      // The workbench is in reach, so its recipes are listed.
+      await page.locator('.crafting-search').fill('pick');
+      const pick = page.locator('.recipe.ready', { hasText: 'Elderwood Pickaxe' });
+      await pick.locator('button').click();
+      await waitForProbe(page, (p) => countOf(p, ELDER_PICK_ITEM) === 2, 'a second pickaxe');
+      await page.locator('.crafting-search').fill('');
+
+      // Drag and drop: slot 1 → slot 25.
+      const slots = page.locator('.inventory-grid .slot');
+      const from = await slots.nth(0).boundingBox();
+      const to = await slots.nth(25).boundingBox();
+      check(from !== null && to !== null, 'inventory slots not found');
+      const moved = ((await probe(page)) as GameProbe).inventory[0];
+      if (from && to) {
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 6 });
+        await page.mouse.up();
+      }
+      await waitForProbe(
+        page,
+        (p) => p.inventory[0] === null && JSON.stringify(p.inventory[25]) === JSON.stringify(moved),
+        'the dragged stack in slot 26',
+      );
+      // Hover the pickaxe for its tooltip.
+      const end = (await probe(page)) as GameProbe;
+      const pickSlot = end.inventory.findIndex((s) => s?.itemId === ELDER_PICK_ITEM);
+      await slots.nth(pickSlot).hover();
+      await page.waitForSelector('.tooltip', { timeout: TIMEOUT_MS });
+      report.push(
+        `crafting: ${wood} living wood → ${wood * 4} planks, a pickaxe at the workbench, ` +
+          `dragged slot 1 → 26, tooltip shown`,
+      );
     },
   },
   {
@@ -566,7 +695,7 @@ const SHOTS: Shot[] = [
   },
   {
     name: 'player-parts-mining',
-    query: '?scene=game&ui=0',
+    query: '?scene=game&ui=0&kit=build',
     clip: PLAYER_CLOSEUP,
     prepare: async (page) => {
       await waitForPlayerReady(page);
@@ -687,7 +816,7 @@ const SHOTS: Shot[] = [
     prepare: async (page) => {
       await waitForLight(page);
       await page.keyboard.press('KeyF'); // lantern off: torches only
-      await page.keyboard.press('Digit3'); // torches
+      await selectItem(page, TORCH_ITEM);
       const p = (await probe(page)) as GameProbe;
       const px = Math.floor(p.playerX / TILE_SIZE);
       const row = Math.round(p.playerY / TILE_SIZE) - 1;
