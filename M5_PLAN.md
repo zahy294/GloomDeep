@@ -57,6 +57,6 @@ Working file for M5; delete it when M5 is committed. Plan sections: 2.0, 2.2, 2.
 - [x] **D5** ✅ FrontScene: front mist + foreground canopy.
 - [ ] **D6** Colour grade per biome, underwater, heat haze, vignette.
 - [ ] **D7** Reflective pools + waterfalls.
-- [ ] **D8** Audio: procedural ambience + music per biome, crossfades, unlock on first click.
+- [x] **D8** ✅ Audio: procedural ambience + music per biome, crossfades, unlock on first click.
 - [ ] **D9** Quality settings + performance pass.
 - [ ] **E** Shots (sunrise Elderglade, each biome, descent, weather), reviewer, PROGRESS.md, commit.

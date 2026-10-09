@@ -38,6 +38,8 @@ import { CameraDirector } from '../CameraDirector';
 import { ChunkRenderer, type PreloadBudget } from '../ChunkRenderer';
 import { liquidFrame } from '../liquidFrames';
 import { VisualState } from '../VisualState';
+import { AudioDirector } from '../../audio/AudioDirector';
+import { VISUALS } from '../biomeBlend';
 import { GlowRenderer } from '../GlowRenderer';
 import { LightMapRenderer } from '../LightMapRenderer';
 import { Depth } from '../depth';
@@ -107,6 +109,7 @@ export class GameScene extends Phaser.Scene {
   private frontScene!: FrontScene;
   /** Atmosphere state shared with the sky, glow and front scenes (biome blend, weather, time). */
   private visual!: VisualState;
+  private audio: AudioDirector | null = null;
   private lightBackend: LightBackend | null = null;
   private drawCalls: DrawCallCounter | null = null;
   private debugOpen = false;
@@ -184,6 +187,7 @@ export class GameScene extends Phaser.Scene {
     this.glowScene.attachWorld(this.sim.world, this.sim.events);
     this.scene.launch(SceneKey.Front, { visual: this.visual });
     this.frontScene = this.scene.get(SceneKey.Front) as FrontScene;
+    this.audio = this.createAudio();
 
     const sim = this.sim;
     this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));
@@ -282,6 +286,7 @@ export class GameScene extends Phaser.Scene {
       this.cursor.destroy();
       this.fx.destroy();
       this.lightMap.destroy();
+      this.audio?.destroy();
       this.lightBackend?.destroy?.();
       this.scene.stop(SceneKey.Sky);
       this.scene.stop(SceneKey.Glow);
@@ -309,9 +314,22 @@ export class GameScene extends Phaser.Scene {
     this.bridge.set({ inventoryOpen: this.inventoryOpen });
   }
 
+  /**
+   * Procedural ambience and music (plan 3.6) through Phaser's Web Audio context, so Phaser's
+   * global volume and mute apply. None without Web Audio (the game stays silent).
+   */
+  private createAudio(): AudioDirector | null {
+    const sound = this.sound;
+    if (!(sound instanceof Phaser.Sound.WebAudioSoundManager)) return null;
+    const audio = new AudioDirector(sound.context, sound.masterVolumeNode, VISUALS);
+    this.sim.events.on('lightning', () => audio.thunder());
+    return audio;
+  }
+
   private setPaused(paused: boolean): void {
     if (this.quitting || paused === this.paused) return;
     this.paused = paused;
+    this.audio?.setPaused(paused);
     // Keys held when the menu opened must not stay "held" while paused or after resuming.
     this.sim.input.releaseAll();
     this.bridge.set({ paused, error: null });
@@ -434,6 +452,7 @@ export class GameScene extends Phaser.Scene {
       this.playerView.feetY(alpha) + LANTERN_HAND.y,
     );
 
+    this.audio?.update(this.visual, this.visual.wind);
     this.timer.add(performance.now() - start);
     this.updateDebug(delta);
   }
