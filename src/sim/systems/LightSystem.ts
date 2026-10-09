@@ -27,6 +27,7 @@ const TOUCH_LIGHT: readonly (LightDef | null)[] = TILES.map((t) =>
 const POINT_FLOATS = 6;
 const SOLID_TILE = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
 const FIRE_LIGHT = lightByKey('fire');
+const WISP_LIGHT = lightByKey('wisp');
 
 /** Sunlight colour and strength, 0–255 per channel. */
 export type SunLight = Pick<DaySample, 'sunR' | 'sunG' | 'sunB'>;
@@ -86,6 +87,7 @@ export class LightSystem {
     input: ActionState,
     flares: readonly Flare[] = [],
     fires: readonly number[] = [],
+    wisps: readonly { x: number; y: number }[] = [],
   ): void {
     this.updateTouched(dt, player);
     this.timer += dt;
@@ -97,7 +99,7 @@ export class LightSystem {
     }
     if (this.timer < 1 / LIGHT.updateHz) return;
     this.timer = 0;
-    this.submit(time, day, player, input, flares, fires);
+    this.submit(time, day, player, input, flares, fires, wisps);
   }
 
   private submit(
@@ -107,6 +109,7 @@ export class LightSystem {
     input: ActionState,
     flares: readonly Flare[],
     fires: readonly number[],
+    wisps: readonly { x: number; y: number }[],
   ): void {
     const { world } = this;
     const body = player.body;
@@ -157,7 +160,7 @@ export class LightSystem {
     const handX = feetX + LANTERN_HAND.x * player.facing;
     const handY = feetY + LANTERN_HAND.y;
     const points = new Float32Array(
-      (2 + this.touched.size + flares.length + fires.length) * POINT_FLOATS,
+      (2 + this.touched.size + flares.length + fires.length + wisps.length) * POINT_FLOATS,
     );
     let p = 0;
     const addPoint = (x: number, y: number, color: readonly number[], radius: number) => {
@@ -203,6 +206,9 @@ export class LightSystem {
       const y = (index - x) / world.width;
       const k = flickerFactor(FIRE_LIGHT.flicker, time, x, y);
       addPoint(x + 0.5, y + 0.5, FIRE_LIGHT.color, FIRE_LIGHT.radius * k);
+    }
+    for (const w of wisps) {
+      addPoint(w.x / TILE_SIZE, w.y / TILE_SIZE, WISP_LIGHT.color, WISP_LIGHT.radius);
     }
     const lens = lensByKey(player.lens);
     const dx = input.aimX - handX;

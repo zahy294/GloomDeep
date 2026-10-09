@@ -2,7 +2,7 @@ import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../data/biomes';
 import { TILES, tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
-import { flora } from './flora';
+import { fairyRings, flora } from './flora';
 import { placeWaterfalls } from './waterfalls';
 import {
   AIR,
@@ -289,6 +289,7 @@ export function liquids(ctx: GenContext): void {
 export function decorations(ctx: GenContext): void {
   caveFeatures(ctx);
   flora(ctx);
+  fairyRings(ctx);
 }
 
 /**

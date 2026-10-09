@@ -584,6 +584,89 @@ export const MATERIALS_VIEW = {
   igniteSoundGap: 0.6,
 } as const;
 
+/** Living flora (src/sim/systems/FloraSystem.ts, M10). Light levels 0–255, seconds, pixels. */
+export const FLORA_FX = {
+  tickHz: 2,
+  /** Lumen blooms open at this light and close again at or below this. */
+  bloomOpenLight: 90,
+  bloomCloseLight: 40,
+  /** Glowmoss: cells picked per cell of the region per second, chance one spreads, and how dark. */
+  mossPicksPerCell: 0.02,
+  mossSpreadChance: 0.25,
+  mossDarkLight: 40,
+  /** Fairy rings: this many mushrooms within `ringRadius` tiles, at night. */
+  ringRadius: 4,
+  ringMushrooms: 4,
+  faeSeconds: 90,
+  faeSpeed: 1.2,
+  faeJump: 1.15,
+  faeLanternDrain: 0.5,
+  /** Glowcaps bounce you when you land at least this fast (px/s). */
+  bounceMinSpeed: 280,
+} as const;
+
+/** Wisps that lead to secrets (src/sim/systems/WispSystem.ts, M10). Tiles, pixels, seconds. */
+export const WISP = {
+  /** How often one may appear (at night or underground), and the chance it does. */
+  interval: 45,
+  chance: 0.6,
+  /** Secrets are looked for this far, but not this close (you're already there). */
+  searchTiles: 100,
+  minTiles: 8,
+  /** Visited secrets are remembered by cells this many tiles wide. */
+  secretCell: 12,
+  /** It stays at most `leadTiles` ahead, waiting `waitTiles` from the player; arrives within. */
+  leadTiles: 9,
+  waitTiles: 5,
+  arriveTiles: 4,
+  speed: 70,
+  lifeSeconds: 150,
+  /** Appears this many pixels from the player; bobs as it drifts. */
+  appearOffset: 40,
+  bobRate: 3,
+  bob: 20,
+} as const;
+
+/** Critters (src/sim/systems/CritterSystem.ts, M10). Pixels and seconds. */
+export const CRITTER = {
+  spawnInterval: 0.6,
+  attemptsPerTick: 8,
+  max: 26,
+  /** A jar catches a critter whose centre is this close to the cursor. */
+  catchRadius: 12,
+  idleSeconds: 3,
+  fleeSeconds: 2.5,
+  gravity: 900,
+  maxFall: 500,
+  stepUp: 8,
+  /** Hops: seconds between, idle and fleeing jump speeds. */
+  hopSeconds: 1.8,
+  hop: 160,
+  fleeHop: 260,
+  /** Flutter paths: wander frequency and how quickly they steer. */
+  wanderRate: 1.1,
+  steer: 3,
+  /** Startled perchers fly up at this share of their speed, flapping. */
+  flyLift: 0.6,
+  flapRate: 14,
+  flapBob: 40,
+  /** Moths: look for light this often, this far (tiles), at least this bright; circle it. */
+  lightSearchSeconds: 2,
+  lightSearchRadius: 10,
+  mothMinLight: 110,
+  orbitRate: 3,
+  orbitRadius: 14,
+  /** Moths steer towards their orbit point this hard (per second). */
+  orbitPull: 2,
+  /** Flutter paths: vertical wander runs this much faster than horizontal (so they loop). */
+  wanderSkew: 1.3,
+  /** Fleeing frogs hop this much more often; swimming fish bob by this share of their speed. */
+  fleeHopPace: 0.3,
+  swimBob: 0.3,
+  /** Fluttering groups scatter over this many tiles. */
+  groupSpread: 3,
+} as const;
+
 /** Your village (plan 1.7, M10): homes and folk. Tiles and seconds. */
 export const SETTLEMENT = {
   /** How often homes are re-checked and newcomers considered. */
@@ -801,8 +884,6 @@ export const LUMEN = {
   max: 100,
   /** Lumen per second while the lantern burns (scaled by the lens's drain multiplier). */
   drainPerSecond: 0.5,
-  /** Lumen restored by burning one Lumen Crystal from the inventory. */
-  perCrystal: 25,
   start: 100,
 } as const;
 

@@ -140,6 +140,22 @@ export interface SimEvents {
   };
   /** The player fast-travelled to a beacon. */
   travelled: { readonly x: number; readonly y: number };
+  /** A critter fled or took flight (x, y pixels): bat flaps, deer bounds. */
+  critterStartled: {
+    readonly id: number;
+    readonly type: number;
+    readonly x: number;
+    readonly y: number;
+  };
+  /** A critter was caught in a jar. */
+  critterCaught: { readonly type: number; readonly x: number; readonly y: number };
+  /** The fairy-ring buff began. */
+  faeBuff: { readonly seconds: number };
+  /** The player bounced off a glowcap (x, y = feet, pixels). */
+  bounced: { readonly x: number; readonly y: number };
+  /** A wisp appeared to lead the way / reached its secret (pixels). */
+  wispAppeared: { readonly x: number; readonly y: number };
+  wispArrived: { readonly x: number; readonly y: number };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

@@ -25,6 +25,10 @@ import {
   type CombatState,
 } from './systems/CombatSystem';
 import { SpawnSystem } from './systems/SpawnSystem';
+import { CritterSystem, type CritterContext } from './systems/CritterSystem';
+import { FloraSystem } from './systems/FloraSystem';
+import { WispSystem } from './systems/WispSystem';
+import { CRITTERS } from '../data/critters';
 import { SettlementSystem } from './systems/SettlementSystem';
 import { BeaconSystem } from './systems/BeaconSystem';
 import { createInteractState, updateInteract, type InteractState } from './systems/InteractSystem';
@@ -36,7 +40,7 @@ import { createBucketState, updateBuckets, type BucketState } from './systems/Bu
 import { hitEnemy, hurtPlayer } from './systems/CombatSystem';
 import { LIQUID as LIQUID_KIND } from '../data/biomes';
 import type { Body } from './physics/tileCollision';
-import { itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
+import { ITEMS, itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
 import type { SimCommand } from './commands';
@@ -120,6 +124,13 @@ export class Simulation {
   private readonly lensState: LensState = createLensState();
   private readonly flareState: FlareState = createFlareState();
   readonly settlement: SettlementSystem;
+  readonly critters = new CritterSystem();
+  private readonly flora: FloraSystem;
+  readonly wisps: WispSystem;
+  private readonly wispLights: { x: number; y: number }[] = [];
+  private readonly bouncedPayload = { x: 0, y: 0 };
+  private readonly critterContext: CritterContext;
+  private readonly caughtPayload = { type: 0, x: 0, y: 0 };
   readonly beacons: BeaconSystem;
   private readonly interactState: InteractState = createInteractState();
   readonly liquids: LiquidSystem;
@@ -182,6 +193,18 @@ export class Simulation {
     this.falling = new FallingSystem(this.world, this.events);
     this.settlement = new SettlementSystem(this.world, this.events, this.random);
     this.beacons = new BeaconSystem(this.world, this.events);
+    this.flora = new FloraSystem(this.world, this.events, this.random);
+    this.wisps = new WispSystem(this.world, this.events, this.random);
+    this.critterContext = {
+      world: this.world,
+      player: this.player,
+      region: null,
+      focusX: 0,
+      focusY: 0,
+      day: true,
+      random: this.random,
+      events: this.events,
+    };
     this.gloam.covered = (x, y) => this.beacons.covers(x, y);
     // The Old Dryad waits by the spawn tree (a loaded world replaces it with the saved folk).
     this.settlement.ensureDryad(this.dryadColumn());
@@ -432,7 +455,9 @@ export class Simulation {
       this.flares.length +
       this.enemies.length +
       this.projectiles.length +
-      this.falling.blocks.length
+      this.falling.blocks.length +
+      this.critters.critters.length +
+      this.settlement.npcs.length
     );
   }
 
@@ -525,6 +550,22 @@ export class Simulation {
     this.weather.applyToSun(this.day, this.sunNow);
     this.updateMaterials(dt);
     this.settlement.update(dt);
+    const night = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) < SPAWN.daylightSun;
+    this.flora.update(dt, this.light.current, this.player, night);
+    const pb = this.player.body;
+    const outside =
+      pb.y + pb.height <=
+      (this.world.groundRow(Math.floor((pb.x + pb.width / 2) / TILE_SIZE)) + SPAWN.surfaceDepth) *
+        TILE_SIZE;
+    this.wisps.update(dt, this.player, outside && !night);
+    this.wispLights.length = 0;
+    if (this.wisps.wisp) this.wispLights.push(this.wisps.wisp);
+    if (this.player.bounced) {
+      const pb = this.player.body;
+      this.bouncedPayload.x = pb.x + pb.width / 2;
+      this.bouncedPayload.y = pb.y + pb.height;
+      this.events.emit('bounced', this.bouncedPayload);
+    }
     this.light.update(
       dt,
       this.elapsed,
@@ -533,6 +574,7 @@ export class Simulation {
       this.input,
       this.flares,
       this.fireLights,
+      this.wispLights,
     );
     const lens = lensByKey(this.player.lens);
     const crimson =
@@ -554,6 +596,12 @@ export class Simulation {
       sc.focusY = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
       sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= SPAWN.daylightSun;
       this.spawner.update(sc, dt);
+      const cc = this.critterContext;
+      cc.region = sc.region;
+      cc.focusX = sc.focusX;
+      cc.focusY = sc.focusY;
+      cc.day = sc.day;
+      this.critters.update(cc, dt);
     }
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
@@ -711,9 +759,24 @@ export class Simulation {
     return trunk + Math.sign(spawn - trunk || 1) * SETTLEMENT.dryadOffset;
   }
 
-  /** Catching critters (fireflies in jars) — filled in by the critter system. */
-  private tryCatch(_x: number, _y: number): boolean {
-    return false;
+  /** A glass jar (the selected item) catches a firefly at the cursor. */
+  private tryCatch(x: number, y: number): boolean {
+    const stack = this.inventory.selectedStack;
+    const into = stack ? ITEMS[stack.itemId]?.catches : undefined;
+    if (!into) return false;
+    const caught = this.critters.catchAt(x, y);
+    if (!caught || CRITTERS[caught.type]?.caughtAs !== into) {
+      if (caught) this.critters.critters.push(caught); // not catchable with this: let it go
+      return false;
+    }
+    this.inventory.removeFromSlot(this.inventory.selected, 1);
+    if (this.inventory.add(itemId(into), 1) > 0) this.dropAtPlayer(itemId(into), 1, false);
+    this.caughtPayload.type = caught.type;
+    this.caughtPayload.x = x;
+    this.caughtPayload.y = y;
+    this.events.emit('critterCaught', this.caughtPayload);
+    this.events.emit('inventoryChanged', NO_PAYLOAD);
+    return true;
   }
 
   /** Fast travel to a beacon: stand on top of it. */

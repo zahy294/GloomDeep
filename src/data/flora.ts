@@ -42,7 +42,20 @@ export const FLORA: readonly FloraRule[] = [
     chain: 5,
   },
   { decor: 'hanging_vine', where: 'caveCeiling', in: ['glowcap_grottos'], chance: 0.05, chain: 4 },
+  // M10: Lumen blooms (they open only in light: bring your lantern).
+  { decor: 'lumen_bloom', where: 'caveFloor', in: ['glowcap_grottos', 'rootdeep'], chance: 0.05 },
 ];
+
+/** Fairy rings (M10): a row of small mushrooms on flat ground; stand inside one at night. */
+export const FAIRY_RINGS = {
+  biomes: ['elderglade', 'moonpetal_vale'] as readonly string[],
+  perThousandColumns: 0.8,
+  /** One a short walk from the spawn (columns), on a random side. */
+  nearSpawn: [28, 48] as const,
+  /** Mushroom offsets from the ring's centre column (you stand in the gap). */
+  offsets: [-3, -2, -1, 1, 2, 3] as readonly number[],
+  attemptsPerRing: 30,
+};
 
 /**
  * Small overgrown ruins with carved runes that wake as the player approaches (plan 2.0). One

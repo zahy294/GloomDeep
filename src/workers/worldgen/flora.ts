@@ -1,6 +1,6 @@
 import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, SURFACE_BIOMES } from '../../data/biomes';
-import { FLORA, RUINS, type FloraRule } from '../../data/flora';
+import { FAIRY_RINGS, FLORA, RUINS, type FloraRule } from '../../data/flora';
 import { TILES, tileId } from '../../data/tiles';
 import { AIR, isSolidId, layerAt, stepRandom, type GenContext } from './context';
 
@@ -11,6 +11,9 @@ interface Rule {
 }
 
 const GRASS = SURFACE_BIOMES.map((b) => tileId(b.grass));
+const T_FAIRY = tileId('fairy_mushroom');
+const DECOR_ID = Uint8Array.from(TILES, (t) => (t.decor ? 1 : 0));
+const isDecorId = (id: number) => DECOR_ID[id] === 1;
 const SAPLING = Uint8Array.from(TILES, (t) => (t.decor?.sprite === 'saplings' ? 1 : 0));
 const DECOR_SUPPORT = TILES.map((t) => t.decor?.support ?? null);
 /** Blocks, branches and leaf canopies hold decorations (as in src/sim/world/decor.ts). */
@@ -87,6 +90,53 @@ export function flora(ctx: GenContext): void {
         for (let k = 0; k < length && empty(i + k * width); k++) fg[i + k * width] = rule.id;
       }
     }
+  }
+}
+
+/**
+ * Fairy rings (M10): rows of fairy mushrooms on flat grass, one a short walk from the spawn.
+ * Placed with the flora (after the trees), on ground left open.
+ */
+export function fairyRings(ctx: GenContext): void {
+  const { width, fg } = ctx;
+  const random = stepRandom(ctx, 92);
+  const centre = Math.floor(width / 2);
+  const reach = Math.max(...FAIRY_RINGS.offsets.map(Math.abs));
+  const fits = (x: number): boolean => {
+    const ground = ctx.surface[x] ?? 0;
+    const biome = SURFACE_BIOMES[ctx.surfaceBiome[x] ?? 0]?.key ?? '';
+    if (!FAIRY_RINGS.biomes.includes(biome) || x - reach < 1 || x + reach >= width - 1)
+      return false;
+    for (let dx = -reach; dx <= reach; dx++) {
+      const g = ctx.surface[x + dx];
+      if (g !== ground || !isSolidId(fg[ground * width + x + dx] ?? AIR)) return false;
+      const above = fg[(ground - 1) * width + x + dx] ?? AIR;
+      if (above !== AIR && !isDecorId(above)) return false;
+    }
+    return true;
+  };
+  const place = (x: number) => {
+    const ground = ctx.surface[x] ?? 0;
+    for (let dx = -reach; dx <= reach; dx++) {
+      const i = (ground - 1) * width + x + dx;
+      fg[i] = FAIRY_RINGS.offsets.includes(dx) ? T_FAIRY : AIR;
+    }
+  };
+  const [nearMin, nearMax] = FAIRY_RINGS.nearSpawn;
+  const side = random() < 0.5 ? -1 : 1;
+  for (let k = 0; k < FAIRY_RINGS.attemptsPerRing; k++) {
+    const x = centre + side * Math.round(nearMin + random() * (nearMax - nearMin));
+    if (fits(x)) {
+      place(x);
+      break;
+    }
+  }
+  const wanted = Math.round((width / 1000) * FAIRY_RINGS.perThousandColumns);
+  for (let r = 0, tries = 0; r < wanted && tries < wanted * FAIRY_RINGS.attemptsPerRing; tries++) {
+    const x = Math.floor(random() * width);
+    if (Math.abs(x - centre) < WORLDGEN.spawnHalfWidth || !fits(x)) continue;
+    place(x);
+    r++;
   }
 }
 

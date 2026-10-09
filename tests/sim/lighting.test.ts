@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIGHT, LUMEN, TILE_SIZE } from '../../src/config';
 import { DAY_KEYFRAMES, NAMED_TIMES } from '../../src/data/dayCycle';
-import { itemId } from '../../src/data/items';
+import { ITEMS, itemId } from '../../src/data/items';
 import { lightByKey } from '../../src/data/lights';
 import { tileId } from '../../src/data/tiles';
 import { sampleDayCycle } from '../../src/sim/dayCycle';
@@ -65,7 +65,7 @@ describe('updateLantern', () => {
 
   it('refills from Lumen Crystals in the inventory', () => {
     const { player, input, inventory, events } = setup();
-    player.lumen = LUMEN.max - LUMEN.perCrystal - 1;
+    player.lumen = LUMEN.max - (ITEMS[itemId('lumen_crystal')]?.fuel ?? 0) - 1;
     inventory.add(itemId('lumen_crystal'), 2);
     updateLantern(player, input, inventory, events, 0);
     expect(player.lumen).toBeCloseTo(LUMEN.max - 1, 6);
