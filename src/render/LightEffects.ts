@@ -82,6 +82,10 @@ export class LightEffects {
     for (const off of this.unsubscribe) off();
     for (const ring of this.rings) ring.image.destroy();
     this.rings.length = 0;
+    for (const image of this.flareImages) image.destroy();
+    for (const halo of this.flareHalos) halo.destroy();
+    this.flareImages.length = 0;
+    this.flareHalos.length = 0;
   }
 
   private ring(tx: number, ty: number, color: number, radius: number, duration: number): void {

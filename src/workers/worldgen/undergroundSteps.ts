@@ -244,8 +244,9 @@ function spiritBridges(ctx: GenContext): void {
     }
     if (!ok) continue;
     // Cut the pit through solid rock only (no breaking into another cave or a pool).
-    for (let y = floor; y < floor + depth && ok; y++) {
-      for (let x = x0; x < x0 + span && ok; x++) ok = solid(x, y) && caveAllowed(ctx, x, y);
+    // ...including a rock floor under it and rock walls either side.
+    for (let y = floor; y <= floor + depth && ok; y++) {
+      for (let x = x0 - 1; x <= x0 + span && ok; x++) ok = solid(x, y) && caveAllowed(ctx, x, y);
     }
     if (!ok) continue;
     for (let y = floor + 1; y < floor + depth; y++) {

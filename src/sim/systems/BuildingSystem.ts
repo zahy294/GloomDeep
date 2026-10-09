@@ -34,8 +34,13 @@ const NEIGHBOURS = [
 const NEEDS_GROUND = Uint8Array.from(TILES, (t) => (t.needsGround ? 1 : 0));
 const GROUND = Uint8Array.from(TILES, (t) => (t.solid || t.platform ? 1 : 0));
 
-/** Per id: foreground tiles a new block can be built against (not flowers, vines or waterfalls). */
-const HOLDS = Uint8Array.from(TILES, (t) => (t.id !== AIR && !t.decor && !t.waterfall ? 1 : 0));
+/**
+ * Per id: foreground tiles a new block can be built against (not flowers, vines, waterfalls, or
+ * unseen spirit platforms, which would give the secret away).
+ */
+const HOLDS = Uint8Array.from(TILES, (t) =>
+  t.id !== AIR && !t.decor && !t.waterfall && !t.intangible ? 1 : 0,
+);
 
 /**
  * Placement rule: a tile must touch something — a neighbouring block or wall, or (for a block)

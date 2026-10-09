@@ -47,6 +47,7 @@ export function updateFlares(
     const dx = input.aimX - x;
     const dy = input.aimY - y;
     const length = Math.hypot(dx, dy) || 1;
+    if (flares.length >= FLARE.maxActive) flares.shift(); // the oldest goes out
     flares.push(createFlare(x, y, dx / length, dy / length));
     inventory.removeFromSlot(inventory.selected, 1);
     state.cooldown = FLARE.throwInterval;
@@ -61,8 +62,7 @@ export function updateFlares(
     if (!flare) continue;
     flare.age += dt;
     if (flare.age >= FLARE.lifeSeconds) {
-      flares[i] = flares[flares.length - 1] ?? flare;
-      flares.pop();
+      flares.splice(i, 1); // keeps throw order, so the oldest is always first (few flares)
       continue;
     }
     const b = flare.body;

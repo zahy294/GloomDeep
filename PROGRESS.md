@@ -4,6 +4,82 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M7 — The Lantern and the Gloam ✅ (2026-10-09)
+
+### Built
+
+- **The Gloam** (`src/sim/systems/GloamSystem.ts`; `GLOAM` in config):
+  - A 0–255 level per cell, held by solid blocks and background walls (`world.gloam`, already saved).
+  - Ticks 4 times a second over the area where the light grid is current. In darkness it thickens and creeps outwards from cells with enough Gloam; in light it burns away in proportion to the light.
+  - Placing a light burns a ring of it at once.
+  - Mining a cell clear (no block, no wall) removes its Gloam.
+- **The four lenses** (lens items you carry; `Q` cycles them; the HUD shows a gem for each lens you own):
+  - **Amber** heals you while the lantern burns.
+  - **Azure** (true sight) reveals veiled tiles in its light. Worldgen hides 35% of the lumen and moonsilver veins as plain-looking stone (they drop only stone if mined unrevealed). It also cuts pits into cave floors, spanned flush with the floor by unseen, untouchable spirit platforms: without Azure you fall in.
+  - **Crimson** burns the Gloam in its cone much faster (and damages shades, M8).
+  - **Verdant** grows things in its light: grass on soil, flowers on grass, moss on stone, glowmoss on moss (rules in `src/data/flora.ts`).
+  - Lenses are crafted at the anvil, each from another depth: Verdant from Grottos glowcaps, Azure from Hollows moonstone, Crimson from gold.
+- **Flares:** crafted at the workbench and thrown with the right button. They bounce, come to rest and burn for 40 s as a point light, so they also push the Gloam back. At most 12 burn at once.
+- **Render:**
+  - The Gloam as pulsing violet veins over an ink wash, drawn above the light map so the living darkness shows even where nothing is lit.
+  - The camera grade loses colour as the Gloam covers the view.
+  - A light ring expands when a light is placed; a small cyan ring marks a revealed tile.
+  - Flares draw with a flickering halo.
+- **Placeholder art** for gold bars, the lenses and flares; spirit platforms in cyan. Debug kit `?kit=lenses`.
+- **Tests** (445 in total):
+  - Gloam spreading, the spread threshold, light burning, the Crimson cone, the burst on placing a light, and which cells hold Gloam.
+  - A simulation run where a dark tunnel is taken over in a minute and a torch clears it.
+  - Lens ownership and cycling, Amber, Azure reveals, intangible platforms, Verdant growth, flares.
+  - Worldgen secrets.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Leaving an area dark lets the Gloam take it over | ✅ In `GloamSystem.test.ts`, a dark walled tunnel gains Gloam steadily over a minute from Gloam at its far end. In real worlds every depth layer starts with traces of Gloam: 0.06 strength in the Grottos, rising to full in the Gloam Heart. Dark areas thicken and spread where a trace is strong enough. |
+| Lighting it pushes the Gloam back | ✅ Same test: a torch clears the tunnel around it within 10 s. In the browser (`gloam-pushback`, Ember Roots), Gloam within 4 tiles of a placed torch went 7,060 → 305 in 3 s, and the veins visibly clear around it. |
+| Each lens changes how you play | ✅ Amber heals; Azure finds hidden ore and the only safe way over spirit pits; Crimson clears Gloam fast (and fights shades in M8); Verdant grows the world. |
+
+### Decisions and deviations
+
+- **The Gloam only changes where the light grid is current** (around the camera). Rule 7 makes light the input, and the light grid only exists near the player, so the Gloam is frozen elsewhere until you come back. This is like the planned "liquids only near the player"; a catch-up on return can come later if it matters.
+- **Light timing:** results from the light worker are applied when its message arrives, which is always between simulation steps but depends on timing. So the step at which new light reaches the Gloam isn't deterministic across machines. Acceptable for a single-player game; resolves the M3 open note.
+- **Gloam is an overlay, not tile variants:** the plan's "Gloam-veined versions" are the vein overlay on any block or wall, so every material corrupts without a variant atlas per tile.
+- **Azure's secrets:** hidden ore and spirit platforms. No "secret passages" yet; those fit with the ruins and shrines later (M11).
+- **Q only:** the mouse wheel stays on the hotbar, so it doesn't also switch lenses.
+- **Crimson burns Gloam:** until shades arrive in M8 it needs something to burn. It damages shades in M8.
+- **Initial Gloam raised** in the upper layers (Grottos 0, Rootdeep 0.05, Hollows 0.15 → 0.06, 0.15, 0.25) so Gloam actually appears above the deep layers.
+- **Flares aren't saved;** they burn out.
+
+### Reviewer pass
+
+No blockers. Fixed:
+- A hidden spirit platform counted as building support, which revealed it.
+- Gloam couldn't grow in the upper half of the world.
+- Spirit pits could open into another cave below or beside them (the bottom row and the side walls are now checked).
+- `ownedLenses` allocated every step.
+- Live flares had no limit.
+- Flare sprites were not destroyed with the renderer.
+- A stale config comment.
+
+The reviewer's note that the lens isn't saved was wrong (it is saved and restored).
+
+Not changed:
+- Reveal and the Crimson burn use light plus cone shape, so a veiled tile lit through a thin wall can be revealed. They don't trace rays; minor.
+- The Gloam rounding tick counter isn't saved; it only matters for replays.
+
+### Known issues
+
+- Gloam veins, lenses and flares are placeholder art.
+- The Gloam Heart's thick violet fog makes the deepest layer murky; the fog strength needs tuning.
+- The Crimson cone's red light is faint against the Ember Roots haze.
+
+### Next step
+
+**M8 — Combat and enemies.**
+
+---
+
 ## M6 — Items, crafting and UI ✅ (2026-10-09)
 
 ### Built
@@ -204,7 +280,7 @@ No blockers. Fixed from the review:
 |---|---|
 | Creating a world with a seed shows progress and finishes in under 15 s | ✅ large world via the UI in ~2 s with the progress screen (`worlds-generating.png`, `worlds-created-large.png`); medium ~0.6 s |
 | The same seed gives the same world (tested) | ✅ `tests/workers/worldgen/generateWorld.test.ts` hashes every array for two runs |
-| Quitting and reloading restores the world exactly | ✅ in the browser: save & quit → page reload → play gives the same player position, 41×21 tiles + walls and inventory (`save-reload-restored.png`); in Vitest the restored simulation keeps stepping identically |
+- Light results are applied when the worker answers (between steps, but timing-dependent); light outside the current region goes stale when the camera leaves. Resolved in M7: logged as accepted (see M7 decisions).
 
 ### Decisions and deviations
 

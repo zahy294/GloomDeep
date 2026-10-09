@@ -96,7 +96,8 @@ export const DEPTH_LAYERS: readonly DepthLayerDef[] = [
     liquid: 'water',
     feature: 'glowcap_flesh',
     featureAmount: 0.05,
-    gloam: 0,
+    // A trace of Gloam even here, so dark tunnels near the surface can turn (plan 1.4).
+    gloam: 0.06,
   },
   {
     key: 'rootdeep',
@@ -114,7 +115,7 @@ export const DEPTH_LAYERS: readonly DepthLayerDef[] = [
     liquid: 'water',
     feature: 'rootwood',
     featureAmount: 0.08,
-    gloam: 0.05,
+    gloam: 0.25,
   },
   {
     key: 'moonstone_hollows',

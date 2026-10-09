@@ -38,11 +38,24 @@ export function createLensState(): LensState {
 
 /** The lenses the player can use: Amber, plus every lens whose item is in the inventory. */
 export function ownedLenses(inventory: Inventory): LensDef[] {
-  return LENSES.filter((l) => {
+  if (ownedCache.version === inventory.version && ownedCache.inventory === inventory) {
+    return ownedCache.lenses;
+  }
+  ownedCache.inventory = inventory;
+  ownedCache.version = inventory.version;
+  ownedCache.lenses = LENSES.filter((l) => {
     const item = LENS_ITEM.get(l.key) ?? -1;
     return item < 0 || inventory.count(item) > 0;
   });
+  return ownedCache.lenses;
 }
+
+/** Re-filtered only when the inventory changes (the lens system asks every step). */
+const ownedCache: { inventory: Inventory | null; version: number; lenses: LensDef[] } = {
+  inventory: null,
+  version: -1,
+  lenses: [],
+};
 
 const revealedPayload = { x: 0, y: 0, id: 0 };
 
@@ -62,7 +75,9 @@ export function updateLens(
   dt: number,
 ): void {
   const owned = ownedLenses(inventory);
-  if (!owned.some((l) => l.key === player.lens)) player.lens = 'amber';
+  let ownsActive = false;
+  for (const l of owned) if (l.key === player.lens) ownsActive = true;
+  if (!ownsActive) player.lens = 'amber';
   if (input.consumePressed('cycleLens') && owned.length > 1) {
     const at = owned.findIndex((l) => l.key === player.lens);
     player.lens = owned[(at + 1) % owned.length]?.key ?? 'amber';

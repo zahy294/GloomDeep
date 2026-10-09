@@ -441,7 +441,7 @@ export const GLOAM = {
 export const LENS_FX = {
   /** Amber: health regained per second while the lantern burns. */
   amberHealPerSecond: 0.8,
-  /** Azure/Verdant: cells of the cone examined per second (random picks; keeps it cheap). */
+  /** Verdant: cells of the cone examined per second (random picks; keeps it cheap). */
   conePicksPerSecond: 120,
   /** A cone cell must be at least this bright (the cone actually reaches it, not behind a wall). */
   coneMinLight: 60,
@@ -468,6 +468,102 @@ export const LIGHT_FX = {
   flareFlickerPhase: 1.7,
 } as const;
 
+/** Combat (plan 3.4 CombatSystem, 2.8 "Hit"). Pixels, seconds, health points. */
+export const COMBAT = {
+  /** Melee reach when a weapon gives none, and the swing's arc (half-angle, radians). */
+  defaultReach: 30,
+  swingHalfArc: 1.2,
+  /** Enemies this close to the hand are hit whatever the swing's direction. */
+  swingInnerReach: 10,
+  /** Hits land during this first part of a swing. */
+  swingActiveFraction: 0.6,
+  /** Knockback: weapon knockback × target's knockbackTaken × these (px/s). */
+  knockbackSpeed: 60,
+  knockbackLift: 40,
+  /** After being hit an enemy can't be hit again for this long, and doesn't steer for this long. */
+  enemyInvuln: 0.15,
+  enemyStun: 0.3,
+  /** The game freezes this long when a hit lands (hit-stop). */
+  hitStop: 0.06,
+  /** The player after taking damage: invulnerable, knocked back, without control for a moment. */
+  playerInvuln: 0.8,
+  playerKnockbackSeconds: 0.25,
+  playerKnockbackSpeed: 240,
+  playerKnockbackLift: 220,
+  /** Death: seconds until respawning at the spawn, and the share of Lumen lost. */
+  respawnSeconds: 4,
+  deathLumenLoss: 0.25,
+  /** Shades burn in light at least this bright; a Crimson cone adds this much damage per second. */
+  shadeBurnLight: 70,
+  crimsonShadeDps: 30,
+  /** Light damage is reported as a hit (damage number) whenever this much has built up. */
+  burnReportEvery: 3,
+  /** Lumen beams hit shades this much harder. */
+  beamShadeMultiplier: 2,
+} as const;
+
+/** Shots (src/sim/entities/Projectile.ts). Pixels and seconds. */
+export const PROJECTILE = {
+  arrow: { speed: 520, gravity: 600, size: 4, life: 3 },
+  beam: { speed: 700, gravity: 0, size: 6, life: 0.6 },
+} as const;
+
+/** Creature movement (src/sim/systems/EnemyAI.ts). Pixels, seconds, tiles where noted. */
+export const ENEMY_AI = {
+  gravity: 1300,
+  maxFallSpeed: 700,
+  acceleration: 900,
+  groundFriction: 900,
+  stepUp: 16,
+  /** Wandering: seconds before turning, and the share of top speed. */
+  wanderSeconds: 2.5,
+  wanderSpeed: 0.35,
+  /** Walkers jump towards a player standing this many tiles higher. */
+  jumpAtHeight: 2,
+  /** Hoppers: seconds between hops (longer and lower when idle). */
+  hopDelay: 0.8,
+  idleHopFactor: 2.5,
+  idleHopHeight: 0.5,
+  /** Fraction of speed kept when a hopper bounces off a wall. */
+  wallBounce: 0.5,
+  /** Flyers and shades bob up and down. */
+  bobRate: 3,
+  bobSpeed: 30,
+  /** Light-shy flyers scatter above this light; shades shrink back above this. Seconds of fleeing. */
+  fleeLight: 150,
+  shadeFleeLight: 110,
+  fleeSeconds: 1.2,
+  /** Fleeing flyers also climb by this share of their speed. */
+  fleeLift: 0.4,
+  /** Burrowers: lurk this many tiles under the player, lunge when within range horizontally and
+   * the player is at most `lungeHeight` tiles above; wait between lunges. */
+  burrowDepth: 3,
+  lungeRange: 1.5,
+  lungeHeight: 9,
+  lungeCooldown: 1.5,
+  lungeMinSeconds: 0.3,
+  lungeDrift: 0.4,
+} as const;
+
+/** Spawning (plan 3.4 SpawnSystem). Tiles and seconds. */
+export const SPAWN = {
+  interval: 0.5,
+  attemptsPerTick: 10,
+  maxEnemies: 10,
+  maxShades: 6,
+  /** Spawns happen outside this half-size of the view around its centre (60×34 tiles visible). */
+  viewHalfWidth: 31,
+  viewHalfHeight: 18,
+  /** Shades need light at most this (brightest channel). */
+  darkLight: 16,
+  /** Shade spawn weight × (1 + Gloam level × this): the Gloam breeds them. */
+  gloamShadeBoost: 3,
+  /** Ground creatures drop at most this far from the tried cell to find a floor. */
+  groundSearch: 12,
+  /** Creatures farther than this from the player vanish. */
+  despawnTiles: 70,
+} as const;
+
 /** Flares (plan M7): thrown light. Pixels and seconds. */
 export const FLARE = {
   size: 6,
@@ -482,6 +578,8 @@ export const FLARE = {
   fadeSeconds: 6,
   /** Time between two throws while the button is held. */
   throwInterval: 0.35,
+  /** At most this many burn at once; throwing another puts out the oldest. */
+  maxActive: 12,
 } as const;
 
 /** The lantern and its fuel (plan 1.4). */
