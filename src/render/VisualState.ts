@@ -48,6 +48,14 @@ export class VisualState {
   /** What the current quality setting allows (plan 2.10). */
   constructor(readonly features: QualityFeatures) {}
 
+  /**
+   * The next update takes the camera's blend as-is instead of fading to it (after a teleport or
+   * the initial camera snap, a 2-second crossfade from the old place would be wrong).
+   */
+  jumpNext(): void {
+    this.first = true;
+  }
+
   /** Call once per frame after the camera has moved. */
   update(
     sim: Simulation,

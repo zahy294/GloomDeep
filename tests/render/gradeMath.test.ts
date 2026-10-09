@@ -6,6 +6,7 @@ import {
   noiseSample,
   stepToward,
   type GradeParams,
+  edgeFade,
 } from '../../src/render/gradeMath';
 
 const neutral: GradeParams = { tint: 0xffffff, saturation: 1, contrast: 1, brightness: 1 };
@@ -81,5 +82,21 @@ describe('helpers', () => {
         expect(n).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+describe('edgeFade', () => {
+  it('is 1 in the middle and 0 on every edge of the displacement map', () => {
+    expect(edgeFade(0.5, 0.5, 0.06)).toBe(1);
+    for (const [u, v] of [
+      [0, 0.5],
+      [1, 0.5],
+      [0.5, 0],
+      [0.5, 1],
+    ] as const) {
+      expect(edgeFade(u, v, 0.06)).toBe(0);
+    }
+    expect(edgeFade(0.03, 0.5, 0.06)).toBeGreaterThan(0);
+    expect(edgeFade(0.03, 0.5, 0.06)).toBeLessThan(1);
   });
 });

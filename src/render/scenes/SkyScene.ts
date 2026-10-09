@@ -123,6 +123,10 @@ export class SkyScene extends Phaser.Scene {
     this.starfall.update(visual, dt);
     this.updateBackMist(visual, dt);
     this.stars.setAlpha(day.stars * (1 - visual.rain));
+    // Clouds hide the sun and moon as the rain thickens.
+    const clear = 1 - visual.rain * ATMOSPHERE.sky.rainHidesBodies;
+    this.sun.setAlpha(clear);
+    this.moon.setAlpha(clear);
 
     // Sun rises at dawn (0.25) in the east (left), peaks at noon, sets at dusk (0.75).
     this.placeOnArc(this.sun, dayFraction - 0.25);

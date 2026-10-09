@@ -243,10 +243,26 @@ export class GameScene extends Phaser.Scene {
       world.width * TILE_SIZE,
       world.height * TILE_SIZE,
     );
+    // Sample the blend around the player first, so the snap's surface lift is right underground.
+    const cam = this.cameras.main;
+    this.visual.update(
+      this.sim,
+      {
+        scrollX: this.playerView.feetX(1) - cam.width / 2,
+        scrollY: this.playerView.feetY(1) - cam.height / 2,
+        width: cam.width,
+        height: cam.height,
+      },
+      this.playerView.feetX(1),
+      this.playerView.feetY(1),
+      0,
+    );
+    this.visual.jumpNext();
     this.cameraDirector.snapTo(
       this.playerView.feetX(1),
       this.playerView.feetY(1) - player.body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
     );
+    this.visual.jumpNext(); // the camera is now where the game starts
     this.lightMap = new LightMapRenderer(this, world, sim.events);
     this.glow = new GlowRenderer(
       this.glowScene,

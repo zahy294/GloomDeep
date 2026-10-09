@@ -98,7 +98,8 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
     ],
     parallax: {
       colors: [0x8090b0, 0x64769a, 0x4a5c80, 0x34425e],
-      haze: [0.72, 0.52, 0.32, 0.14],
+      // Low haze: the Vale keeps its own silver-blue even under a warm morning horizon.
+      haze: [0.38, 0.26, 0.16, 0.06],
       scroll: [0.1, 0.22, 0.38, 0.55],
     },
     foregroundCanopy: false,
@@ -129,7 +130,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'glowcap_grottos',
     grade: { tint: 0xc8f0ec, saturation: 1.1, contrast: 1.08, brightness: 1 },
-    mist: { color: 0x2c6a68, alpha: 0.18, dawnBoost: 0 },
+    mist: { color: 0x3a7a78, alpha: 0.55, dawnBoost: 0 },
     motes: { color: 0xf0a0b0, count: 36 },
     particles: [{ kind: 'spore', count: 26, when: 'always' }],
     parallax: null,
@@ -141,7 +142,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'rootdeep',
     grade: { tint: 0xd6e6c0, saturation: 0.85, contrast: 1.06, brightness: 0.92 },
-    mist: { color: 0x41692e, alpha: 0.16, dawnBoost: 0 },
+    mist: { color: 0x4c7a34, alpha: 0.45, dawnBoost: 0 },
     motes: { color: 0xa6f0c4, count: 22 },
     particles: [{ kind: 'spore', count: 12, when: 'always' }],
     parallax: null,
@@ -153,7 +154,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'moonstone_hollows',
     grade: { tint: 0xd0f4ff, saturation: 0.9, contrast: 1.1, brightness: 1.04 },
-    mist: { color: 0x95a4c0, alpha: 0.14, dawnBoost: 0 },
+    mist: { color: 0x9cc4dc, alpha: 0.6, dawnBoost: 0 },
     motes: { color: 0x76e6e0, count: 44 },
     particles: [],
     parallax: null,
@@ -165,7 +166,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'ember_roots',
     grade: { tint: 0xffd2a8, saturation: 1.15, contrast: 1.12, brightness: 0.98 },
-    mist: { color: 0x5a1a12, alpha: 0.22, dawnBoost: 0 },
+    mist: { color: 0x9a3418, alpha: 0.55, dawnBoost: 0 },
     motes: { color: 0xffa648, count: 18 },
     particles: [{ kind: 'ember', count: 34, when: 'always' }],
     parallax: null,
@@ -177,7 +178,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'gloam_heart',
     grade: { tint: 0xe6dcf0, saturation: 0.25, contrast: 1.15, brightness: 0.9 },
-    mist: { color: 0x281e36, alpha: 0.3, dawnBoost: 0 },
+    mist: { color: 0x45365a, alpha: 0.6, dawnBoost: 0 },
     motes: { color: 0x45365a, count: 14 },
     particles: [],
     parallax: null,

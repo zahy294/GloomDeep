@@ -71,6 +71,18 @@ export function stepToward(value: number, target: number, maxStep: number): numb
  * Soft, tileless displacement-map sample in 0..1 for channel 0 (red) or 1 (green): a few sines of
  * different frequency, so the distortion has gentle waves rather than blocks.
  */
+/**
+ * 1 inside the map, falling smoothly to 0 within `margin` (UV) of any edge: displacement fades
+ * to none at the screen edges, so the filter never samples outside the frame.
+ */
+export function edgeFade(u: number, v: number, margin: number): number {
+  const s = (t: number) => {
+    const c = t < 0 ? 0 : t > 1 ? 1 : t;
+    return c * c * (3 - 2 * c);
+  };
+  return s(Math.min(u, 1 - u) / margin) * s(Math.min(v, 1 - v) / margin);
+}
+
 export function noiseSample(u: number, v: number, channel: number, phase: number): number {
   const tau = Math.PI * 2;
   const c = channel + 1;

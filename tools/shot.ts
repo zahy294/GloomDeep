@@ -11,7 +11,7 @@ import { preview } from 'vite';
 import { CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../src/config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
-import { tileId } from '../src/data/tiles';
+import { TILES, tileId } from '../src/data/tiles';
 import { viewSize } from '../src/render/integerScale';
 import { Simulation } from '../src/sim/Simulation';
 import { generateWorld } from '../src/workers/worldgen/generateWorld';
@@ -149,6 +149,8 @@ const PLAYER_CLOSEUP = {
 /** An open cave pocket in the debug world (src/sim/world/debugSpawn.ts). */
 const CAVE = 'spot=cave';
 const TORCH = tileId('torch');
+/** Darkness check: cave air cells this far (tiles) from the player and any emissive tile. */
+const DARK_CHECK = { radius: 18, awayFromPlayer: 6, awayFromGlow: 8, minSamples: 15 } as const;
 
 const lightAt = async (page: Page, x: number, y: number): Promise<[number, number, number]> =>
   (await page.evaluate(([tx, ty]) => window.gloamdeep?.light(tx, ty) ?? null, [x, y] as const)) ?? [
@@ -228,8 +230,11 @@ const sampleTiles = (page: Page, cx: number, cy: number) =>
 /** One shot per surface biome (noon, on the surface) and per depth layer (in a cave there). */
 const BIOME_SHOTS: Shot[] = [...SURFACE_BIOMES, ...DEPTH_LAYERS].map(({ key }) => ({
   name: `biome-${key}`,
-  query: `?scene=game&ui=0&time=noon&biome=${key}`,
-  prepare: waitForLight,
+  query: `?scene=game&ui=0&time=morning&biome=${key}`,
+  prepare: async (page: Page) => {
+    await waitForLight(page);
+    await page.waitForTimeout(2000); // particles, mist and the biome blend settle
+  },
 }));
 
 /**
@@ -263,7 +268,8 @@ const LIQUID_SPOTS = liquidSpots();
 
 const LIQUID_SHOTS: Shot[] = (['water', 'lava'] as const).map((liquid) => ({
   name: `liquid-${liquid}`,
-  query: `?scene=game&ui=0&time=noon&${LIQUID_SPOTS[liquid]}`,
+  // High quality: still pools show their reflection.
+  query: `?scene=game&ui=0&time=noon&quality=high&${LIQUID_SPOTS[liquid]}`,
   prepare: async (page) => {
     await waitForLight(page);
     await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height * 0.6); // lantern at the pool
@@ -296,8 +302,32 @@ const EXTRA_SHOTS: Shot[] = (process.env.SHOT_EXTRA ?? '')
     };
   });
 
+/** Waits for the light grid, then lets particles, mist and blends settle. */
+const settled = (ms: number) => async (page: Page) => {
+  await waitForLight(page);
+  await page.waitForTimeout(ms);
+};
+
+/**
+ * M5 "Done when": the Elderglade at sunrise and through the day (light shafts, mist, motes,
+ * swaying grass), weather, and water.
+ */
+const FOREST_SHOTS: Shot[] = [
+  { name: 'forest-sunrise', query: '?scene=game&ui=0&time=dawn', prepare: settled(2500) },
+  { name: 'forest-morning', query: '?scene=game&ui=0&time=morning', prepare: settled(2500) },
+  { name: 'forest-sunset', query: '?scene=game&ui=0&time=sunset', prepare: settled(2500) },
+  { name: 'forest-night', query: '?scene=game&ui=0&time=night', prepare: settled(2500) },
+  { name: 'forest-rain', query: '?scene=game&ui=0&time=noon&rain=1', prepare: settled(2500) },
+  {
+    name: 'forest-waterfall',
+    query: '?scene=game&ui=0&time=noon&spot=waterfall',
+    prepare: settled(2000),
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
+  ...FOREST_SHOTS,
   ...BIOME_SHOTS,
   ...LIQUID_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
@@ -583,16 +613,48 @@ const SHOTS: Shot[] = [
       await page.keyboard.press('KeyF'); // lantern off
       await page.waitForTimeout(400);
       const p = (await probe(page)) as GameProbe;
-      // Away from the player (who keeps a faint aura, plan 2.1), the cave must be dark.
-      const cx = Math.floor(p.playerX / TILE_SIZE) - 6;
-      const cy = Math.floor(p.playerY / TILE_SIZE) - 1;
-      const here = await lightAt(page, cx, cy);
-      check((await tileAt(page, cx, cy)) === 0, 'expected open cave 6 tiles left of the player');
-      check(
-        Math.max(...here) < 24,
-        `cave should be dark with the lantern off, got rgb ${here.join(',')}`,
+      // Away from the player (who keeps a faint aura, plan 2.1) and from glowing plants and
+      // crystals (bioluminescence), the cave must be dark.
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const py = Math.floor(p.playerY / TILE_SIZE) - 1;
+      const R = DARK_CHECK.radius;
+      const region = await page.evaluate(
+        ([x0, y0, size]) => {
+          const g = window.gloamdeep;
+          const tiles: number[] = [];
+          const light: number[] = [];
+          for (let y = y0; y < y0 + size; y++) {
+            for (let x = x0; x < x0 + size; x++) {
+              tiles.push(g?.tile(x, y, 'fg') ?? -1);
+              light.push(Math.max(...(g?.light(x, y) ?? [0, 0, 0])));
+            }
+          }
+          return { tiles, light };
+        },
+        [px - R, py - R, 2 * R + 1] as const,
       );
-      report.push(`cave light 6 tiles from the player, lantern off: rgb ${here.join(',')}`);
+      const size = 2 * R + 1;
+      const emissive: [number, number][] = [];
+      region.tiles.forEach((id, i) => {
+        if (TILES[id]?.light) emissive.push([i % size, Math.floor(i / size)]);
+      });
+      let samples = 0;
+      let brightest = 0;
+      region.tiles.forEach((id, i) => {
+        const x = i % size;
+        const y = Math.floor(i / size);
+        if (id !== 0 || Math.hypot(x - R, y - R) < DARK_CHECK.awayFromPlayer) return;
+        if (emissive.some(([ex, ey]) => Math.hypot(ex - x, ey - y) < DARK_CHECK.awayFromGlow)) {
+          return;
+        }
+        samples++;
+        brightest = Math.max(brightest, region.light[i] ?? 0);
+      });
+      check(samples >= DARK_CHECK.minSamples, `only ${samples} cave cells away from light`);
+      check(brightest < 24, `cave should be dark away from light, brightest ${brightest}`);
+      report.push(
+        `cave light away from the player and glowing plants, lantern off: max ${brightest} over ${samples} cells`,
+      );
     },
   },
   {

@@ -29,11 +29,11 @@ export const FLORA: readonly FloraRule[] = [
   { decor: 'toadstool', where: 'surface', in: ['weeping_mire'], chance: 0.06 },
   { decor: 'mire_reed', where: 'surface', in: ['weeping_mire'], chance: 0.4 },
   // Underground.
-  { decor: 'glowcap_sprout', where: 'caveFloor', in: ['glowcap_grottos'], chance: 0.18 },
+  { decor: 'glowcap_sprout', where: 'caveFloor', in: ['glowcap_grottos'], chance: 0.35 },
   { decor: 'toadstool', where: 'caveFloor', in: ['glowcap_grottos', 'rootdeep'], chance: 0.05 },
-  { decor: 'glowmoss_tuft', where: 'caveFloor', in: ['rootdeep'], chance: 0.16 },
-  { decor: 'crystal_shard', where: 'caveFloor', in: ['moonstone_hollows'], chance: 0.1 },
-  { decor: 'ember_bloom', where: 'caveFloor', in: ['ember_roots'], chance: 0.07 },
+  { decor: 'glowmoss_tuft', where: 'caveFloor', in: ['rootdeep'], chance: 0.35 },
+  { decor: 'crystal_shard', where: 'caveFloor', in: ['moonstone_hollows'], chance: 0.25 },
+  { decor: 'ember_bloom', where: 'caveFloor', in: ['ember_roots'], chance: 0.18 },
   {
     decor: 'hanging_moss',
     where: 'caveCeiling',

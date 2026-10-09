@@ -477,7 +477,7 @@ export const ATMOSPHERE = {
     frontCameraParallax: 0.002,
     frontOrigin: [77.7, 31.4],
     /** Mist kept underground (fraction of its outdoor strength) for the front layer. */
-    undergroundFront: 0.35,
+    undergroundFront: 1,
     /** Mist alpha is changed in steps no smaller than this. */
     alphaEpsilon: 0.004,
   },
@@ -496,6 +496,8 @@ export const ATMOSPHERE = {
     seed: 0x57a2,
   },
   sky: {
+    /** At full rain the sun and moon fade to 1 − this. */
+    rainHidesBodies: 0.9,
     /** Overcast: how far the sky goes towards grey, and how much darker, at full rain. */
     rainGrey: 0.7,
     rainDarken: 0.2,
@@ -720,7 +722,8 @@ export const GRADE = {
   },
   heatHaze: { amount: 0.0035, hz: 0.8 },
   /** Soft displacement map, stretched over the whole view. */
-  noise: { width: 96, height: 54, seed: 0x6a1d },
+  /** `edgeMargin`: displacement fades to none over this fraction of the view at its edges. */
+  noise: { width: 96, height: 54, seed: 0x6a1d, edgeMargin: 0.06 },
   /** Edge darkening; stronger at night. See FilterVignette: only radius > 0.71 covers the corners. */
   vignette: { radius: 0.8, strengthDay: 0.1, strengthNight: 0.16, color: 0x000000 },
 } as const;

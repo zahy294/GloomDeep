@@ -8,6 +8,7 @@ import {
   isIdentity,
   matrixChanged,
   MATRIX_SIZE,
+  edgeFade,
   noiseSample,
   stepToward,
   type GradeParams,
@@ -33,8 +34,12 @@ function makeNoiseTexture(scene: Phaser.Scene): void {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const o = (y * width + x) * 4;
-      image.data[o] = Math.round(255 * noiseSample(x / width, y / height, 0, seed));
-      image.data[o + 1] = Math.round(255 * noiseSample(x / width, y / height, 1, seed));
+      const u = x / (width - 1);
+      const v = y / (height - 1);
+      const fade = edgeFade(u, v, GRADE.noise.edgeMargin);
+      const push = (channel: number) => 0.5 + (noiseSample(u, v, channel, seed) - 0.5) * fade;
+      image.data[o] = Math.round(255 * push(0));
+      image.data[o + 1] = Math.round(255 * push(1));
       image.data[o + 2] = 128;
       image.data[o + 3] = 255;
     }
