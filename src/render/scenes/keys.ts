@@ -28,6 +28,10 @@ export const TextureKey = {
   liquids: 'liquids',
   /** Seamless vertical strip of falling water, scrolled by the waterfall renderer. */
   waterfall: 'waterfall',
+  /** Gloam vein overlay frames drawn at boot (src/render/gloamFrames.ts layout). */
+  gloam: 'gloam',
+  /** Soft ring for the light-ring effect when a light is placed. */
+  ring: 'ring',
 } as const;
 
 export const DataKey = {

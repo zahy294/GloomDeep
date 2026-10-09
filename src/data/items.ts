@@ -391,6 +391,13 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'stone', count: 50 },
     { item: 'torch', count: 20 },
   ],
+  lenses: [
+    { item: 'azure_lens', count: 1 },
+    { item: 'crimson_lens', count: 1 },
+    { item: 'verdant_lens', count: 1 },
+    { item: 'flare', count: 20 },
+    { item: 'torch', count: 20 },
+  ],
   crafting: [
     { item: 'elderwood_pickaxe', count: 1 },
     { item: 'living_wood', count: 20 },

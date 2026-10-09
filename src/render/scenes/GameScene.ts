@@ -10,6 +10,7 @@ import {
   WORLD_SIZES,
   CAMERA,
   HEALTH,
+  GLOAM,
 } from '../../config';
 import { NAMED_TIMES } from '../../data/dayCycle';
 import { DEBUG_KITS, itemById } from '../../data/items';
@@ -59,6 +60,9 @@ import { TileCursor } from '../TileCursor';
 import type { FrontScene } from './FrontScene';
 import type { GlowScene } from './GlowScene';
 import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIcon } from '../itemIcons';
+import { gloamCoverage, gloamFrame } from '../gloamFrames';
+import { LightEffects } from '../LightEffects';
+import { ownedLenses } from '../../sim/systems/LensSystem';
 import { PackFile, SceneKey, TextureKey } from './keys';
 import { ITEMS } from '../../data/items';
 
@@ -103,6 +107,8 @@ export class GameScene extends Phaser.Scene {
   private foliage!: FoliageRenderer;
   private weatherFx!: WeatherParticles;
   private liquids!: ChunkRenderer;
+  private gloamOverlay!: ChunkRenderer;
+  private lightEffects!: LightEffects;
   private reflections!: PoolReflections;
   private waterfalls!: Waterfalls;
   private cursor!: TileCursor;
@@ -142,6 +148,8 @@ export class GameScene extends Phaser.Scene {
   /** Station keys last published to the UI, joined (re-published when they change). */
   private stationsKey = '';
   private noticeId = 0;
+  /** Active lens and owned lenses last sent to the HUD. */
+  private hudLensKey = '';
   /** The current mouse press threw a held stack (see POINTER_DOWN in create). */
   private throwPress = false;
 
@@ -230,6 +238,15 @@ export class GameScene extends Phaser.Scene {
       textureKey: TextureKey.liquids,
       depth: Depth.liquids,
     });
+    this.gloamOverlay = new ChunkRenderer(this, world, sim.events, {
+      layer: null,
+      frameAt: (x, y) => gloamFrame(world, x, y),
+      textureKey: TextureKey.gloam,
+      depth: Depth.gloam,
+    });
+    sim.events.on('gloamUpdated', ({ x0, y0, width, height }) =>
+      this.gloamOverlay.refreshRect(x0, y0, width, height),
+    );
     this.reflections = new PoolReflections(this, world, this.visual.features.reflections);
     this.waterfalls = new Waterfalls(
       this,
@@ -286,6 +303,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.visual.jumpNext(); // the camera is now where the game starts
     this.lightMap = new LightMapRenderer(this, world, sim.events);
+    this.lightEffects = new LightEffects(this, this.glowScene, sim.events, sim.flares);
     this.glow = new GlowRenderer(
       this.glowScene,
       world,
@@ -351,6 +369,8 @@ export class GameScene extends Phaser.Scene {
       this.chunks.destroy();
       this.walls.destroy();
       this.liquids.destroy();
+      this.gloamOverlay.destroy();
+      this.lightEffects.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
       this.waterfalls.destroy();
@@ -555,6 +575,9 @@ export class GameScene extends Phaser.Scene {
     this.chunks.update(this.view, this.preloadBudget);
     this.walls.update(this.view, this.preloadBudget);
     this.liquids.update(this.view, this.preloadBudget);
+    this.gloamOverlay.update(this.view, this.preloadBudget);
+    const pulse = 0.5 + 0.5 * Math.sin((this.sim.time * Math.PI * 2) / GLOAM.pulseSeconds);
+    this.gloamOverlay.setAlpha(GLOAM.pulseMinAlpha + (1 - GLOAM.pulseMinAlpha) * pulse);
     this.foliage.update(
       this.view,
       this.foliageBudget,
@@ -568,6 +591,7 @@ export class GameScene extends Phaser.Scene {
     this.reflections.update(this.view, this.sim.time);
     this.cursor.update();
     this.dropView.update(alpha);
+    this.lightEffects.update(alpha, delta / 1000, this.sim.time);
     this.fx.update(delta / 1000);
     // The light grid is computed around what the camera shows.
     input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
@@ -658,6 +682,10 @@ export class GameScene extends Phaser.Scene {
       if (this.debugOpen) this.publishDebug();
       this.publishHud();
       this.refreshStations();
+      // How much of the view the Gloam covers drains the colour grade (eased, a few times a second).
+      const coverage = gloamCoverage(this.sim.world, this.view, TILE_SIZE);
+      const target = Math.min(1, coverage / GLOAM.desaturateAtCoverage);
+      this.visual.gloam += (target - this.visual.gloam) * GLOAM.coverageEase;
     }
 
     this.chunkBorders.clear();
@@ -673,25 +701,35 @@ export class GameScene extends Phaser.Scene {
     const hud = this.bridge.state.hud;
     const lumen = Math.round(player.lumen);
     const health = Math.round(player.health);
+    const lensKey = ownedLenses(this.sim.inventory)
+      .map((l) => l.key)
+      .join(',');
     if (
       hud &&
       hud.lumen === lumen &&
       hud.health === health &&
+      this.hudLensKey === `${player.lens}|${lensKey}` &&
       hud.lanternOn === player.lanternOn &&
       hud.clock === clock
     ) {
       return;
     }
+    this.hudLensKey = `${player.lens}|${lensKey}`;
     const lens = lensByKey(player.lens);
+    const lenses = ownedLenses(this.sim.inventory).map((l) => ({
+      name: l.name,
+      color: `rgb(${l.color.join(' ')})`,
+      active: l.key === player.lens,
+    }));
     this.bridge.set({
       hud: {
+        lenses,
         health,
         healthMax: HEALTH.max,
         lumen,
         lumenMax: LUMEN.max,
         lanternOn: player.lanternOn,
         lensName: lens.name,
-        lensColor: `rgb(${lens.color.join(' ')})`,
         clock,
       },
     });
@@ -764,7 +802,9 @@ export class GameScene extends Phaser.Scene {
         chunkY: Math.floor(tileY / world.chunkSize),
         light: this.lightText(tileX, tileY),
         biome: biomeAt(world, tileX, tileY),
-        gloam: '— (M7)',
+        gloam: `${world.gloam[world.index(tileX, Math.max(0, tileY))] ?? 0} here · ${Math.round(
+          this.visual.gloam * 100,
+        )}% view`,
       },
     });
     this.timer.resetMax();

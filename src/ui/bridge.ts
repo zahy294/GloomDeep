@@ -46,8 +46,8 @@ export interface HudView {
   lumenMax: number;
   lanternOn: boolean;
   lensName: string;
-  /** Lens colour as CSS, for the lens gem. */
-  lensColor: string;
+  /** The lenses the player owns, for the Q switcher (in cycle order). */
+  lenses: readonly { name: string; color: string; active: boolean }[];
   /** Clock text, e.g. "18:05". */
   clock: string;
 }

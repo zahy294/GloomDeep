@@ -40,8 +40,16 @@ export function Hud({ hud }: { hud: HudView }) {
           </span>
         </div>
         <div class="hud-row">
-          <span class="lens-gem" style={{ background: hud.lensColor }} />
+          {hud.lenses.map((l) => (
+            <span
+              key={l.name}
+              class={`lens-gem${l.active ? ' active' : ''}`}
+              style={{ background: l.color }}
+              title={l.name}
+            />
+          ))}
           <span>{hud.lensName}</span>
+          {hud.lenses.length > 1 && <span class="hud-dim">Q</span>}
           <span class="hud-dim">{hud.lanternOn ? `${hud.lumen} Lumen` : 'lantern off'}</span>
         </div>
         <div class="hud-row hud-dim">{hud.clock} · F: lantern</div>

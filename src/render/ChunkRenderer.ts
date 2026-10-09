@@ -175,6 +175,36 @@ export class ChunkRenderer {
     this.stats.loaded = this.loaded.size;
   }
 
+  /**
+   * Recomputes the frames in a rectangle of tiles (for layers whose frames depend on data other
+   * than the tile layer, like the Gloam overlay). Touched chunks re-upload at the next update.
+   */
+  refreshRect(x0: number, y0: number, width: number, height: number): void {
+    const size = this.world.chunkSize;
+    const xs = Math.max(0, x0);
+    const ys = Math.max(0, y0);
+    const xe = Math.min(this.world.width, x0 + width);
+    const ye = Math.min(this.world.height, y0 + height);
+    for (let ty = ys; ty < ye; ty++) {
+      const cy = Math.floor(ty / size);
+      for (let tx = xs; tx < xe; tx++) {
+        const cx = Math.floor(tx / size);
+        const slot = this.loaded.get(cy * this.world.chunksX + cx);
+        const tile = slot?.tiles[ty - cy * size]?.[tx - cx * size];
+        if (!slot || !tile) continue;
+        const frame = this.frameAt(tx, ty);
+        if (tile.index === frame) continue;
+        tile.index = frame;
+        slot.dirty = true;
+      }
+    }
+  }
+
+  /** Sets the opacity of the whole layer (every chunk). */
+  setAlpha(alpha: number): void {
+    for (const slot of this.slots) slot.container.setAlpha(alpha);
+  }
+
   /** World-space rectangles of loaded chunks, for the debug overlay's chunk borders. */
   forEachLoaded(fn: (x: number, y: number, size: number) => void): void {
     for (const index of this.loaded.keys()) {

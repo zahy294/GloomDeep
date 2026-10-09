@@ -112,6 +112,12 @@ window.gloamdeep = {
     const i = y * w.width + x;
     return [w.lightR[i] ?? 0, w.lightG[i] ?? 0, w.lightB[i] ?? 0];
   },
+  gloam: (x, y) => {
+    const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
+    if (!scene?.sys.isActive()) return -1;
+    const w = scene.simulation.world;
+    return w.inBounds(x, y) ? (w.gloam[y * w.width + x] ?? 0) : -1;
+  },
   tile: (x, y, layer = 'fg') => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
     return scene?.sys.isActive() ? scene.simulation.world.getLayer(layer, x, y) : -1;

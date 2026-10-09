@@ -513,10 +513,18 @@ body {
 
 .lens-gem {
   display: inline-block;
+  width: calc(var(--px) * 4);
+  height: calc(var(--px) * 4);
+  transform: rotate(45deg);
+  border: var(--px) solid rgb(255 255 255 / 0.3);
+  opacity: 0.45;
+}
+
+.lens-gem.active {
   width: calc(var(--px) * 5);
   height: calc(var(--px) * 5);
-  transform: rotate(45deg);
-  border: var(--px) solid rgb(255 255 255 / 0.6);
+  border-color: rgb(255 255 255 / 0.8);
+  opacity: 1;
 }
 
 /* Menus: world select, generation progress, pause. */

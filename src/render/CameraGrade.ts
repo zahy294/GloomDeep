@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { ATMOSPHERE, GRADE } from '../config';
+import { ATMOSPHERE, GLOAM, GRADE } from '../config';
 import type { BiomeVisual } from '../data/biomeVisuals';
 import { mixColor } from './atmosphereMath';
 import { blendColor, blendNumber } from './biomeBlend';
@@ -142,7 +142,9 @@ export class CameraGrade {
     const k = this.underwaterMix;
     const p = this.params;
     p.tint = mixColor(blendColor(w, pickTint), u.tint, k);
-    p.saturation = blendNumber(w, pickSaturation) * (1 - k) + u.saturation * k;
+    p.saturation =
+      (blendNumber(w, pickSaturation) * (1 - k) + u.saturation * k) *
+      (1 - visual.gloam * GLOAM.maxDesaturate);
     p.contrast = blendNumber(w, pickContrast) * (1 - k) + u.contrast * k;
     p.brightness = blendNumber(w, pickBrightness) * (1 - k) + u.brightness * k;
     gradeMatrix(p, this.matrix);

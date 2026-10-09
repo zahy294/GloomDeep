@@ -308,6 +308,7 @@ const PLANKS = tileId('elderwood_planks');
 const SOIL_ITEM = itemId('forest_soil');
 const PLANKS_ITEM = itemId('elderwood_planks');
 const TORCH_ITEM = itemId('torch');
+const FLARE_ITEM = itemId('flare');
 const WORKBENCH_ITEM = itemId('workbench');
 const WORKBENCH = tileId('workbench');
 const LIVING_WOOD_ITEM = itemId('living_wood');
@@ -356,11 +357,119 @@ const FOREST_SHOTS: Shot[] = [
   },
 ];
 
+/** An open cave pocket in the Gloam Heart (bottom layer, thick Gloam). */
+const GLOAM_CAVE = 'biome=gloam_heart&spot=cave';
+/** A cave in the Ember Roots: patchy Gloam on rock you can read. */
+const EMBER_CAVE = 'biome=ember_roots&spot=cave';
+
+/** Total Gloam in a square of tiles around (x, y). */
+async function gloamAround(page: Page, x: number, y: number, r: number): Promise<number> {
+  return page.evaluate(
+    ([cx, cy, radius]) => {
+      let sum = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          sum += Math.max(0, window.gloamdeep?.gloam(cx + dx, cy + dy) ?? 0);
+        }
+      }
+      return sum;
+    },
+    [x, y, r] as const,
+  );
+}
+
+/** M7: the Gloam, the lenses and flares. */
+const GLOAM_SHOTS: Shot[] = [
+  {
+    // Thick Gloam veins on the rock of the deepest layer.
+    name: 'gloam-heart',
+    query: `?scene=game&time=noon&ui=0&${GLOAM_CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(800);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const py = Math.round(p.playerY / TILE_SIZE);
+      const total = await gloamAround(page, px, py, 14);
+      check(total > 255 * 100, `expected thick Gloam in the Gloam Heart, got ${total}`);
+      report.push(`gloam heart: ${Math.round(total / 255)} cells' worth of Gloam within 14 tiles`);
+    },
+  },
+  {
+    // M7 "Done when": lighting it pushes the Gloam back (a torch placed in the dark).
+    name: 'gloam-pushback',
+    query: `?scene=game&time=noon&kit=lenses&${EMBER_CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF'); // lantern off: only the torch lights it
+      await page.waitForTimeout(1500);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const row = Math.round(p.playerY / TILE_SIZE) - 1;
+      await selectItem(page, TORCH_ITEM);
+      const offsets = [5, 4, 6, 3, -4, -5, -3, -6].flatMap((d) =>
+        [0, -1, 1, -2].map((dy) => [d, dy] as const),
+      );
+      const [tx, ty] = await placeableNear(page, px, row, 'fg', offsets);
+      const before = await gloamAround(page, tx, ty, 4);
+      await holdOnTile(page, tx, ty, 'right', async () => (await tileAt(page, tx, ty)) === TORCH);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(3000);
+      const after = await gloamAround(page, tx, ty, 4);
+      check(before > 0, 'no Gloam around the torch spot to push back');
+      check(after < before * 0.3, `Gloam around the torch went ${before} → ${after}`);
+      report.push(
+        `gloam pushback: torch at ${tx},${ty}; Gloam within 4 tiles ${before} → ${after}`,
+      );
+    },
+  },
+  {
+    // The Crimson lens burns the Gloam in its cone.
+    name: 'lens-crimson',
+    query: `?scene=game&time=noon&kit=lenses&${EMBER_CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyQ'); // azure
+      await page.waitForTimeout(150);
+      await page.keyboard.press('KeyQ'); // crimson
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const py = Math.round(p.playerY / TILE_SIZE) - 2;
+      await pointAtTile(page, px + 7, py + 2);
+      await page.waitForTimeout(2000);
+      const lens = await page.textContent('.hud');
+      check(lens?.includes('Crimson') === true, `HUD shows "${lens}"`);
+    },
+  },
+  {
+    // Flares: thrown light in a dark cave.
+    name: 'flare-dark-cave',
+    query: `?scene=game&time=noon&kit=lenses&ui=0&${CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF');
+      await selectItem(page, FLARE_ITEM);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const py = Math.round(p.playerY / TILE_SIZE) - 2;
+      await pointAtTile(page, px + 8, py - 3);
+      await page.mouse.down({ button: 'right' });
+      await page.waitForTimeout(100);
+      await page.mouse.up({ button: 'right' });
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(2500);
+      const end = (await probe(page)) as GameProbe;
+      check(countOf(end, FLARE_ITEM) === 19, 'no flare was thrown');
+    },
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
   ...FOREST_SHOTS,
   ...BIOME_SHOTS,
   ...LIQUID_SHOTS,
+  ...GLOAM_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
     // M4: the title leads to the world list (with an empty IndexedDB: no worlds yet).

@@ -39,6 +39,8 @@ declare global {
       resetFrameStats: () => void;
       /** Tile id at a world tile coordinate (foreground or background), -1 outside the game. */
       tile: (x: number, y: number, layer?: 'fg' | 'bg') => number;
+      /** Gloam level 0–255 at a world tile, -1 outside the game or the world. */
+      gloam: (x: number, y: number) => number;
       /** Light [r, g, b] at a world tile, null outside the game. */
       light: (x: number, y: number) => [number, number, number] | null;
     };

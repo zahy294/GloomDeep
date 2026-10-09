@@ -5,11 +5,21 @@ import type { DebugParams } from '../../debugParams';
 import type { SpriteAtlasInfo } from '../../data/artManifest';
 import { SPRITE_ASSETS } from '../../data/spriteAssets';
 import { LIQUID_FRAME, LIQUID_FRAME_COUNT } from '../liquidFrames';
+import { GLOAM_FRAME_COUNT, GLOAM_VARIATIONS } from '../gloamFrames';
+import { mulberry32 } from '../../sim/random';
+import { GLOAM, LIGHT_FX } from '../../config';
 import { makeShaftTexture } from '../LightShafts';
 import { registerSpriteFrames } from '../spriteFrames';
 import { DataKey, DEFAULT_PACK_DIR, PackFile, SceneKey, TextureKey } from './keys';
 
 const PARTICLE_PX = 2;
+/** Gloam veins: ink wash alpha per level, veins per level, vein length range (pixels). */
+const GLOAM_INK_ALPHA = [0.12, 0.22, 0.35] as const;
+const GLOAM_VEINS_PER_LEVEL = 2;
+const GLOAM_VEIN_LENGTH = [5, 12] as const;
+const GLOAM_SEED = 0x91a3;
+/** The light ring's thickness, pixels (its size is LIGHT_FX.ringTexturePx). */
+const RING_WIDTH = 5;
 const SUN_RADIUS = 11;
 const MOON_RADIUS = 8;
 /** Glow sprite size; drawn smooth (linear filtering) and scaled to each light's radius. */
@@ -72,6 +82,8 @@ export class BootScene extends Phaser.Scene {
     makeShaftTexture(this.textures);
     this.makeLiquids();
     this.makeWaterfall();
+    this.makeGloam();
+    this.makeRing();
     const next = { title: SceneKey.Title, game: SceneKey.Game, 'art-test': SceneKey.ArtTest }[
       this.params.scene
     ];
@@ -149,6 +161,64 @@ export class BootScene extends Phaser.Scene {
     draw(LIQUID_FRAME.lavaBody, PALETTE.ember[2], null, LAVA_ALPHA);
     draw(LIQUID_FRAME.lavaSurface, PALETTE.ember[2], PALETTE.honey[3], LAVA_ALPHA);
     texture.refresh();
+  }
+
+  /**
+   * Gloam overlay frames (layout in gloamFrames.ts): an ink wash that darkens with each level and
+   * branching violet veins, more of them at higher levels. Placeholder until Gloam art exists.
+   */
+  private makeGloam(): void {
+    const texture = this.textures.createCanvas(
+      TextureKey.gloam,
+      GLOAM_FRAME_COUNT * TILE_SIZE,
+      TILE_SIZE,
+    );
+    if (!texture) return;
+    const ctx = texture.context;
+    const css = (rgb: number, alpha: number): string =>
+      `rgba(${(rgb >> 16) & 0xff},${(rgb >> 8) & 0xff},${rgb & 0xff},${alpha})`;
+    const ink = PALETTE.gloam[0];
+    const vein = PALETTE.gloam[3];
+    const core = PALETTE.gloam[2];
+    for (let level = 1; level <= GLOAM.visibleLevels.length; level++) {
+      for (let v = 0; v < GLOAM_VARIATIONS; v++) {
+        const frame = 1 + (level - 1) * GLOAM_VARIATIONS + v;
+        const ox = frame * TILE_SIZE;
+        const random = mulberry32(GLOAM_SEED + frame);
+        ctx.fillStyle = css(ink, GLOAM_INK_ALPHA[level - 1] ?? 0.5);
+        ctx.fillRect(ox, 0, TILE_SIZE, TILE_SIZE);
+        for (let n = 0; n < level * GLOAM_VEINS_PER_LEVEL; n++) {
+          let x = Math.floor(random() * TILE_SIZE);
+          let y = Math.floor(random() * TILE_SIZE);
+          const [min, max] = GLOAM_VEIN_LENGTH;
+          const length = min + Math.floor(random() * (max - min));
+          for (let i = 0; i < length; i++) {
+            ctx.fillStyle = css(i % 3 === 0 ? vein : core, 0.95);
+            ctx.fillRect(ox + x, y, 1, 1);
+            x = Math.min(TILE_SIZE - 1, Math.max(0, x + Math.floor(random() * 3) - 1));
+            y = Math.min(TILE_SIZE - 1, Math.max(0, y + Math.floor(random() * 3) - 1));
+          }
+        }
+      }
+    }
+    texture.refresh();
+  }
+
+  /** A soft white ring (the light ring when a light is placed), linear-filtered, tinted per use. */
+  private makeRing(): void {
+    const size = LIGHT_FX.ringTexturePx;
+    const texture = this.textures.createCanvas(TextureKey.ring, size, size);
+    if (!texture) return;
+    const ctx = texture.context;
+    const r = size / 2;
+    const gradient = ctx.createRadialGradient(r, r, r - RING_WIDTH * 2, r, r, r);
+    gradient.addColorStop(0, 'rgba(255,255,255,0)');
+    gradient.addColorStop(0.5, 'rgba(255,255,255,1)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    texture.refresh();
+    texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   }
 
   /** Falling water: pale streaks on a translucent body, drawn so the strip tiles vertically. */

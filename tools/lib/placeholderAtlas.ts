@@ -1,5 +1,5 @@
 import { AUTOTILE } from '../../src/config';
-import { PALETTE } from '../../src/data/palette';
+import { PALETTE, type Ramp } from '../../src/data/palette';
 import type { TileDef } from '../../src/data/tiles';
 import {
   BLOB_MASKS,
@@ -158,9 +158,11 @@ const BRANCH_KNOTS: readonly (readonly [number, number])[] = [
   [11, 3],
 ];
 
-/** A horizontal branch across the top of the tile: bark ramp, dark outline, a couple of knots. */
-function drawBranch(data: Uint8Array, width: number, ox: number, oy: number): void {
-  const bark = PALETTE.bark;
+/**
+ * A horizontal branch across the top of the tile in the tile's ramp (bark for branches, cyan for
+ * spirit platforms): dark outline, a couple of knots.
+ */
+function drawBranch(data: Uint8Array, width: number, ox: number, oy: number, bark: Ramp): void {
   for (let y = 0; y < BRANCH_ROWS; y++) {
     for (let x = 0; x < 16; x++) {
       const edge = y === 0 || y === BRANCH_ROWS - 1;
@@ -245,7 +247,9 @@ export function buildPlaceholderAtlas(
           continue;
         }
         if (tile.placeholderShape === 'platform') {
-          if (kind === 'tiles') drawBranch(data, width, ox, oy);
+          if (kind === 'tiles') {
+            drawBranch(data, width, ox, oy, PALETTE[tile.placeholderRamp ?? 'bark']);
+          }
           continue;
         }
         if (

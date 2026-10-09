@@ -39,6 +39,8 @@ export class VisualState {
   playerX = 0;
   playerY = 0;
   underwater = false;
+  /** 0..1: how much of the view the Gloam covers (smoothed); drains colour from the grade. */
+  gloam = 0;
 
   private readonly target = new Float32Array(VISUALS.length);
   private first = true;

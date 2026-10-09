@@ -20,7 +20,18 @@ type Legend = Record<string, number>;
 function legend(ramp: RampName): Legend {
   const r = PALETTE[ramp];
   const bark = PALETTE.bark;
-  return { 0: r[0], 1: r[1], 2: r[2], 3: r[3], B: bark[0], d: bark[1], h: bark[3] };
+  const brass = PALETTE.gold;
+  return {
+    0: r[0],
+    1: r[1],
+    2: r[2],
+    3: r[3],
+    B: bark[0],
+    d: bark[1],
+    h: bark[3],
+    r: brass[0],
+    R: brass[2],
+  };
 }
 
 /** Paints a pattern of up to 16×16 characters; extra legend keys override the defaults. */
@@ -71,6 +82,37 @@ const BAR = [
   '..00000000000...',
 ];
 
+/** A lens: a round coloured glass (0–3) in a brass rim (r/R). */
+const LENS = [
+  '................',
+  '................',
+  '.....rrrrrr.....',
+  '....rR3322Rr....',
+  '...rR332221Rr...',
+  '...rR322211Rr...',
+  '...rR222110Rr...',
+  '...rR221100Rr...',
+  '....rR1100Rr....',
+  '.....rrrrrr.....',
+  '................',
+];
+
+/** A flare: a stubby stick with a bright red-gold head. */
+const FLARE_ICON = [
+  '................',
+  '................',
+  '..........0000..',
+  '.........033320.',
+  '.........032220.',
+  '........B0322100',
+  '.......Bhd01100.',
+  '......Bhd.000...',
+  '.....Bhd........',
+  '....Bhd.........',
+  '...Bhd..........',
+  '...BB...........',
+];
+
 /** Frame order matches `icon` in src/data/items.ts. */
 const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
   { pattern: PICKAXE, ramp: 'bark' }, // elderwood pickaxe
@@ -80,6 +122,11 @@ const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
   { pattern: BAR, ramp: 'ember' }, // copper bar
   { pattern: BAR, ramp: 'stone' }, // iron bar
   { pattern: BAR, ramp: 'moonSilver' }, // moonsilver bar
+  { pattern: BAR, ramp: 'gold' }, // gold bar
+  { pattern: LENS, ramp: 'cyan' }, // azure lens
+  { pattern: LENS, ramp: 'rose' }, // crimson lens
+  { pattern: LENS, ramp: 'leaf' }, // verdant lens
+  { pattern: FLARE_ICON, ramp: 'ember' }, // flare
 ];
 
 /** The `items` placeholder sheet: one row of 16×16 icons. */

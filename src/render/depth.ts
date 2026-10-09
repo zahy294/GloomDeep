@@ -19,6 +19,11 @@ export const Depth = {
   particles: 12,
   /** Multiplied over everything below it (plan 2.2 layer 13). */
   lightMap: 13,
+  /**
+   * Gloam veins over the tiles and walls they corrupt: above the light map, so the living
+   * darkness still shows (faintly pulsing) where no light reaches.
+   */
+  gloam: 13.5,
   /** Additive halos above the light map, so glows stay bright in the dark (layer 14). */
   glow: 14,
   debug: 100,

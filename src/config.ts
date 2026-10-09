@@ -433,6 +433,8 @@ export const GLOAM = {
   maxDesaturate: 0.45,
   /** Fraction of sampled cells under Gloam at which the drain is full. */
   desaturateAtCoverage: 0.5,
+  /** Fraction of the gap to the new coverage closed per HUD refresh (eases the colour drain). */
+  coverageEase: 0.5,
 } as const;
 
 /** Lens effects (plan 1.4). The cone itself (colour, range, angle) is in src/data/lenses.ts. */
@@ -447,6 +449,23 @@ export const LENS_FX = {
   revealMinLight: 8,
   /** Verdant: chance that a picked cell grows one stage. */
   verdantGrowChance: 0.08,
+} as const;
+
+/** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
+export const LIGHT_FX = {
+  /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */
+  ringTexturePx: 64,
+  ringSeconds: 0.7,
+  /** The small cyan ring where the Azure lens reveals a tile. */
+  revealRingRadius: 14,
+  revealRingSeconds: 0.5,
+  /** A flare in the world, and its halo at full strength. */
+  flareSpritePx: 10,
+  flareHaloPx: 96,
+  /** Halo flicker: depth (fraction of alpha), speed (rad/s) and phase offset per flare. */
+  flareHaloFlicker: 0.25,
+  flareFlickerSpeed: 23,
+  flareFlickerPhase: 1.7,
 } as const;
 
 /** Flares (plan M7): thrown light. Pixels and seconds. */
