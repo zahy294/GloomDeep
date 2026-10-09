@@ -46,7 +46,7 @@ export const FLORA: readonly FloraRule[] = [
 
 /**
  * Small overgrown ruins with carved runes that wake as the player approaches (plan 2.0). One
- * stands on the starting glade (left of the spawn; the giant tree is on the right).
+ * stands on the starting glade (right of the spawn; the giant tree is on the left).
  */
 export const RUINS = {
   /** Surface biomes with ruins, and how many per 1000 columns. */
@@ -62,5 +62,5 @@ export const RUINS = {
   lintelChance: 0.5,
   stone: 'runestone',
   rune: 'carved_runestone',
-  spawnRuinOffset: -18,
+  spawnRuinOffset: 14,
 } as const;

@@ -35,6 +35,8 @@ export interface DebugParams {
   spot: 'cave' | null;
   /** Debug start world size (`size=small|medium|large`). */
   size: WorldSizeKey | null;
+  /** `rain=0..1` forces the rain intensity for rendering only (screenshots); null = real weather. */
+  rain: number | null;
 }
 
 function intParam(params: URLSearchParams, name: string): number | null {
@@ -46,6 +48,12 @@ function intParam(params: URLSearchParams, name: string): number | null {
 function nameParam(params: URLSearchParams, name: string): string | null {
   const text = params.get(name);
   return text !== null && /^[\w-]+$/.test(text) ? text : null;
+}
+
+function unitParam(params: URLSearchParams, name: string): number | null {
+  const text = params.get(name);
+  const value = text === null || text === '' ? NaN : Number(text);
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null;
 }
 
 function namedTime(text: string | null): NamedTime | null {
@@ -72,5 +80,6 @@ export function parseDebugParams(search: string): DebugParams {
     biome: nameParam(params, 'biome'),
     spot: params.get('spot') === 'cave' ? 'cave' : null,
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
+    rain: unitParam(params, 'rain'),
   };
 }

@@ -8,6 +8,7 @@ import {
   SAVE,
   TILE_SIZE,
   WORLD_SIZES,
+  CAMERA,
 } from '../../config';
 import { NAMED_TIMES } from '../../data/dayCycle';
 import { itemById } from '../../data/items';
@@ -42,6 +43,8 @@ import { LightMapRenderer } from '../LightMapRenderer';
 import { Depth } from '../depth';
 import { DrawCallCounter } from '../drawCallCounter';
 import { DropRenderer } from '../DropRenderer';
+import { FoliageRenderer } from '../FoliageRenderer';
+import { WeatherParticles } from '../WeatherParticles';
 import { InputMapper } from '../InputMapper';
 import { ParticleFX } from '../ParticleFX';
 import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
@@ -88,6 +91,8 @@ export class GameScene extends Phaser.Scene {
   private inputMapper!: InputMapper;
   private chunks!: ChunkRenderer;
   private walls!: ChunkRenderer;
+  private foliage!: FoliageRenderer;
+  private weatherFx!: WeatherParticles;
   private liquids!: ChunkRenderer;
   private cursor!: TileCursor;
   private dropView!: DropRenderer;
@@ -109,6 +114,7 @@ export class GameScene extends Phaser.Scene {
   private readonly timer = new FrameTimer();
   private readonly view = { x: 0, y: 0, width: 0, height: 0 };
   private readonly preloadBudget: PreloadBudget = { remaining: 0 };
+  private readonly foliageBudget: PreloadBudget = { remaining: 0 };
   private readonly activity: PlayerActivity = { use: 'none', aimX: 0, aimY: 0 };
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
@@ -175,6 +181,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SceneKey.Sky, { source: this.sim, visual: this.visual });
     this.scene.launch(SceneKey.Glow, { visual: this.visual });
     this.glowScene = this.scene.get(SceneKey.Glow) as GlowScene;
+    this.glowScene.attachWorld(this.sim.world, this.sim.events);
     this.scene.launch(SceneKey.Front, { visual: this.visual });
     this.frontScene = this.scene.get(SceneKey.Front) as FrontScene;
 
@@ -197,6 +204,8 @@ export class GameScene extends Phaser.Scene {
       textureKey: TextureKey.liquids,
       depth: Depth.liquids,
     });
+    this.foliage = new FoliageRenderer(this, world, sim.events, TextureKey.sprites, Depth.foliage);
+    this.weatherFx = new WeatherParticles(this, world, TextureKey.sprites);
     this.playerView = new PlayerRenderer(this, player, TextureKey.sprites);
     this.cursor = new TileCursor(this, sim.events, sim.input, player, TextureKey.cracks);
     this.dropView = new DropRenderer(this, sim.drops, TextureKey.tiles);
@@ -215,7 +224,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.cameraDirector.snapTo(
       this.playerView.feetX(1),
-      this.playerView.feetY(1) - player.body.height / 2,
+      this.playerView.feetY(1) - player.body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
     );
     this.lightMap = new LightMapRenderer(this, world, sim.events);
     this.glow = new GlowRenderer(
@@ -268,6 +277,8 @@ export class GameScene extends Phaser.Scene {
       this.chunks.destroy();
       this.walls.destroy();
       this.liquids.destroy();
+      this.foliage.destroy();
+      this.weatherFx.destroy();
       this.cursor.destroy();
       this.fx.destroy();
       this.lightMap.destroy();
@@ -373,7 +384,7 @@ export class GameScene extends Phaser.Scene {
     this.playerView.update(alpha, delta / 1000, this.activity);
     this.cameraDirector.update(
       this.playerView.feetX(alpha),
-      this.playerView.feetY(alpha) - body.height / 2,
+      this.playerView.feetY(alpha) - body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
       body.vx,
       body.vy,
       delta / 1000,
@@ -391,10 +402,22 @@ export class GameScene extends Phaser.Scene {
       this.playerView.feetY(alpha),
       delta / 1000,
     );
+    // `?rain=` forces the rain for screenshots; it changes rendering only, never the simulation.
+    if (this.params.rain !== null) this.visual.rain = this.params.rain;
     this.preloadBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
+    this.foliageBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
     this.chunks.update(this.view, this.preloadBudget);
     this.walls.update(this.view, this.preloadBudget);
     this.liquids.update(this.view, this.preloadBudget);
+    this.foliage.update(
+      this.view,
+      this.foliageBudget,
+      this.visual.wind,
+      this.visual.playerX,
+      this.visual.playerY,
+      delta / 1000,
+    );
+    this.weatherFx.update(delta / 1000, this.visual);
     this.cursor.update();
     this.dropView.update(alpha);
     this.fx.update(delta / 1000);

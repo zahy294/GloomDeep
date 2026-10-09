@@ -3,6 +3,8 @@ export const Depth = {
   sky: 1,
   backgroundWalls: 5,
   foregroundTiles: 8,
+  /** Ground plants, vines and saplings, between the tiles and the entities (plan 2.2 layer 9). */
+  foliage: 9.5,
   /** Crack overlay and the tile cursor sit just above the tiles they mark. */
   tileOverlay: 9,
   entities: 10,

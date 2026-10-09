@@ -110,3 +110,16 @@ describe('Weather', () => {
     expect(out.sunR).toBe(255);
   });
 });
+
+describe('Weather at the start of a world', () => {
+  it('starts dry for every seed, whatever the long-term pattern', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const w = new Weather(seed);
+      for (let t = 0; t < WEATHER.rain.dryStart; t += 5) {
+        w.update(t, 0.3);
+        expect(w.sample.rain).toBe(0);
+        expect(w.sample.flash).toBe(0);
+      }
+    }
+  });
+});

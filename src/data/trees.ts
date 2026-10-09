@@ -137,9 +137,11 @@ export const TREE_SPECIES: readonly TreeSpecies[] = [
 
 /**
  * One giant tree stands at the edge of the starting glade, so the first view of the game is under
- * its canopy (plan M5: "standing still in the Elderglade at sunrise...").
+ * its canopy (plan M5: "standing still in the Elderglade at sunrise..."). It stands on the west
+ * (left) side: the morning sun rises in the east, so dawn light shafts through its canopy gaps
+ * slant towards the spawn.
  */
-export const SPAWN_TREE = { species: 'elder', offset: 26 } as const;
+export const SPAWN_TREE = { species: 'elder', offset: -26 } as const;
 
 export function treeSpecies(key: string): TreeSpecies {
   const species = TREE_SPECIES.find((s) => s.key === key);

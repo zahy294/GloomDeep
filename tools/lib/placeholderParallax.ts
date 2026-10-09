@@ -138,6 +138,10 @@ function drawGround(l: Layer, spec: LayerSpec, seed: number, n: number): number[
   return line;
 }
 
+/** Distant giant trees: crown top row (plus the trunk width) and crown width per trunk width. */
+const GIANT_CROWN_TOP = 6;
+const GIANT_CROWN_SPREAD = 2.2;
+
 /** Broad round oak crown on a short trunk; denser clusters of blobs on the nearer layers. */
 const oak: TreeFn = (l, x, g, n, spec, r) => {
   const rad = between(r, spec.crownR);
@@ -232,9 +236,13 @@ const snag: TreeFn = (l, x, g, n, spec, r) => {
   }
 };
 
-/** Enormous distant trunk running off the top of the image. */
-function giantTrunk(l: Layer, x: number, groundY: number, width: number): void {
-  for (let y = 0; y <= groundY + 3; y++) {
+/**
+ * An enormous distant tree: a tall trunk flaring at the roots under a broad crown that stays
+ * inside the image (the layer's top edge is visible on screen, so nothing may run off it).
+ */
+function giantTrunk(l: Layer, x: number, groundY: number, width: number, seed: number): void {
+  const crownY = GIANT_CROWN_TOP + width;
+  for (let y = crownY; y <= groundY + 3; y++) {
     const flare = y > groundY - 18 ? Math.floor((y - (groundY - 18)) / 4) : 0;
     const left = Math.round(x - width / 2 - flare);
     const w = width + flare * 2;
@@ -242,6 +250,11 @@ function giantTrunk(l: Layer, x: number, groundY: number, width: number): void {
       l.put(left + i, y, i < w * 0.35 ? LIGHT : i < w * 0.7 ? MID : SHADE);
     }
   }
+  const rx = width * GIANT_CROWN_SPREAD;
+  const ry = width * 0.9;
+  l.blob(x, crownY, rx, ry, seed);
+  l.blob(x - rx * 0.6, crownY + ry * 0.35, rx * 0.55, ry * 0.6, seed + 1);
+  l.blob(x + rx * 0.6, crownY + ry * 0.3, rx * 0.55, ry * 0.6, seed + 2);
 }
 
 function tintReeds(l: Layer, line: number[], r: Rand): void {
@@ -279,7 +292,7 @@ export function buildParallaxLayer(biome: string, layer: number): RgbaImage {
     const widths = layer === 0 ? [14, 11] : [22, 18];
     widths.forEach((w, i) => {
       const x = Math.floor(width * (0.2 + i * 0.5) + r() * 40);
-      giantTrunk(l, x, line[x % width] ?? spec.ground, w);
+      giantTrunk(l, x, line[x % width] ?? spec.ground, w, seed + 100 + i);
     });
   }
 

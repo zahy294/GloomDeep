@@ -309,6 +309,11 @@ export const CAMERA = {
   lookAheadRate: 3,
   /** Shake never exceeds this many pixels, however many shakes stack up. */
   maxShake: 6,
+  /**
+   * Outdoors the camera aims this many pixels above the player, so the view shows more of the
+   * forest and sky and less dark soil; underground it centres on the player again.
+   */
+  surfaceLift: 88,
 } as const;
 
 export const CHUNK_RENDER = {
@@ -404,4 +409,294 @@ export const PLACEHOLDER_ATLAS = {
   seed: 0x9e3779b9,
   /** Out of 256: chance a pixel gets a light or dark speckle. */
   speckleChance: 28,
+} as const;
+
+/** Audio mix (plan 3.6). Gains 0..1, times in seconds. Sound design recipes: src/data/audio.ts. */
+export const AUDIO = {
+  master: 0.8,
+  music: 0.55,
+  ambience: 0.7,
+  /** Layer gains glide to their targets with this time constant (no clicks, smooth crossfades). */
+  smoothing: 0.6,
+  /** Wind is always faintly there; stronger wind raises it to full. Rain adds to the wind bed. */
+  windFloor: 0.35,
+  rainWind: 0.4,
+  /** Under water, airy layers (birds, crickets, chimes, wind) drop to this fraction. */
+  underwaterAiry: 0.15,
+  /** A second place's music joins the mix only above this blend weight. */
+  musicMinWeight: 0.08,
+  /** Melody wanders at most this many scale degrees from the root. */
+  melodyRange: 7,
+  /** Events are scheduled this far ahead of the audio clock. */
+  lookahead: 0.25,
+} as const;
+
+/** Sky-side and front-side atmosphere (plan 2.0, 2.2 layers 3, 4, 15, 16; M5 D1/D5). */
+export const ATMOSPHERE = {
+  parallax: {
+    /** Where each layer's bottom edge sits on screen (fraction of view height) with the camera at ground level; back to front. */
+    bottomFraction: [0.6, 0.7, 0.84, 1.0],
+    /** Screen px a layer's bottom moves per world px the camera centre is below the ground line (rises going underground). */
+    verticalFactor: [0.05, 0.1, 0.18, 0.3],
+    /** How quickly the remembered ground line follows hills (seconds). */
+    groundSmoothSeconds: 0.6,
+    /** Fraction of daylight kept at night so silhouettes still read, and the night colour multiplier. */
+    nightFloor: 0.34,
+    nightTint: 0x8fa2d8,
+    /** Tint changes smaller than this (per channel sum) do not trigger a re-tint. */
+    tintEpsilon: 3,
+    /** Biome weights below this hide the layer set. */
+    minWeight: 0.01,
+    /** Draw order: sky gradient is -1, stars/sun/moon 0. */
+    depthBase: 10,
+  },
+  mist: {
+    /** Back mist layers sit after parallax layers 1 and 2 (indices into the 4 layers). */
+    afterLayer: [1, 2],
+    /**
+     * Back mist is a baked soft-edged fog texture (Shader objects take no filters, so noise cannot
+     * fade towards the top): size in px, noise cells across it, and per layer the stretch, bottom
+     * edge (fraction of view height), strength relative to the biome's mist alpha, drift (px/s),
+     * extra drift at full wind (px/s) and camera parallax.
+     */
+    texture: { width: 256, height: 96, cellsX: 4, cellsY: 3, seed: 0x6157 },
+    scaleX: [3, 4],
+    scaleY: [3, 2],
+    bandBottom: [0.9, 1.0],
+    backScale: [0.9, 0.7],
+    driftPx: [4, 7],
+    windPx: [30, 45],
+    backCameraParallax: [0.12, 0.25],
+    frontScale: 0.28,
+    /** Front mist (a thin NoiseSimplex2D over the whole view): cells, octaves, drift and camera parallax in noise units, start offset. */
+    frontCells: [8, 4],
+    iterations: 2,
+    frontDrift: 0.05,
+    /** Extra noise units per second at full wind. */
+    windSpeed: 0.12,
+    frontCameraParallax: 0.002,
+    frontOrigin: [77.7, 31.4],
+    /** Mist kept underground (fraction of its outdoor strength) for the front layer. */
+    undergroundFront: 0.35,
+    /** Mist alpha is changed in steps no smaller than this. */
+    alphaEpsilon: 0.004,
+  },
+  starfall: {
+    /** Streaks per real minute on a fully clear night. */
+    perMinute: 3,
+    /** Needs at least this much night and at most this much rain. */
+    minNight: 0.7,
+    maxRain: 0.2,
+    /** Streak length (px), travel (px), duration (ms) range, and the sky band (fraction of height) they cross. */
+    length: 14,
+    travel: 90,
+    durationMin: 450,
+    durationMax: 800,
+    band: 0.4,
+    seed: 0x57a2,
+  },
+  sky: {
+    /** Overcast: how far the sky goes towards grey, and how much darker, at full rain. */
+    rainGrey: 0.7,
+    rainDarken: 0.2,
+    /** Lightning: sky colour at full flash. */
+    flashColor: 0xe8eeff,
+    flashMix: 0.75,
+  },
+  front: {
+    canopy: {
+      /** Horizontal speed relative to the camera (>1 = passes faster than the world). */
+      scroll: 1.4,
+      /** Peak opacity, tint, sway (px) and sway speed (rad/s), wind multiplies sway. */
+      alpha: 0.95,
+      tint: 0x0b1f24,
+      swayPx: 6,
+      swaySpeed: 0.6,
+      /** Hidden below this opacity. */
+      minAlpha: 0.04,
+    },
+  },
+} as const;
+
+/** Canopy light shafts (plan 2.0 "Canopy light shafts"): additive beams through leaf gaps. */
+export const SHAFTS = {
+  /** Open (leafless) column runs this wide or narrower, bounded by shaded columns, become shafts. */
+  maxGapTiles: 6,
+  /** A neighbour column counts as shaded below this fraction of sun. */
+  shadedBelow: 0.9,
+  /** Tiles below the canopy top where the beam starts; it must be at least this tall to count. */
+  topInsetTiles: 2,
+  minHeightTiles: 4,
+  maxHeightTiles: 130,
+  /** Tiles of world columns cached beyond the view on each side (beams slant up to maxLean). */
+  cacheMarginTiles: 100,
+  /** Most beams drawn at once (pooled images). */
+  maxVisible: 24,
+  /** Beam width in tiles at the top: the gap width plus this, clamped to the range. */
+  widthPadTiles: 0.5,
+  minWidthTiles: 1.5,
+  maxWidthTiles: 3,
+  /** Beam slant (horizontal px per vertical px) at sunrise and sunset; zero at noon. */
+  maxLean: 0.32,
+  /** Beam opacity at its strongest (golden hours). */
+  peakAlpha: 0.5,
+  /** Fraction of peak opacity left at noon. */
+  noonAlphaFactor: 0.55,
+  /** Daylight range over which the beams fade in from night. */
+  daylightFadeFrom: 0.25,
+  daylightFadeTo: 0.7,
+  /** Sway: angle (rad) and opacity breathing (fraction), slow. */
+  swayAngle: 0.035,
+  swayAlpha: 0.2,
+  swaySpeed: 0.45,
+  /** Mix of the warm shaft gold with the sun colour (0 = gold only). */
+  sunTintMix: 0.25,
+  gold: 0xffd98a,
+  /** Generated beam texture size (smooth gradient, linear filtering). */
+  textureWidth: 32,
+  textureHeight: 128,
+  /** Fractions of the beam length over which its top fades in and its foot fades out. */
+  fadeInFraction: 0.04,
+  fadeOutFraction: 0.08,
+  /** Bottom width relative to the top. */
+  flare: 1.5,
+  /** Motes drifting in each beam, and their fall/drift speeds (px/s) and size. */
+  motesPerShaft: 6,
+  moteFallSpeed: 3,
+  moteDriftPx: 5,
+  moteScale: 1,
+  moteAlpha: 0.9,
+} as const;
+
+/** Floating motes and glowing particles (fireflies, spores, embers), drawn additively. */
+export const AMBIENT = {
+  /** Pool size per kind; the biome counts are capped by these. */
+  capacity: { mote: 90, shaftMote: 48, firefly: 40, spore: 40, ember: 48 },
+  /** Extra margin (px) around the view where particles live before they wrap. */
+  marginPx: 24,
+  /** Particles fade in and out at this rate (alpha per second). */
+  fadeRate: 1.2,
+  /** Count multiplier when the Low quality tier disables glow. */
+  lowQualityFactor: 0.5,
+  /** Share of the `night` factor that `dusk` rules keep in the dark. */
+  duskNightCarry: 0.3,
+  /** Wind (-1..1) to horizontal speed (px/s). */
+  windSpeed: 14,
+  mote: { speed: 5, twinkleSpeed: 1.4, scale: 1, alpha: 0.9 },
+  firefly: {
+    tint: 0xd8f56a,
+    speed: 9,
+    wanderSpeed: 0.8,
+    blinkSpeed: 1.6,
+    scale: 1.5,
+    alpha: 1,
+    /** Tiles above the ground they hover within. */
+    minHeightTiles: 0.5,
+    maxHeightTiles: 6,
+  },
+  spore: { tint: 0xa6f0ff, rise: 6, sway: 5, swaySpeed: 0.7, scale: 1.6, alpha: 0.95 },
+  ember: { tint: 0xffa040, rise: 22, sway: 8, flickerSpeed: 7, scale: 1.6, alpha: 1 },
+} as const;
+
+/** Decoration sway and bend (plan 2.2 layer 9; src/render/FoliageRenderer.ts). */
+export const FOLIAGE = {
+  /** Members per pooled layer; a chunk with more decorations than this drops the extras. */
+  layerCapacity: 3072,
+  sway: {
+    /** Fraction of a plant's `decor.sway` it swings through in dead calm, and added at full wind. */
+    idleFraction: 0.3,
+    windFraction: 0.7,
+    /** Steady lean at full wind, as a fraction of `decor.sway`. */
+    leanFraction: 0.6,
+    /** One swing takes this long, varied per plant by up to `periodJitter` (fraction). */
+    periodMs: 2400,
+    periodJitter: 0.45,
+  },
+  /** Members are re-patched when the wind moved this much, at most this often. */
+  windPatchThreshold: 0.04,
+  windPatchIntervalSeconds: 0.25,
+  bend: {
+    /** Plants within this horizontal distance of the player lean away. */
+    radiusPx: 22,
+    /** Radians of lean per radian of `decor.sway`, capped at `maxRadians`. */
+    perSway: 2.2,
+    maxRadians: 0.6,
+    /** Exponential rates (1/s): leaning away, and springing back. */
+    pushRate: 16,
+    recoverRate: 5,
+    /** Tile rows above the player's feet row that still brush against the body. */
+    rowsAboveFeet: 2,
+    /** Tile columns scanned each side of the player. */
+    columns: 2,
+    /** Most plants bent at once. */
+    maxActive: 64,
+    /** A recovering plant is released when its lean falls below this. */
+    releaseRadians: 0.004,
+  },
+} as const;
+
+/** Rain, drips, falling leaves and petals (plan 2.0, 2.4; src/render/WeatherParticles.ts). */
+export const WEATHER_FX = {
+  /** Pooled particle sprites per kind: the most alive at once at full density. */
+  caps: { rain: 360, splash: 96, leaf: 40, petal: 40, drip: 24 },
+  rain: {
+    fallSpeed: 520,
+    fallSpeedJitter: 0.18,
+    /** Sideways speed at full wind (px/s). */
+    windDrift: 190,
+    /** Streak length multiplier on the 4 px raindrop frame. */
+    streakScale: 2.6,
+    alpha: 0.85,
+    /** Spawn row is this far above the view; drops die this far outside it. */
+    marginPx: 48,
+    /** Fraction of drops that stop at leaf canopy tiles (the rest fall through the gaps). */
+    canopyStopChance: 0.85,
+    /** Rain below this intensity does not fall at all. */
+    minIntensity: 0.05,
+  },
+  splash: {
+    /** Chance a drop that hits something makes a splash, and how many specks it throws. */
+    chance: 0.35,
+    count: 3,
+    lifeSeconds: 0.28,
+    speedX: 34,
+    speedUp: 70,
+    gravity: 420,
+    scale: 0.45,
+  },
+  drip: {
+    /** Drips per second at full rain with a canopy on screen, at full density. */
+    perSecond: 7,
+    gravity: 900,
+    alpha: 0.7,
+    /** Random cells tried to find a canopy underside per drip/leaf spawned. */
+    probes: 14,
+  },
+  /** Leaves and petals refill an empty screen over about this long. */
+  fillSeconds: 4,
+  leaf: {
+    fallSpeed: 26,
+    fallSpeedJitter: 0.4,
+    /** Sideways push at full wind (px/s) and the flutter on top of it. */
+    windDrift: 70,
+    flutterSpeed: 16,
+    flutterHz: 0.9,
+    spinPerSecond: 1.6,
+    lifeSeconds: 16,
+    fadeSeconds: 0.7,
+    alpha: 0.95,
+    /** Leaves die this far outside the view. */
+    marginPx: 96,
+  },
+  petal: {
+    fallSpeed: 20,
+    fallSpeedJitter: 0.4,
+    windDrift: 90,
+    flutterSpeed: 26,
+    flutterHz: 0.6,
+    spinPerSecond: 0.9,
+    lifeSeconds: 22,
+    fadeSeconds: 0.9,
+    alpha: 0.95,
+  },
 } as const;

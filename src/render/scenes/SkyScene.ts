@@ -1,15 +1,22 @@
 import * as Phaser from 'phaser';
-import { DISPLAY } from '../../config';
+import { ATMOSPHERE, DISPLAY } from '../../config';
 import { PALETTE } from '../../data/palette';
 import { mulberry32 } from '../../sim/random';
 import type { DaySample } from '../../sim/dayCycle';
+import { blendColor, blendNumber } from '../biomeBlend';
+import { mistAlpha, weatherSky } from '../atmosphereMath';
+import { BackMist, makeBackMistTexture } from '../BackMist';
+import { ParallaxRenderer } from '../ParallaxRenderer';
+import { Starfall } from '../Starfall';
 import type { VisualState } from '../VisualState';
-import { SceneKey, TextureKey } from './keys';
+import { packSprites, SceneKey, TextureKey } from './keys';
 
 /** What the sky needs from the running game each frame. */
 export interface SkySource {
   dayFraction: number;
   day: DaySample;
+  /** The world's ground line, for anchoring the parallax tree lines. */
+  world: { groundRow(x: number): number };
 }
 
 /**
@@ -22,9 +29,12 @@ const STAR_SEED = 0x5ca7;
 /** Stars only appear in the top part of the sky. */
 const STAR_BAND = 0.7;
 
+const PARALLAX_STRIDE = 10;
+const parallaxDepth = (layer: number) => ATMOSPHERE.parallax.depthBase + layer * PARALLAX_STRIDE;
+
 /**
- * The sky (plan 2.2 layer 1): a vertical Gradient driven by the day-cycle keyframes, plus the sun,
- * moon and stars. It is its own scene, rendered before the Game scene, so the light map — which
+ * The sky (plan 2.2 layers 1�4): a vertical Gradient driven by the day-cycle keyframes, plus the
+ * sun, moon, stars, starfall, the parallax tree lines and the back mist between them. It is its own scene, rendered before the Game scene, so the light map — which
  * multiplies everything the Game camera draws — never darkens the sky a second time.
  */
 export class SkyScene extends Phaser.Scene {
@@ -36,6 +46,11 @@ export class SkyScene extends Phaser.Scene {
   /** Colours last encoded into the gradient (encoding re-uploads a texture, so only on change). */
   private encodedTop = -1;
   private encodedHorizon = -1;
+  private parallax!: ParallaxRenderer;
+  private starfall!: Starfall;
+  private backMist: BackMist[] = [];
+  private lastTime = 0;
+  private lastCameraX = Number.NaN;
 
   constructor() {
     super(SceneKey.Sky);
@@ -75,22 +90,66 @@ export class SkyScene extends Phaser.Scene {
     }
     this.moon = this.add.image(0, 0, TextureKey.moon);
     this.sun = this.add.image(0, 0, TextureKey.sun);
+    this.moon.setDepth(1);
+    this.sun.setDepth(1);
+    this.parallax = new ParallaxRenderer(this, this.source, parallaxDepth, packSprites(this.cache));
+    this.starfall = new Starfall(this);
+    const mist = ATMOSPHERE.mist;
+    makeBackMistTexture(this.textures);
+    this.backMist = mist.afterLayer.map(
+      (layer, i) => new BackMist(this, i, parallaxDepth(layer) + PARALLAX_STRIDE / 2),
+    );
     this.update();
   }
 
   override update(): void {
-    const { day, dayFraction } = this.source;
-    if (day.skyTop !== this.encodedTop || day.skyHorizon !== this.encodedHorizon) {
-      this.encodedTop = day.skyTop;
-      this.encodedHorizon = day.skyHorizon;
-      this.gradient.ramp.bands[0]?.setColors(day.skyTop, day.skyHorizon);
+    const { dayFraction } = this.source;
+    const visual = this.visual;
+    const day = visual.day;
+    const dt = Math.min(0.1, Math.max(0, visual.realTime - this.lastTime));
+    this.lastTime = visual.realTime;
+
+    const top = weatherSky(day.skyTop, visual.rain, visual.flash);
+    const horizon = weatherSky(day.skyHorizon, visual.rain, visual.flash);
+    if (top !== this.encodedTop || horizon !== this.encodedHorizon) {
+      this.encodedTop = top;
+      this.encodedHorizon = horizon;
+      this.gradient.ramp.bands[0]?.setColors(top, horizon);
       this.gradient.ramp.encode();
     }
-    this.stars.setAlpha(day.stars);
+    this.parallax.update(visual);
+    this.starfall.update(visual, dt);
+    this.updateBackMist(visual, dt);
+    this.stars.setAlpha(day.stars * (1 - visual.rain));
 
     // Sun rises at dawn (0.25) in the east (left), peaks at noon, sets at dusk (0.75).
     this.placeOnArc(this.sun, dayFraction - 0.25);
     this.placeOnArc(this.moon, dayFraction + 0.25);
+  }
+
+  private updateBackMist(visual: VisualState, dt: number): void {
+    const { mist } = ATMOSPHERE;
+    const enabled = visual.features.mist;
+    const colour = blendColor(visual.weights, (v) => v.mist.color);
+    const base = blendNumber(visual.weights, (v) => v.mist.alpha);
+    const dawn = blendNumber(visual.weights, (v) => v.mist.dawnBoost);
+    const height = this.scale.height;
+    const cameraDx = Number.isNaN(this.lastCameraX) ? 0 : visual.view.x - this.lastCameraX;
+    this.lastCameraX = visual.view.x;
+    for (let i = 0; i < this.backMist.length; i++) {
+      const alpha = enabled
+        ? mistAlpha(base, dawn, visual.mist, mist.backScale[i] ?? 1, visual.outdoors)
+        : 0;
+      const drift = (mist.driftPx[i] ?? 0) + visual.wind * (mist.windPx[i] ?? 0);
+      this.backMist[i]?.update(
+        colour,
+        alpha,
+        height * (mist.bandBottom[i] ?? 1),
+        drift,
+        dt,
+        cameraDx,
+      );
+    }
   }
 
   private makeGradient(): void {

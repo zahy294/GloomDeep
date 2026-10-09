@@ -21,6 +21,9 @@ export const WEATHER = {
     full: 0.78,
     /** Sunlight multiplier at full rain (overcast). */
     overcast: 0.7,
+    /** A new world starts dry: no rain before `dryStart` s, then the pattern fades in. */
+    dryStart: 600,
+    dryFade: 240,
   },
   storm: {
     /** Rain above this intensity can bring lightning, more often the heavier it rains. */

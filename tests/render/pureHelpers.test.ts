@@ -52,6 +52,7 @@ describe('parseDebugParams', () => {
     biome: null,
     spot: null,
     size: null,
+    rain: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -73,6 +74,7 @@ describe('parseDebugParams', () => {
       biome: null,
       spot: null,
       size: null,
+      rain: null,
     });
   });
 
@@ -87,6 +89,14 @@ describe('parseDebugParams', () => {
       spot: null,
       size: null,
     });
+  });
+
+  it('reads a forced rain intensity, clamped to 0..1', () => {
+    expect(parseDebugParams('?rain=1').rain).toBe(1);
+    expect(parseDebugParams('?rain=0.4').rain).toBe(0.4);
+    expect(parseDebugParams('?rain=7').rain).toBe(1);
+    expect(parseDebugParams('?rain=abc').rain).toBeNull();
+    expect(parseDebugParams('?rain=').rain).toBeNull();
   });
 
   it('reads the art-test scene, asset id, time and pack folder', () => {

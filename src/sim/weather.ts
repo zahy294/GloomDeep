@@ -81,7 +81,9 @@ export class Weather {
   private rainAt(time: number): number {
     const r = WEATHER.rain;
     const n = valueNoise1(time / r.wavelength, this.seed ^ RAIN_SEED);
-    return smooth(clamp01((n - r.start) / (r.full - r.start)));
+    // New worlds begin under a clear sky (first impressions), then the usual spells begin.
+    const settled = smooth(clamp01((time - r.dryStart) / r.dryFade));
+    return smooth(clamp01((n - r.start) / (r.full - r.start))) * settled;
   }
 
   /** The strike time inside slot k, or null if the slot has no strike. */

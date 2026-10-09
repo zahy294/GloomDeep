@@ -214,11 +214,11 @@ describe('giant trees (medium world)', () => {
     ).toBeGreaterThan(5);
   });
 
-  it('a small rune ruin stands on the glade, left of the spawn', () => {
+  it('a small rune ruin stands on the glade, right of the spawn', () => {
     const RUNE = tileId('carved_runestone');
     const STONE = tileId('runestone');
     let ruin = 0;
-    for (let x = spawnX - 30; x < spawnX; x++) {
+    for (let x = spawnX + 1; x < spawnX + 30; x++) {
       for (let y = world.groundRow(x) - 8; y < world.groundRow(x) + 1; y++) {
         const id = world.get(x, y);
         if (id === RUNE || id === STONE) ruin++;

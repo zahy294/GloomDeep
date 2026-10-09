@@ -50,11 +50,11 @@ Working file for M5; delete it when M5 is committed. Plan sections: 2.0, 2.2, 2.
 - [x] **B1** ✅ Giant trees in worldgen (data `trees.ts`); tests (deterministic, spawn clear, canopy blocks sun, branches walkable).
 - [x] **B2** ✅ Flora + rune ruins in worldgen (data `flora.ts`); tests.
 - [x] **C1** ✅ Placeholder art: new tiles, decor sprite sheets, small trees, parallax layers, foreground canopy, light-shaft texture.
-- [ ] **D1** Parallax + back mist (SkyScene).
-- [ ] **D2** FoliageRenderer (SpriteGPULayer, sway with wind, bend near player, falling leaves).
-- [ ] **D3** Light shafts + motes (GlowScene).
-- [ ] **D4** Ambient particles + weather visuals (rain, petals, spores, embers, fireflies, starfall, lightning flash).
-- [ ] **D5** FrontScene: front mist + foreground canopy.
+- [x] **D1** ✅ Parallax + back mist (SkyScene).
+- [x] **D2** ✅ FoliageRenderer (SpriteGPULayer, sway with wind, bend near player, falling leaves).
+- [x] **D3** ✅ Light shafts + motes (GlowScene).
+- [x] **D4** ✅ Ambient particles + weather visuals (rain, petals, spores, embers, fireflies, starfall, lightning flash).
+- [x] **D5** ✅ FrontScene: front mist + foreground canopy.
 - [ ] **D6** Colour grade per biome, underwater, heat haze, vignette.
 - [ ] **D7** Reflective pools + waterfalls.
 - [ ] **D8** Audio: procedural ambience + music per biome, crossfades, unlock on first click.

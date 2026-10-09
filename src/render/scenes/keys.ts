@@ -1,3 +1,4 @@
+import type * as Phaser from 'phaser';
 export const SceneKey = {
   Boot: 'Boot',
   Title: 'Title',
@@ -29,6 +30,7 @@ export const TextureKey = {
 
 export const DataKey = {
   sprites: 'sprites-info',
+  pack: 'pack-info',
 } as const;
 
 /**
@@ -42,7 +44,14 @@ export const PackFile = {
   cracks: 'cracks.png',
   sprites: 'sprites.png',
   spritesInfo: 'sprites.json',
+  info: 'pack.json',
   preview: 'preview/',
 } as const;
 
 export const DEFAULT_PACK_DIR = 'packed';
+
+/** Approved/placeholder status per sprite asset from the loaded pack.json (empty if not loaded). */
+export function packSprites(cache: Phaser.Cache.CacheManager): Readonly<Record<string, string>> {
+  const info = cache.json.get(DataKey.pack) as { sprites?: Record<string, string> } | undefined;
+  return info?.sprites ?? {};
+}
