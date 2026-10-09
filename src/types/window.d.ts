@@ -27,6 +27,9 @@ export interface GameProbe {
   lumen: number;
   health: number;
   dead: boolean;
+  /** Burning cells and blocks in mid-fall. */
+  burning: number;
+  falling: number;
   /** Live creatures: key, feet-centre (pixels), health. */
   enemies: { key: string; x: number; y: number; health: number }[];
 }
@@ -43,6 +46,8 @@ declare global {
       resetFrameStats: () => void;
       /** Tile id at a world tile coordinate (foreground or background), -1 outside the game. */
       tile: (x: number, y: number, layer?: 'fg' | 'bg') => number;
+      /** Liquid [type, amount] at a world tile (type 0 none, 1 water, 2 lava), null outside. */
+      liquid: (x: number, y: number) => [number, number] | null;
       /** Gloam level 0–255 at a world tile, -1 outside the game or the world. */
       gloam: (x: number, y: number) => number;
       /** Light [r, g, b] at a world tile, null outside the game. */

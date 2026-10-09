@@ -32,6 +32,8 @@ export const TextureKey = {
   gloam: 'gloam',
   /** Soft ring for the light-ring effect when a light is placed. */
   ring: 'ring',
+  /** Flame animation frames drawn at boot (src/render/liquidFrames.ts FLAME_FRAMES). */
+  flames: 'flames',
 } as const;
 
 export const DataKey = {

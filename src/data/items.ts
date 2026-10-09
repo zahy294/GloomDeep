@@ -545,15 +545,19 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'torch', count: 20 },
     { item: 'flare', count: 10 },
   ],
+  // Hotbar order matters for the M9 shots: torch, pickaxe, flare, gravel, 4 water, lava, bucket.
   materials: [
     { item: 'iron_pickaxe', count: 1 },
+    { item: 'flare', count: 10 },
+    { item: 'gravel', count: 40 },
+    { item: 'water_bucket', count: 1 },
+    { item: 'water_bucket', count: 1 },
+    { item: 'water_bucket', count: 1 },
     { item: 'water_bucket', count: 1 },
     { item: 'lava_bucket', count: 1 },
     { item: 'bucket', count: 4 },
-    { item: 'gravel', count: 40 },
     { item: 'silt', count: 40 },
     { item: 'elderwood_planks', count: 60 },
-    { item: 'flare', count: 10 },
   ],
   crafting: [
     { item: 'elderwood_pickaxe', count: 1 },

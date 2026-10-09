@@ -514,6 +514,43 @@ export const FIRE = {
   flareIgnitePerSecond: 0.8,
 } as const;
 
+/** Liquids, fire and falling blocks on screen (src/render/MaterialsRenderer.ts). Pixels, s, ms. */
+export const MATERIALS_VIEW = {
+  /** Liquid surfaces ripple: the wave phase advances this often (seconds). */
+  waveSeconds: 0.35,
+  splashCount: 10,
+  splashLifeMs: 500,
+  splashSpeedMin: 40,
+  splashSpeedMax: 140,
+  splashGravity: 500,
+  steamCount: 8,
+  steamLifeMs: 1400,
+  steamSpeedMin: 10,
+  steamSpeedMax: 40,
+  steamLift: 30,
+  steamScaleStart: 0.2,
+  steamScaleEnd: 0.6,
+  steamAlpha: 0.5,
+  dustCount: 6,
+  /** Flames: animation rate, per-cell phase offsets, at most this many drawn, wall flames dimmer. */
+  flameRate: 10,
+  flamePhaseX: 0.7,
+  flamePhaseY: 1.3,
+  maxFlames: 160,
+  wallFlameAlpha: 0.7,
+  flameHaloPx: 40,
+  flameHaloAlpha: 0.45,
+  /** Embers: one from every `emberEvery`-th flame each `emberInterval` seconds. */
+  emberInterval: 0.25,
+  emberEvery: 3,
+  emberLifeMs: 1200,
+  emberSpeedMin: 10,
+  emberSpeedMax: 35,
+  emberLift: 25,
+  /** At most one ignition crackle per this many seconds. */
+  igniteSoundGap: 0.6,
+} as const;
+
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
 export const LIGHT_FX = {
   /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */

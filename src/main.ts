@@ -113,6 +113,14 @@ window.gloamdeep = {
     const i = y * w.width + x;
     return [w.lightR[i] ?? 0, w.lightG[i] ?? 0, w.lightB[i] ?? 0];
   },
+  liquid: (x, y) => {
+    const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
+    if (!scene?.sys.isActive()) return null;
+    const w = scene.simulation.world;
+    if (!w.inBounds(x, y)) return null;
+    const i = y * w.width + x;
+    return [w.liquidType[i] ?? 0, w.liquid[i] ?? 0];
+  },
   gloam: (x, y) => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
     if (!scene?.sys.isActive()) return -1;

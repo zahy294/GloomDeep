@@ -318,6 +318,11 @@ const SOIL_ITEM = itemId('forest_soil');
 const PLANKS_ITEM = itemId('elderwood_planks');
 const TORCH_ITEM = itemId('torch');
 const FLARE_ITEM = itemId('flare');
+const WATER_BUCKET_ITEM = itemId('water_bucket');
+const LAVA_BUCKET_ITEM = itemId('lava_bucket');
+const GRAVEL_ITEM = itemId('gravel');
+const GRAVEL = tileId('gravel');
+const OBSIDIAN = tileId('obsidian');
 const WORKBENCH_ITEM = itemId('workbench');
 const WORKBENCH = tileId('workbench');
 const LIVING_WOOD_ITEM = itemId('living_wood');
@@ -585,6 +590,177 @@ const COMBAT_SHOTS: Shot[] = [
   },
 ];
 
+/** Water (or lava) cells within a square around (x, y). */
+async function liquidCells(page: Page, x: number, y: number, r: number, type: number) {
+  return page.evaluate(
+    ([cx, cy, radius, kind]) => {
+      let n = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const l = window.gloamdeep?.liquid(cx + dx, cy + dy);
+          if (l && l[0] === kind && l[1] > 0) n++;
+        }
+      }
+      return n;
+    },
+    [x, y, r, type] as const,
+  );
+}
+
+/** Right-clicks a tile once (a pour, a throw). */
+async function rightClickTile(page: Page, x: number, y: number): Promise<void> {
+  await pointAtTile(page, x, y);
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(80);
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(300);
+}
+
+const WATER = 1;
+
+/** Mines a w×h pit with its top-left at (x, y) (the ground row), with the selected pickaxe. */
+async function digPit(page: Page, x: number, y: number, w: number, h: number): Promise<void> {
+  await selectItem(page, itemId('iron_pickaxe'));
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) {
+      if ((await tileAt(page, x + dx, y + dy)) === 0) continue;
+      await holdOnTile(
+        page,
+        x + dx,
+        y + dy,
+        'left',
+        async () => (await tileAt(page, x + dx, y + dy)) === 0,
+      );
+    }
+  }
+  await page.waitForFunction(() => window.gloamdeep?.probe()?.drops === 0, undefined, {
+    timeout: TIMEOUT_MS,
+  });
+}
+
+/** M9: liquids, obsidian, fire and cave-ins with real mouse input. */
+const MATERIAL_SHOTS: Shot[] = [
+  {
+    // Dig a pit beside the spawn and flood it with buckets of water.
+    name: 'flood-pit',
+    query: '?scene=game&time=noon&kit=materials',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      await digPit(page, px + 2, ground, 4, 2);
+      for (let k = 0; k < 4; k++) {
+        await selectItem(page, WATER_BUCKET_ITEM);
+        await rightClickTile(page, px + 3, ground - 1);
+      }
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(3000);
+      const cells = await liquidCells(page, px + 3, ground, 4, WATER);
+      check(
+        cells >= 4,
+        `4 buckets should fill the bottom of the 4×2 pit, got ${cells} water cells`,
+      );
+      const end = (await probe(page)) as GameProbe;
+      report.push(
+        `flood: dug a 4×2 pit, 4 buckets filled ${cells} cells; frame CPU avg ${end.frameCpuAvgMs.toFixed(2)} ms`,
+      );
+    },
+  },
+  {
+    // Lava into a pit, water on top: the lava cools to obsidian.
+    name: 'lava-obsidian',
+    query: '?scene=game&time=noon&kit=materials',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      await digPit(page, px + 3, ground, 3, 1);
+      await selectItem(page, LAVA_BUCKET_ITEM);
+      await rightClickTile(page, px + 4, ground - 1);
+      await page.waitForTimeout(1500); // let the lava settle in the pit
+      await selectItem(page, WATER_BUCKET_ITEM);
+      await rightClickTile(page, px + 4, ground - 2);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(2000);
+      let obsidian = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = 0; dx <= 6; dx++) {
+          if ((await tileAt(page, px + 2 + dx, ground + dy)) === OBSIDIAN) obsidian++;
+        }
+      }
+      check(obsidian > 0, 'water poured on lava should leave obsidian');
+      report.push(`lava + water: ${obsidian} obsidian tile(s)`);
+    },
+  },
+  {
+    name: 'forest-fire',
+    query: '?scene=game&time=noon&kit=materials',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      await selectItem(page, FLARE_ITEM);
+      await rightClickTile(page, px - 5, ground - 1);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      let most = 0;
+      const deadline = Date.now() + 10_000;
+      while (Date.now() < deadline) {
+        const now = ((await probe(page)) as GameProbe).burning;
+        most = Math.max(most, now);
+        if (most >= 12 && now >= 12) break;
+        await page.waitForTimeout(250);
+      }
+      check(most >= 8, `the flare should set the glade alight (at most ${most} burning cells)`);
+      const end = (await probe(page)) as GameProbe;
+      report.push(
+        `forest fire: up to ${most} cells burning; frame CPU avg ${end.frameCpuAvgMs.toFixed(2)} ms, ` +
+          `worst ${end.frameCpuMaxMs.toFixed(2)} ms`,
+      );
+    },
+  },
+  {
+    name: 'gravel-cave-in',
+    query: '?scene=game&time=noon&kit=materials',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      const gx = px + 3;
+      await selectItem(page, GRAVEL_ITEM);
+      for (let dy = 1; dy <= 4; dy++) {
+        await holdOnTile(
+          page,
+          gx,
+          ground - dy,
+          'right',
+          async () => (await tileAt(page, gx, ground - dy)) === GRAVEL,
+        );
+      }
+      await selectItem(page, itemId('iron_pickaxe'));
+      const under = await tileAt(page, gx, ground);
+      await holdOnTile(
+        page,
+        gx,
+        ground,
+        'left',
+        async () => (await tileAt(page, gx, ground)) !== under,
+      );
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(1500);
+      check(
+        (await tileAt(page, gx, ground)) === GRAVEL,
+        'the gravel column should drop into the hole',
+      );
+      check((await tileAt(page, gx, ground - 4)) === 0, 'the top of the column should be empty');
+      report.push(`cave-in: a 4-high gravel column dropped one tile when its support was mined`);
+    },
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
   ...FOREST_SHOTS,
@@ -592,6 +768,7 @@ const SHOTS: Shot[] = [
   ...LIQUID_SHOTS,
   ...GLOAM_SHOTS,
   ...COMBAT_SHOTS,
+  ...MATERIAL_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
     // M4: the title leads to the world list (with an empty IndexedDB: no worlds yet).

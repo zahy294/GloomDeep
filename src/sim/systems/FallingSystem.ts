@@ -14,7 +14,8 @@ const HOLDS_UP = Uint8Array.from(TILES, (t) => (t.solid || t.platform ? 1 : 0));
 const INTANGIBLE = Uint8Array.from(TILES, (t) => (t.intangible ? 1 : 0));
 const DROP = TILES.map((t) => (t.drop ? itemId(t.drop) : -1));
 /** Falling blocks are a little narrower than a tile so they drop down one-tile shafts. */
-const INSET = 1;
+export const FALLING_INSET = 1;
+const INSET = FALLING_INSET;
 const collision = createCollisionResult();
 
 /** A block of silt or gravel in free fall. */

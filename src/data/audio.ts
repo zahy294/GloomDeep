@@ -90,6 +90,14 @@ export const SOUND_DESIGN = {
     },
     dissolve: { tone: { type: 'sine', from: 1200, to: 180, decay: 0.6, gain: 0.07 } },
     respawn: { tone: { type: 'triangle', from: 440, to: 880, decay: 0.5, gain: 0.07 } },
+    // M9 materials.
+    splash: { noise: { type: 'bandpass', hz: 900, decay: 0.3, gain: 0.16 } },
+    hiss: { noise: { type: 'highpass', hz: 3000, decay: 0.7, gain: 0.12 } },
+    ignite: { noise: { type: 'lowpass', hz: 1800, decay: 0.35, gain: 0.12 } },
+    thud: {
+      noise: { type: 'lowpass', hz: 300, decay: 0.18, gain: 0.25 },
+      tone: { type: 'sine', from: 120, to: 50, decay: 0.15, gain: 0.08 },
+    },
   },
   /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
   envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },

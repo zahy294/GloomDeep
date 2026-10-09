@@ -12,6 +12,7 @@ import {
   HEALTH,
   GLOAM,
   COMBAT_VIEW,
+  MATERIALS_VIEW,
 } from '../../config';
 import { ENEMIES } from '../../data/enemies';
 import { createEnemy } from '../../sim/entities/Enemy';
@@ -65,6 +66,7 @@ import type { GlowScene } from './GlowScene';
 import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIcon } from '../itemIcons';
 import { gloamCoverage, gloamFrame } from '../gloamFrames';
 import { LightEffects } from '../LightEffects';
+import { MaterialsRenderer } from '../MaterialsRenderer';
 import { CombatRenderer } from '../CombatRenderer';
 import { selectedWeapon } from '../../sim/systems/CombatSystem';
 import { ownedLenses } from '../../sim/systems/LensSystem';
@@ -114,6 +116,10 @@ export class GameScene extends Phaser.Scene {
   private liquids!: ChunkRenderer;
   private gloamOverlay!: ChunkRenderer;
   private lightEffects!: LightEffects;
+  private materials!: MaterialsRenderer;
+  /** Liquid surface ripple phase, advanced every MATERIALS_VIEW.waveSeconds. */
+  private waveTick = 0;
+  private waveTimer = 0;
   private reflections!: PoolReflections;
   private waterfalls!: Waterfalls;
   private cursor!: TileCursor;
@@ -252,7 +258,7 @@ export class GameScene extends Phaser.Scene {
     // Liquids are static until they flow (M9), so tile edits never need to refresh this layer.
     this.liquids = new ChunkRenderer(this, world, sim.events, {
       layer: null,
-      frameAt: (x, y) => liquidFrame(world, x, y),
+      frameAt: (x, y) => liquidFrame(world, x, y, this.waveTick),
       textureKey: TextureKey.liquids,
       depth: Depth.liquids,
     });
@@ -322,6 +328,17 @@ export class GameScene extends Phaser.Scene {
     this.visual.jumpNext(); // the camera is now where the game starts
     this.lightMap = new LightMapRenderer(this, world, sim.events);
     this.lightEffects = new LightEffects(this, this.glowScene, sim.events, sim.flares);
+    this.materials = new MaterialsRenderer(
+      this,
+      this.glowScene,
+      sim.events,
+      world,
+      sim.fire,
+      sim.falling.blocks,
+    );
+    sim.events.on('liquidChanged', ({ x0, y0, width, height }) =>
+      this.liquids.refreshRect(x0, y0, width, height),
+    );
     this.combatView = new CombatRenderer(
       this,
       this.glowScene,
@@ -399,6 +416,7 @@ export class GameScene extends Phaser.Scene {
       this.liquids.destroy();
       this.gloamOverlay.destroy();
       this.lightEffects.destroy();
+      this.materials.destroy();
       this.combatView.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
@@ -506,6 +524,16 @@ export class GameScene extends Phaser.Scene {
     );
     events.on('playerHurt', () => audio.effect('hurt'));
     events.on('playerRespawned', () => audio.effect('respawn'));
+    events.on('splash', () => audio.effect('splash'));
+    events.on('liquidReaction', () => audio.effect('hiss'));
+    events.on('blockLanded', () => audio.effect('thud'));
+    // One crackle per burst of ignitions, not one per burning cell.
+    let lastIgnite = -Infinity;
+    events.on('fireStarted', () => {
+      if (this.sim.time - lastIgnite < MATERIALS_VIEW.igniteSoundGap) return;
+      lastIgnite = this.sim.time;
+      audio.effect('ignite');
+    });
     return audio;
   }
 
@@ -628,6 +656,20 @@ export class GameScene extends Phaser.Scene {
     this.foliageBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
     this.chunks.update(this.view, this.preloadBudget);
     this.walls.update(this.view, this.preloadBudget);
+    // Ripple liquid surfaces in view.
+    this.waveTimer += delta / 1000;
+    if (this.waveTimer >= MATERIALS_VIEW.waveSeconds) {
+      this.waveTimer = 0;
+      this.waveTick++;
+      const vx = Math.floor(this.view.x / TILE_SIZE);
+      const vy = Math.floor(this.view.y / TILE_SIZE);
+      this.liquids.refreshRect(
+        vx,
+        vy,
+        Math.ceil(this.view.width / TILE_SIZE) + 1,
+        Math.ceil(this.view.height / TILE_SIZE) + 1,
+      );
+    }
     this.liquids.update(this.view, this.preloadBudget);
     this.gloamOverlay.update(this.view, this.preloadBudget);
     const pulse = 0.5 + 0.5 * Math.sin((this.sim.time * Math.PI * 2) / GLOAM.pulseSeconds);
@@ -646,6 +688,7 @@ export class GameScene extends Phaser.Scene {
     this.cursor.update();
     this.dropView.update(alpha);
     this.lightEffects.update(alpha, delta / 1000, this.sim.time);
+    this.materials.update(this.view, alpha, delta / 1000, this.sim.time);
     this.combatView.update(alpha, delta / 1000, this.sim.time);
     this.fx.update(delta / 1000);
     // The light grid is computed around what the camera shows.
@@ -692,6 +735,8 @@ export class GameScene extends Phaser.Scene {
       lumen: player.lumen,
       health: player.health,
       dead: player.dead,
+      burning: this.sim.fire.burning.size,
+      falling: this.sim.falling.blocks.length,
       enemies: this.sim.enemies.map((e) => ({
         key: ENEMIES[e.type]?.key ?? '?',
         x: e.body.x + e.body.width / 2,

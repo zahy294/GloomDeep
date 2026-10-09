@@ -4,7 +4,15 @@ import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
 import type { SpriteAtlasInfo } from '../../data/artManifest';
 import { SPRITE_ASSETS } from '../../data/spriteAssets';
-import { LIQUID_FRAME, LIQUID_FRAME_COUNT } from '../liquidFrames';
+import {
+  FLAME_FRAMES,
+  LIQUID_FRAME_COUNT,
+  LIQUID_LEVELS,
+  WAVE_PHASES,
+  liquidBase,
+  surfaceFrame,
+} from '../liquidFrames';
+import { LIQUID } from '../../data/biomes';
 import { GLOAM_FRAME_COUNT, GLOAM_VARIATIONS } from '../gloamFrames';
 import { mulberry32 } from '../../sim/random';
 import { GLOAM, LIGHT_FX } from '../../config';
@@ -18,6 +26,10 @@ const GLOAM_INK_ALPHA = [0.12, 0.22, 0.35] as const;
 const GLOAM_VEINS_PER_LEVEL = 2;
 const GLOAM_VEIN_LENGTH = [5, 12] as const;
 const GLOAM_SEED = 0x91a3;
+/** Placeholder flames: rows tall, half-width at the base, random seed. */
+const FLAME_HEIGHT = 13;
+const FLAME_HALF_WIDTH = 5;
+const FLAME_SEED = 0x51a3;
 /** The light ring's thickness, pixels (its size is LIGHT_FX.ringTexturePx). */
 const RING_WIDTH = 5;
 const SUN_RADIUS = 11;
@@ -84,6 +96,7 @@ export class BootScene extends Phaser.Scene {
     this.makeWaterfall();
     this.makeGloam();
     this.makeRing();
+    this.makeFlames();
     const next = { title: SceneKey.Title, game: SceneKey.Game, 'art-test': SceneKey.ArtTest }[
       this.params.scene
     ];
@@ -133,8 +146,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   /**
-   * Static liquid tiles (frame layout in liquidFrames.ts): flat translucent bodies, with a lighter
-   * band on top for surface cells. Real liquid art and waves come with flowing liquids.
+   * Liquid tiles (frame layout in liquidFrames.ts): a translucent body, and surface frames for
+   * each fill level with a lighter band on top, in two ripple phases (the second dips every other
+   * pair of columns by a pixel, so alternating them reads as small waves).
    */
   private makeLiquids(): void {
     const texture = this.textures.createCanvas(
@@ -146,20 +160,70 @@ export class BootScene extends Phaser.Scene {
     const ctx = texture.context;
     const css = (rgb: number, alpha: number): string =>
       `rgba(${(rgb >> 16) & 0xff},${(rgb >> 8) & 0xff},${rgb & 0xff},${alpha})`;
-    const draw = (frame: number, body: number, top: number | null, alpha: number): void => {
-      const x = frame * TILE_SIZE;
-      ctx.fillStyle = css(body, alpha);
-      ctx.fillRect(x, 0, TILE_SIZE, TILE_SIZE);
-      if (top === null) return;
-      ctx.clearRect(x, 0, TILE_SIZE, LIQUID_SURFACE_PX);
-      ctx.fillStyle = css(top, Math.max(alpha, LIQUID_SURFACE_ALPHA));
-      ctx.fillRect(x, 0, TILE_SIZE, LIQUID_SURFACE_PX);
-    };
-    // Frame 0 stays transparent: the GPU layer samples it for empty cells.
-    draw(LIQUID_FRAME.waterBody, PALETTE.cyan[1], null, WATER_ALPHA);
-    draw(LIQUID_FRAME.waterSurface, PALETTE.cyan[1], PALETTE.cyan[3], WATER_ALPHA);
-    draw(LIQUID_FRAME.lavaBody, PALETTE.ember[2], null, LAVA_ALPHA);
-    draw(LIQUID_FRAME.lavaSurface, PALETTE.ember[2], PALETTE.honey[3], LAVA_ALPHA);
+    const step = TILE_SIZE / LIQUID_LEVELS;
+    const liquids = [
+      { type: LIQUID.water, body: PALETTE.cyan[1], top: PALETTE.cyan[3], alpha: WATER_ALPHA },
+      { type: LIQUID.lava, body: PALETTE.ember[2], top: PALETTE.honey[3], alpha: LAVA_ALPHA },
+    ];
+    for (const l of liquids) {
+      const bodyX = liquidBase(l.type) * TILE_SIZE;
+      ctx.fillStyle = css(l.body, l.alpha);
+      ctx.fillRect(bodyX, 0, TILE_SIZE, TILE_SIZE);
+      for (let level = 1; level <= LIQUID_LEVELS; level++) {
+        for (let phase = 0; phase < WAVE_PHASES; phase++) {
+          const x = surfaceFrame(l.type, level, phase) * TILE_SIZE;
+          const h = level * step;
+          const top = TILE_SIZE - h;
+          ctx.fillStyle = css(l.body, l.alpha);
+          ctx.fillRect(x, top, TILE_SIZE, h);
+          ctx.fillStyle = css(l.top, Math.max(l.alpha, LIQUID_SURFACE_ALPHA));
+          for (let c = 0; c < TILE_SIZE; c++) {
+            const dip = phase === 1 && (c >> 1) % 2 === 1 ? 1 : 0;
+            ctx.fillRect(x + c, top + dip, 1, LIQUID_SURFACE_PX);
+          }
+        }
+      }
+    }
+    texture.refresh();
+  }
+
+  /** Flame animation frames (frame 0 empty): a tongue of fire in ember and honey, wavering. */
+  private makeFlames(): void {
+    const texture = this.textures.createCanvas(
+      TextureKey.flames,
+      (FLAME_FRAMES + 1) * TILE_SIZE,
+      TILE_SIZE,
+    );
+    if (!texture) return;
+    const ctx = texture.context;
+    const hex = (rgb: number) => `#${rgb.toString(16).padStart(6, '0')}`;
+    for (let f = 0; f <= FLAME_FRAMES; f++)
+      texture.add(f, 0, f * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE);
+    for (let f = 1; f <= FLAME_FRAMES; f++) {
+      const ox = f * TILE_SIZE;
+      const random = mulberry32(FLAME_SEED + f);
+      // Rows from the bottom: wide and red at the base, narrow and bright at the tip.
+      for (let row = 0; row < FLAME_HEIGHT; row++) {
+        const y = TILE_SIZE - 1 - row;
+        const t = row / FLAME_HEIGHT;
+        const half = Math.max(1, Math.round((1 - t) * FLAME_HALF_WIDTH + (random() - 0.5) * 2));
+        const sway = Math.round(Math.sin(t * Math.PI * 1.5 + f) * t * 2);
+        const cx = TILE_SIZE / 2 + sway;
+        for (let x = cx - half; x < cx + half; x++) {
+          const edge = x === cx - half || x === cx + half - 1;
+          ctx.fillStyle = hex(
+            edge
+              ? PALETTE.ember[1]
+              : t > 0.6
+                ? PALETTE.honey[3]
+                : t > 0.3
+                  ? PALETTE.ember[3]
+                  : PALETTE.ember[2],
+          );
+          ctx.fillRect(ox + x, y, 1, 1);
+        }
+      }
+    }
     texture.refresh();
   }
 

@@ -182,8 +182,25 @@ const STAFF = [
   '..BB............',
 ];
 
+/** A bucket (iron, 0–3) with a handle; 'w' marks the liquid inside (drawn per bucket kind). */
+const BUCKET = [
+  '................',
+  '.....000000.....',
+  '....0......0....',
+  '...0........0...',
+  '..000000000000..',
+  '..0wwwwwwwwww0..',
+  '..03wwwwwwww20..',
+  '...03222222210..',
+  '...03222222110..',
+  '....032222110...',
+  '....032221110...',
+  '....001111100...',
+  '.....0000000....',
+];
+
 /** Frame order matches `icon` in src/data/items.ts. */
-const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
+const ICONS: readonly { pattern: readonly string[]; ramp: RampName; inside?: RampName | null }[] = [
   { pattern: PICKAXE, ramp: 'bark' }, // elderwood pickaxe
   { pattern: PICKAXE, ramp: 'ember' }, // copper
   { pattern: PICKAXE, ramp: 'stone' }, // iron
@@ -202,6 +219,9 @@ const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
   { pattern: BOW, ramp: 'moonSilver' }, // elderwood bow (string colour)
   { pattern: ARROW, ramp: 'stone' }, // wooden arrow
   { pattern: STAFF, ramp: 'cyan' }, // lumen staff
+  { pattern: BUCKET, ramp: 'stone', inside: null }, // bucket
+  { pattern: BUCKET, ramp: 'stone', inside: 'cyan' }, // water bucket
+  { pattern: BUCKET, ramp: 'stone', inside: 'ember' }, // lava bucket
 ];
 
 /** The `items` placeholder sheet: one row of 16×16 icons. */
@@ -213,8 +233,10 @@ export function buildItemIcons(): RgbaImage {
     throw new Error(`items.ts uses ${used} icon frames; the placeholder draws ${ICONS.length}`);
   }
   const out = createImage(def.frameWidth * def.frames, def.frameHeight);
-  ICONS.forEach(({ pattern, ramp }, frame) => {
-    paint((x, y, c) => setPixel(out, frame * def.frameWidth + x, y, c), pattern, legend(ramp));
+  ICONS.forEach(({ pattern, ramp, inside }, frame) => {
+    // 'w' is the bucket's contents: liquid, or the dark inside of an empty bucket.
+    const colors = { ...legend(ramp), w: inside ? PALETTE[inside][2] : PALETTE[ramp][0] };
+    paint((x, y, c) => setPixel(out, frame * def.frameWidth + x, y, c), pattern, colors);
   });
   return out;
 }
