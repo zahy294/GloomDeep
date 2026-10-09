@@ -52,6 +52,29 @@ function overlapsSolid(world: World, x: number, y: number, w: number, h: number)
 }
 
 /**
+ * The top edge (px) of a one-way platform row that feet moving down from `fromFeet` to `toFeet`
+ * cross (or touch, when starting exactly on it), under any column the body spans; -1 if none.
+ * Movement is substepped to under a tile, so at most one row boundary is crossed.
+ */
+function platformTopCrossed(
+  world: World,
+  x: number,
+  w: number,
+  fromFeet: number,
+  toFeet: number,
+): number {
+  const top = Math.ceil((fromFeet - EPS) / TILE_SIZE) * TILE_SIZE;
+  if (toFeet <= top) return -1;
+  const row = top / TILE_SIZE;
+  const tx0 = Math.floor(x / TILE_SIZE);
+  const tx1 = Math.floor((x + w - EPS) / TILE_SIZE);
+  for (let tx = tx0; tx <= tx1; tx++) {
+    if (world.isPlatform(tx, row)) return top;
+  }
+  return -1;
+}
+
+/**
  * Moves the body by velocity × dt, X axis first, then Y. Each axis advances in substeps of at
  * most PHYSICS.maxSubstepDistance so fast bodies cannot skip over thin walls. Blocked axes snap
  * flush to the tile edge and zero their velocity. Writes into `out` (no allocation).
@@ -65,6 +88,8 @@ export function moveAndCollide(
   stepUpHeight = 0,
   /** Whether the body stood on ground at the start of this move (step-up only applies then). */
   grounded = false,
+  /** Fall through one-way platforms (holding Down); they only ever block from above. */
+  dropThrough = false,
 ): CollisionResult {
   out.onGround = false;
   out.hitCeiling = false;
@@ -109,8 +134,20 @@ export function moveAndCollide(
     const steps = Math.ceil(Math.abs(dy) / PHYSICS.maxSubstepDistance);
     const stepY = dy / steps;
     for (let i = 0; i < steps; i++) {
+      const fromFeet = body.y + h;
       body.y += stepY;
-      if (!overlapsSolid(world, body.x, body.y, w, h)) continue;
+      if (!overlapsSolid(world, body.x, body.y, w, h)) {
+        if (stepY > 0 && !dropThrough) {
+          const top = platformTopCrossed(world, body.x, w, fromFeet, body.y + h);
+          if (top >= 0) {
+            body.y = top - h;
+            out.onGround = true;
+            body.vy = 0;
+            break;
+          }
+        }
+        continue;
+      }
       if (stepY > 0) {
         body.y = Math.floor((body.y + h - EPS) / TILE_SIZE) * TILE_SIZE - h;
         out.onGround = true;
@@ -127,7 +164,9 @@ export function moveAndCollide(
   if (
     !out.onGround &&
     body.vy >= 0 &&
-    overlapsSolid(world, body.x, body.y + PHYSICS.groundProbe, w, h)
+    (overlapsSolid(world, body.x, body.y + PHYSICS.groundProbe, w, h) ||
+      (!dropThrough &&
+        platformTopCrossed(world, body.x, w, body.y + h, body.y + h + PHYSICS.groundProbe) >= 0))
   ) {
     out.onGround = true;
   }

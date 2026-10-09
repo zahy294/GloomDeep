@@ -54,7 +54,9 @@ export function updatePlayer(player: Player, input: ActionState, world: World, d
   }
 
   const wasOnGround = player.onGround;
-  moveAndCollide(world, body, dt, collision, PLAYER.stepUpHeight, wasOnGround);
+  // Holding Down drops through one-way platforms (branches).
+  const dropThrough = input.isHeld('moveDown');
+  moveAndCollide(world, body, dt, collision, PLAYER.stepUpHeight, wasOnGround, dropThrough);
   player.onGround = collision.onGround;
   player.steppedUpTotal += collision.steppedUp;
   if (collision.hitCeiling) player.jumping = false;

@@ -82,6 +82,13 @@ export const ITEMS: readonly ItemDef[] = [
     maxStack: BLOCK_STACK,
     placesTile: 'emberite_ore',
   },
+  {
+    id: 22,
+    key: 'living_wood',
+    name: 'Living Wood',
+    maxStack: BLOCK_STACK,
+    placesTile: 'living_wood',
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {

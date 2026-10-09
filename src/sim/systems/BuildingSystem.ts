@@ -1,3 +1,4 @@
+import { decorSupported, isDecor } from '../world/decor';
 import { BUILDING } from '../../config';
 import { ITEMS } from '../../data/items';
 import { TILES, tileId } from '../../data/tiles';
@@ -33,12 +34,19 @@ const NEIGHBOURS = [
  * Placement rule: a tile must touch something — a neighbouring block or wall, or (for a block)
  * a wall behind it. Nothing floats in mid-air.
  */
-export function hasSupport(world: World, layer: TileLayer, x: number, y: number): boolean {
+export function hasSupport(world: World, layer: TileLayer, x: number, y: number, id = -1): boolean {
+  // Decorations need their own anchor (ground under a flower, a ceiling over a vine).
+  if (layer === 'fg' && isDecor(id)) return decorSupported(world, x, y, id);
   if (layer === 'fg' && world.getBg(x, y) !== AIR) return true;
   for (const [dx, dy] of NEIGHBOURS) {
     if (world.get(x + dx, y + dy) !== AIR || world.getBg(x + dx, y + dy) !== AIR) return true;
   }
   return false;
+}
+
+/** Empty cells, and decorations in the foreground (a block placed on grass replaces the tuft). */
+function replaceable(existing: number, layer: TileLayer): boolean {
+  return existing === AIR || (layer === 'fg' && isDecor(existing));
 }
 
 const placedPayload = { x: 0, y: 0, id: 0, layer: 'fg' as TileLayer };
@@ -66,11 +74,11 @@ export function updateBuilding(
   const layer: TileLayer = input.isHeld('wallMode') ? 'bg' : 'fg';
   if (
     !world.inBounds(tx, ty) ||
-    world.getLayer(layer, tx, ty) !== AIR ||
+    !replaceable(world.getLayer(layer, tx, ty), layer) ||
     (layer === 'bg' && WALLABLE[id] !== 1) ||
     !inReach(player.body, tx, ty, BUILDING.reachTiles) ||
     (layer === 'fg' && overlapsBody(player.body, tx, ty)) ||
-    !hasSupport(world, layer, tx, ty)
+    !hasSupport(world, layer, tx, ty, id)
   ) {
     return;
   }

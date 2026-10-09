@@ -301,3 +301,18 @@ function cone2(rnd: () => number): LightCone {
     b: 90,
   };
 }
+
+describe('per-tile falloff', () => {
+  it('leaf canopies dim light by their own falloff (more than air, less than stone)', () => {
+    const LEAVES = tileId('elder_leaves');
+    const leafFalloff = TILES[LEAVES]?.lightFalloff ?? 0;
+    const w = 15;
+    const open = computeLight(makeJob(w, 5, { points: point(2.5, 2.5, 255, 255, 255, 12) }));
+    const job = makeJob(w, 5, { points: point(2.5, 2.5, 255, 255, 255, 12) });
+    for (let y = 0; y < 5; y++) job.fg[y * w + 6] = LEAVES;
+    const shaded = computeLight(job);
+    expect(at(open, 8, 2) - at(shaded, 8, 2)).toBe(leafFalloff - LIGHT.airFalloff);
+    expect(leafFalloff).toBeGreaterThan(LIGHT.airFalloff);
+    expect(leafFalloff).toBeLessThan(LIGHT.solidFalloff);
+  });
+});

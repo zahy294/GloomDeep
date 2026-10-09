@@ -10,7 +10,7 @@ const SURFACE_BIOME_DEPTH = 40;
  */
 export function biomeAt(world: World, x: number, y: number): string {
   const cx = Math.min(world.width - 1, Math.max(0, x));
-  const surface = world.skyline[cx] ?? 0;
+  const surface = world.groundRow(cx);
   let layer = 0;
   for (let i = 1; i < world.layerTops.length; i++)
     if (y >= (world.layerTops[i] ?? Infinity)) layer = i;

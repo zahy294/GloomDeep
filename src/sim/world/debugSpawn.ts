@@ -41,13 +41,13 @@ export function findDebugSpawn(
   }
 
   const centre = Math.floor((x0 + x1) / 2);
-  if (!underground) return { x: centre, y: world.skyline[centre] ?? 0 };
+  if (!underground) return { x: centre, y: world.groundRow(centre) };
 
   // Search columns outward from the centre so the result stays near the middle of the range.
   for (let d = 0; d <= (x1 - x0) / 2; d++) {
     for (const x of d === 0 ? [centre] : [centre - d, centre + d]) {
       if (x < x0 || x >= x1) continue;
-      const top = Math.max(rowMin, (world.skyline[x] ?? 0) + MIN_CAVE_DEPTH);
+      const top = Math.max(rowMin, world.groundRow(x) + MIN_CAVE_DEPTH);
       for (let y = top + CAVE_HEADROOM; y < rowMax; y++) {
         if (isCaveFloor(world, x, y)) return { x, y };
       }

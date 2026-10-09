@@ -100,12 +100,14 @@ export function frameBase(id: number): number {
 }
 
 /** Tiles drawn with one fixed frame instead of blob shapes (objects like torches). */
+/** Per-id: decoration (flora), not drawn in the tilemap. */
+const DECOR = Uint8Array.from(TILES, (t) => (t.decor ? 1 : 0));
 const FIXED_LOOK = Uint8Array.from(TILES, (t) => (t.autotile === false ? 1 : 0));
 
 /** Atlas frame for the tile at (x, y) in a layer, or -1 for air. */
 export function tileFrame(world: World, layer: TileLayer, x: number, y: number): number {
   const id = world.getLayer(layer, x, y);
-  if (id <= 0) return -1;
+  if (id <= 0 || DECOR[id] === 1) return -1; // decorations are drawn by the foliage renderer
   if (FIXED_LOOK[id] === 1) return iconFrame(id);
   const shape = BLOB_INDEX[blobMask(world, layer, x, y)] ?? 0;
   return frameBase(id) + shape * AUTOTILE.variations + variationAt(x, y);

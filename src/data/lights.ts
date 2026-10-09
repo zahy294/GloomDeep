@@ -18,6 +18,11 @@ export const LIGHTS: readonly LightDef[] = [
   { key: 'moonstone_crystal', color: [150, 165, 200], radius: 4, flicker: 0 },
   { key: 'glowcap', color: [210, 110, 150], radius: 5, flicker: 0 },
   { key: 'emberite', color: [255, 120, 60], radius: 4, flicker: 0.08 },
+  { key: 'moonpetal', color: [190, 170, 230], radius: 4, flicker: 0 },
+  { key: 'glowmoss', color: [110, 220, 170], radius: 3, flicker: 0 },
+  { key: 'ember_bloom', color: [255, 140, 70], radius: 3, flicker: 0.06 },
+  /** Carved runes (ruins): wake up as the player approaches (A3 proximity). */
+  { key: 'rune', color: [110, 220, 230], radius: 5, flicker: 0 },
   /**
    * Always on, very dim: plan 2.1 — "in full darkness the player ... still glow faintly", so the
    * player is never invisible even with the lantern out.

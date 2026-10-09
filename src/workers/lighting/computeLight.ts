@@ -37,6 +37,12 @@ for (let id = 0; id < TILES.length; id++) {
     fallG[id] = LIGHT.solidFalloff;
     fallB[id] = LIGHT.solidFalloff;
   }
+  if (def.lightFalloff !== undefined) {
+    if (def.lightFalloff < 1) throw new Error(`Tile ${def.key}: lightFalloff must be >= 1`);
+    fallR[id] = def.lightFalloff;
+    fallG[id] = def.lightFalloff;
+    fallB[id] = def.lightFalloff;
+  }
   if (def.light) tileLight[id] = LIGHTS.indexOf(lightByKey(def.light));
 }
 

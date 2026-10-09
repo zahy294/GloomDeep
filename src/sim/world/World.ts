@@ -15,6 +15,10 @@ export const AIR = 0;
 
 /** Per-id solidity, so collision checks are one typed-array read instead of an object lookup. */
 const SOLID = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
+/** Per-id: stops straight-down sunlight (solid blocks and leaf canopies). */
+const BLOCKS_SUN = Uint8Array.from(TILES, (t) => (t.solid || t.blocksSun ? 1 : 0));
+/** Per-id: one-way platform. */
+const PLATFORM = Uint8Array.from(TILES, (t) => (t.platform ? 1 : 0));
 
 /**
  * The tile grid. Data lives in flat world-sized typed arrays (index = y * width + x); chunks are
@@ -37,8 +41,9 @@ export class World {
   readonly lightB: Uint8Array;
   readonly gloam: Uint8Array;
   /**
-   * Per column: the first row with a solid foreground tile (sunlight falls straight down to it).
-   * `height` when the column is open all the way down. Kept current on every foreground write.
+   * Per column: the first row whose foreground tile blocks sunlight (solid, or a leaf canopy);
+   * sunlight falls straight down to it. `height` when the column is open all the way down. Kept
+   * current on every foreground write. For the ground itself use `groundRow`.
    */
   readonly skyline: Int32Array;
   /** Surface biome index per column (src/data/biomes.ts SURFACE_BIOMES). */
@@ -108,6 +113,18 @@ export class World {
   isSolid(x: number, y: number): boolean {
     if (!this.inBounds(x, y)) return true;
     return SOLID[this.fg[y * this.width + x] ?? AIR] === 1;
+  }
+
+  /** One-way platform tile at (x, y) (outside the world: no). */
+  isPlatform(x: number, y: number): boolean {
+    return this.inBounds(x, y) && PLATFORM[this.fg[y * this.width + x] ?? AIR] === 1;
+  }
+
+  /** First row with a solid tile in column x (scans from `fromY`; `height` if none). */
+  groundRow(x: number, fromY = 0): number {
+    let y = Math.max(0, fromY);
+    while (y < this.height && SOLID[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
+    return y;
   }
 
   /** Sets a foreground tile, marks its chunk changed and emits `tileChanged`. */
@@ -187,7 +204,7 @@ export class World {
 
   private updateSkyline(x: number, y: number, id: number): void {
     const top = this.skyline[x] ?? this.height;
-    if (SOLID[id] === 1) {
+    if (BLOCKS_SUN[id] === 1) {
       if (y < top) this.skyline[x] = y;
     } else if (y === top) {
       this.rescanSkyline(x, y);
@@ -196,7 +213,7 @@ export class World {
 
   private rescanSkyline(x: number, fromY: number): void {
     let y = fromY;
-    while (y < this.height && SOLID[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
+    while (y < this.height && BLOCKS_SUN[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
     this.skyline[x] = y;
   }
 

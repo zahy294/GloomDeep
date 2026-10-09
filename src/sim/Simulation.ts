@@ -11,6 +11,7 @@ import { FixedStepLoop } from './FixedStepLoop';
 import { ActionState } from './input';
 import { Inventory } from './inventory/Inventory';
 import { Mulberry32 } from './random';
+import { DecorSupport } from './world/decor';
 import { createBuildingState, updateBuilding, type BuildingState } from './systems/BuildingSystem';
 import { updateItemDrops } from './systems/ItemDropSystem';
 import { updateLantern } from './systems/LanternSystem';
@@ -58,6 +59,7 @@ export class Simulation {
   readonly spawnX: number;
   readonly spawnY: number;
   readonly light: LightSystem;
+  private readonly decorSupport: DecorSupport;
   /** Time of day, 0..1 (0 = midnight, 0.5 = noon), and the cycle sampled at it. */
   dayFraction: number;
   readonly day: DaySample = sampleDayCycle(0);
@@ -84,6 +86,7 @@ export class Simulation {
     this.rng = new Mulberry32(options.seed ?? 0);
     this.dayFraction = options.startDayFraction ?? TIME.startDayFraction;
     sampleDayCycle(this.dayFraction, this.day);
+    this.decorSupport = new DecorSupport(this.world, this.events);
     this.light = new LightSystem(
       this.world,
       this.events,
@@ -260,6 +263,7 @@ export class Simulation {
       this.events,
       dt,
     );
+    this.decorSupport.update(this.spawnDrop);
     updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
     updateLantern(this.player, this.input, this.inventory, this.events, dt);
     this.elapsed += dt;
