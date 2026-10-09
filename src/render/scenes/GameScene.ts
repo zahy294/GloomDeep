@@ -39,6 +39,7 @@ import { InputMapper } from '../InputMapper';
 import { ParticleFX } from '../ParticleFX';
 import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
 import { TileCursor } from '../TileCursor';
+import type { GlowScene } from './GlowScene';
 import { SceneKey, TextureKey } from './keys';
 
 /** Rolling CPU timing of the per-frame work this scene owns (simulation + chunk rendering). */
@@ -81,6 +82,7 @@ export class GameScene extends Phaser.Scene {
   private chunkBorders!: Phaser.GameObjects.Graphics;
   private lightMap!: LightMapRenderer;
   private glow!: GlowRenderer;
+  private glowScene!: GlowScene;
   private lightBackend: LightBackend | null = null;
   private drawCalls: DrawCallCounter | null = null;
   private debugOpen = false;
@@ -125,6 +127,8 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setForceComposite(true);
     // Sky is registered before Game in main.ts, so it renders first (underneath).
     this.scene.launch(SceneKey.Sky, { source: this.sim });
+    this.scene.launch(SceneKey.Glow);
+    this.glowScene = this.scene.get(SceneKey.Glow) as GlowScene;
     const quality = loadSettings(
       this.params.quality ? { quality: this.params.quality } : {},
     ).quality;
@@ -163,7 +167,7 @@ export class GameScene extends Phaser.Scene {
     );
     this.lightMap = new LightMapRenderer(this, world, sim.events);
     this.glow = new GlowRenderer(
-      this,
+      this.glowScene,
       world,
       player,
       TextureKey.glow,
@@ -206,6 +210,7 @@ export class GameScene extends Phaser.Scene {
       this.lightMap.destroy();
       this.lightBackend?.destroy?.();
       this.scene.stop(SceneKey.Sky);
+      this.scene.stop(SceneKey.Glow);
       sim.events.clear();
       this.bridge.set({ debug: null, inventory: null, inventoryOpen: false, hud: null });
     });
@@ -253,6 +258,7 @@ export class GameScene extends Phaser.Scene {
     input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
     this.lightMap.update();
     const facing = this.sim.player.facing;
+    if (this.glowScene.sys.isActive()) this.glowScene.follow(cam);
     this.glow.update(
       this.view,
       this.sim.time,

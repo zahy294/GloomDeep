@@ -4,6 +4,7 @@ export const SceneKey = {
   Game: 'Game',
   ArtTest: 'ArtTest',
   Sky: 'Sky',
+  Glow: 'Glow',
 } as const;
 
 export const TextureKey = {

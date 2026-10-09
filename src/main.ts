@@ -8,6 +8,7 @@ import { ArtTestScene } from './render/scenes/ArtTestScene';
 import { BootScene } from './render/scenes/BootScene';
 import { GameScene } from './render/scenes/GameScene';
 import { DEFAULT_PACK_DIR, SceneKey } from './render/scenes/keys';
+import { GlowScene } from './render/scenes/GlowScene';
 import { SkyScene } from './render/scenes/SkyScene';
 import { TitleScene } from './render/scenes/TitleScene';
 import { App } from './ui/App';
@@ -49,6 +50,7 @@ const game = new Phaser.Game({
     new TitleScene(bridge),
     new SkyScene(),
     new GameScene(bridge, debug),
+    new GlowScene(),
     new ArtTestScene(bridge, debug),
   ],
 });

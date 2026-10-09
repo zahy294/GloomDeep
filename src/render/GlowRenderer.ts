@@ -65,7 +65,8 @@ export class GlowRenderer {
   }
 
   private halo(x: number, y: number, light: LightDef, tint: number, alpha: number): void {
-    if (this.used >= GLOW.maxSprites) return;
+    // The glow scene starts a frame after the game scene; add sprites once it is running.
+    if (this.used >= GLOW.maxSprites || !this.scene.sys.isActive()) return;
     let image = this.pool[this.used];
     if (!image) {
       image = this.scene.add

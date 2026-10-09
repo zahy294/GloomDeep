@@ -45,6 +45,10 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 No blockers; the reviewer confirmed against Phaser's source that the MULTIPLY blend leaves the transparent framebuffer at alpha 0 (sky untouched) and that the flood fill and edge write-back are correct. Fixed from the review: a crashed light worker no longer freezes lighting (the backend switches to the main thread, and jobs unanswered for 1 s are abandoned and re-submitted); the sky gradient is only re-encoded when its colours change (it re-uploaded a texture every frame); the T debug key goes through a simulation command (rule 3); a lantern-in-cave check was added; falloffs of 0 are rejected (the bucket queue needs ≥ 1).
 
+### Browser check (real GPU, Playwright, after the review)
+
+Played through title → game → run/jump → dig → torch → T (time) → F (lantern) → F3 in a headed browser: ~150 FPS, 17 draw calls, light update ~0.6 ms, 0 late chunk loads, no console errors. Found and fixed one visual bug: **overlapping glow halos drew a darker square** around the player. Phaser's ADD blend is `[ONE, DST_ALPHA]`, which inside the Game camera's transparent composite framebuffer scales what's underneath by a fractional alpha. Halos now live in a `GlowScene` drawn after the Game scene onto the opaque canvas, where ADD is plain additive; its camera copies the Game camera each frame. Also added an empty favicon (404 in the console).
+
 ### Known issues
 
 - Light results are applied when the worker answers (wall-clock), and light outside the current region goes stale when the camera leaves. Fine while nothing reads the grid for gameplay; apply results at a step boundary when the Gloam (M7) starts reading it.
