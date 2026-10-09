@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-*/
 screenshots/
 test-results/
 playwright-report/

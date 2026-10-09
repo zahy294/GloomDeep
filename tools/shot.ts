@@ -18,6 +18,8 @@ import { generateWorld } from '../src/workers/worldgen/generateWorld';
 import type { GameProbe } from '../src/types/window';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/** Built game to serve: `SHOT_DIST=dist-foo` serves a build made with `vite build --outDir`. */
+const DIST = process.env.SHOT_DIST ?? 'dist';
 const outDir = resolve(root, 'screenshots');
 const VIEWPORT = { width: 1920, height: 1080 };
 const TIMEOUT_MS = 20_000;
@@ -274,7 +276,28 @@ const PLANKS = tileId('elderwood_planks');
 const SOIL_ITEM = itemId('forest_soil');
 const PLANKS_ITEM = itemId('elderwood_planks');
 
+/**
+ * Ad-hoc shots from the command line, e.g.
+ * `SHOT_EXTRA="dawn-glade|?scene=game&time=dawn&ui=0;mire|?scene=game&biome=weeping_mire"`.
+ * Each waits for the light grid, then waits `SHOT_WAIT_MS` (default 600) for effects to settle.
+ */
+const EXTRA_SHOTS: Shot[] = (process.env.SHOT_EXTRA ?? '')
+  .split(';')
+  .filter((entry) => entry.includes('|'))
+  .map((entry) => {
+    const [name = 'extra', query = ''] = entry.split('|');
+    return {
+      name,
+      query,
+      prepare: async (page: Page) => {
+        await waitForLight(page);
+        await page.waitForTimeout(Number(process.env.SHOT_WAIT_MS ?? 600));
+      },
+    };
+  });
+
 const SHOTS: Shot[] = [
+  ...EXTRA_SHOTS,
   ...BIOME_SHOTS,
   ...LIQUID_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
@@ -695,14 +718,14 @@ const SHOTS: Shot[] = [
   },
 ];
 
-// Art pipeline demo (M2b): fake AI images → import → autotiles → pack, into dist/packed-demo.
+// Art pipeline demo (M2b): fake AI images → import → autotiles → pack, into <dist>/packed-demo.
 process.stdout.write(
   execFileSync(
     process.execPath,
     [
       resolve(root, 'node_modules/tsx/dist/cli.mjs'),
       'tools/demo-art.ts',
-      resolve(root, 'dist/packed-demo'),
+      resolve(root, DIST, 'packed-demo'),
     ],
     { cwd: root, encoding: 'utf8' },
   ),
@@ -710,6 +733,7 @@ process.stdout.write(
 
 const server = await preview({
   root,
+  build: { outDir: DIST },
   preview: { port: 4317, strictPort: false },
   logLevel: 'warn',
 });
