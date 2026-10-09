@@ -36,6 +36,11 @@ export interface TileDef {
   readonly lightFalloff?: number;
   /** Flora/decoration: drawn by the foliage renderer instead of the tilemap. */
   readonly decor?: DecorDef;
+  /**
+   * A falling-water column placed by worldgen: not solid, not drawn in the tilemap (the waterfall
+   * renderer animates it), mined away in one hit.
+   */
+  readonly waterfall?: true;
 }
 
 /** What a decoration tile needs to stay in place, and how it is drawn. */
@@ -585,6 +590,17 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'moss',
     decor: { support: 'ground', sprite: 'saplings', frame: 2, sway: 0.06 },
+  },
+  {
+    id: 49,
+    key: 'waterfall',
+    name: 'Waterfall',
+    solid: false,
+    hardness: 0.05,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    waterfall: true,
   },
 ];
 

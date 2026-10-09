@@ -700,3 +700,83 @@ export const WEATHER_FX = {
     alpha: 0.95,
   },
 } as const;
+
+/** Camera colour grade, underwater look, heat haze and vignette (plan 2.5, src/render/CameraGrade.ts). */
+export const GRADE = {
+  /** A matrix is only re-uploaded when some value moved by more than this (offsets are 0..255). */
+  matrixEpsilon: 0.05,
+  /** Filters switch off below this displacement amount (fraction of the view). */
+  minDisplacement: 0.0002,
+  /** Underwater: the grade blends towards this over `fadeSeconds`, with a gentle wobble. */
+  underwater: {
+    tint: 0x80ccd2,
+    saturation: 0.9,
+    contrast: 1.04,
+    brightness: 0.94,
+    fadeSeconds: 0.5,
+    /** Displacement amount (x0.5 of the view width/height = max pixels) and wobble speed. */
+    wobbleAmount: 0.006,
+    wobbleHz: 0.35,
+  },
+  heatHaze: { amount: 0.0035, hz: 0.8 },
+  /** Soft displacement map, stretched over the whole view. */
+  noise: { width: 96, height: 54, seed: 0x6a1d },
+  /** Edge darkening; stronger at night. See FilterVignette: only radius > 0.71 covers the corners. */
+  vignette: { radius: 0.8, strengthDay: 0.1, strengthNight: 0.16, color: 0x000000 },
+} as const;
+
+/** Still-water reflections, waterfalls and their spray (M5 D7). */
+export const WATER_FX = {
+  reflection: {
+    /** Opacity of the flipped scene drawn into a pool. */
+    alpha: 0.38,
+    /** Most pools reflected at once (one image, one draw call each). */
+    maxSpans: 3,
+    /** Rows of scene above the surface that show up in the pool. */
+    maxRows: 6,
+    /** Sideways wobble (px) and its speed (cycles per second). */
+    rippleAmplitudePx: 1,
+    rippleHz: 0.7,
+    /** Alpha breathes by this fraction around `alpha` at the ripple speed. */
+    shimmer: 0.2,
+  },
+  waterfall: {
+    /** Falling-water strips drawn at once. */
+    maxVisible: 6,
+    /** Texture scroll speed (px/s). */
+    fallSpeed: 120,
+    alpha: 0.78,
+    /** Spray: pixels per second at density 1, launch speed and lifetime. */
+    sprayPerSecond: 34,
+    spraySpeedMin: 18,
+    spraySpeedMax: 70,
+    sprayGravity: 170,
+    sprayLifespanMs: 520,
+    /** Mist puffs at the landing: per second at density 1, size and lifetime. */
+    mistPerSecond: 2.4,
+    mistScale: 0.55,
+    mistLifespanMs: 1500,
+    mistAlpha: 0.2,
+    /** Capacity of each emitter. */
+    maxParticles: 220,
+  },
+  worldgen: {
+    /** One waterfall per this many world columns (at least one). */
+    columnsPerFall: 900,
+    /** Fall height in tiles. */
+    minDrop: 6,
+    maxDrop: 12,
+    /** Columns of the landing basin carved next to the ledge. */
+    basinWidth: 3,
+    /** Waterfalls keep this many columns apart. */
+    minSpacing: 200,
+    /** Rows the ground may differ from the ledge across the cut. */
+    maxSlope: 1,
+    /** Clear sky rows needed above the ledge and basin. */
+    skyClearance: 6,
+    /** Random picks from the candidate list before giving up. */
+    attempts: 60,
+    /** Columns kept clear at both world edges. */
+    edgeMargin: 16,
+  },
+} as const;

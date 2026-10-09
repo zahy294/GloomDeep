@@ -6,6 +6,7 @@ import type { DaySample } from '../../sim/dayCycle';
 import { blendColor, blendNumber } from '../biomeBlend';
 import { mistAlpha, weatherSky } from '../atmosphereMath';
 import { BackMist, makeBackMistTexture } from '../BackMist';
+import { CameraGrade } from '../CameraGrade';
 import { ParallaxRenderer } from '../ParallaxRenderer';
 import { Starfall } from '../Starfall';
 import type { VisualState } from '../VisualState';
@@ -99,6 +100,7 @@ export class SkyScene extends Phaser.Scene {
     this.backMist = mist.afterLayer.map(
       (layer, i) => new BackMist(this, i, parallaxDepth(layer) + PARALLAX_STRIDE / 2),
     );
+    CameraGrade.of(this.visual)?.addGradeCamera(this.cameras.main);
     this.update();
   }
 

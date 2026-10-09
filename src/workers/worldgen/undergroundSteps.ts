@@ -3,6 +3,7 @@ import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../data/biomes';
 import { tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
 import { flora } from './flora';
+import { placeWaterfalls } from './waterfalls';
 import {
   AIR,
   inSpawnArea,
@@ -253,6 +254,7 @@ export function initialGloam(ctx: GenContext): void {
  * Step 11 — settle: liquids and loose silt/gravel fall until something holds them, so the world
  * starts at rest (the real simulations come in M9). One bottom-up compaction pass per column is
  * exact: everything that can fall drops onto the next free cell above the last support.
+ * Waterfalls (plan 2.7) are cut in last, once nothing else will move.
  */
 export function settle(ctx: GenContext): void {
   const { width, height, fg, liquid, liquidType } = ctx;
@@ -279,4 +281,5 @@ export function settle(ctx: GenContext): void {
       }
     }
   }
+  placeWaterfalls(ctx);
 }

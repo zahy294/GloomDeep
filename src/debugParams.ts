@@ -1,7 +1,7 @@
 /**
  * Debug URL parameters, so screenshots are repeatable (CLAUDE.md "Visual checks").
  * Examples: ?seed=42&scene=game&x=2100&y=300&time=sunset&ui=0   ?scene=art-test&id=soil&time=night
- *   ?scene=game&biome=weeping_mire   ?scene=game&spot=cave   ?scene=game&biome=ember_roots
+ *   ?scene=game&biome=weeping_mire   ?scene=game&spot=cave   ?scene=game&spot=waterfall   ?scene=game&biome=ember_roots
  */
 import { NAMED_TIMES, type NamedTime } from './data/dayCycle';
 import type { WorldSizeKey } from './sim/world/worldData';
@@ -31,8 +31,8 @@ export interface DebugParams {
   pack: string | null;
   /** Debug start: spawn in this surface biome or depth layer (src/data/biomes.ts key). */
   biome: string | null;
-  /** Debug start: `spot=cave` spawns in an open cave pocket. */
-  spot: 'cave' | null;
+  /** Debug start: `spot=cave` spawns in an open cave pocket, `spot=waterfall` beside a waterfall. */
+  spot: 'cave' | 'waterfall' | null;
   /** Debug start world size (`size=small|medium|large`). */
   size: WorldSizeKey | null;
   /** `rain=0..1` forces the rain intensity for rendering only (screenshots); null = real weather. */
@@ -78,7 +78,7 @@ export function parseDebugParams(search: string): DebugParams {
     quality: (['low', 'medium', 'high'] as const).find((q) => q === params.get('quality')) ?? null,
     pack: nameParam(params, 'pack'),
     biome: nameParam(params, 'biome'),
-    spot: params.get('spot') === 'cave' ? 'cave' : null,
+    spot: (['cave', 'waterfall'] as const).find((s) => s === params.get('spot')) ?? null,
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
     rain: unitParam(params, 'rain'),
   };

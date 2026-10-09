@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEPTH_LAYERS, SURFACE_BIOMES } from '../../../src/data/biomes';
+import { tileId } from '../../../src/data/tiles';
 import { Simulation } from '../../../src/sim/Simulation';
 import { findDebugSpawn } from '../../../src/sim/world/debugSpawn';
 import { generateWorld } from '../../../src/workers/worldgen/generateWorld';
@@ -53,5 +54,23 @@ describe('findDebugSpawn', () => {
     expect(findDebugSpawn(world, target)).toEqual(findDebugSpawn(world, target));
     const centre = findDebugSpawn(world, { biome: null, spot: null });
     expect(centre).toEqual({ x: W / 2, y: world.skyline[W / 2] });
+  });
+});
+
+describe('findDebugSpawn spot=waterfall', () => {
+  const MW = 4200;
+  const { world } = Simulation.fromGenerated(generateWorld(MW, 1200, 1));
+
+  it('stands on dry ground beside a waterfall, with headroom', () => {
+    const spawn = findDebugSpawn(world, { biome: null, spot: 'waterfall' });
+    expect(spawn).not.toBeNull();
+    if (!spawn) return;
+    expect(world.isSolid(spawn.x, spawn.y)).toBe(true);
+    for (let dy = 1; dy <= 3; dy++) expect(world.isSolid(spawn.x, spawn.y - dy)).toBe(false);
+    // A waterfall column is within a few tiles.
+    let near = false;
+    for (let dx = -4; dx <= 4; dx++)
+      near ||= world.get(spawn.x + dx, spawn.y - 1) === tileId('waterfall');
+    expect(near).toBe(true);
   });
 });

@@ -20,6 +20,18 @@ const LAVA_ALPHA = 0.92;
 /** Height of the lighter band on a surface frame. */
 const LIQUID_SURFACE_PX = 2;
 const LIQUID_SURFACE_ALPHA = 0.85;
+/** Falling water: body opacity, the empty margin at each side, and its streaks. */
+const WATERFALL_BODY_ALPHA = 0.55;
+const WATERFALL_EDGE_PX = 2;
+const WATERFALL_STREAKS: readonly (readonly [number, number, number, boolean])[] = [
+  [3, 1, 7, true],
+  [5, 9, 5, false],
+  [7, 4, 8, true],
+  [8, 13, 6, false],
+  [10, 0, 6, true],
+  [11, 8, 7, false],
+  [12, 3, 4, true],
+];
 
 /** Loads what every other scene needs, then hands over to the title (or a debug start scene). */
 export class BootScene extends Phaser.Scene {
@@ -59,6 +71,7 @@ export class BootScene extends Phaser.Scene {
     this.makeGlow();
     makeShaftTexture(this.textures);
     this.makeLiquids();
+    this.makeWaterfall();
     const next = { title: SceneKey.Title, game: SceneKey.Game, 'art-test': SceneKey.ArtTest }[
       this.params.scene
     ];
@@ -135,6 +148,24 @@ export class BootScene extends Phaser.Scene {
     draw(LIQUID_FRAME.waterSurface, PALETTE.cyan[1], PALETTE.cyan[3], WATER_ALPHA);
     draw(LIQUID_FRAME.lavaBody, PALETTE.ember[2], null, LAVA_ALPHA);
     draw(LIQUID_FRAME.lavaSurface, PALETTE.ember[2], PALETTE.honey[3], LAVA_ALPHA);
+    texture.refresh();
+  }
+
+  /** Falling water: pale streaks on a translucent body, drawn so the strip tiles vertically. */
+  private makeWaterfall(): void {
+    const size = TILE_SIZE;
+    const texture = this.textures.createCanvas(TextureKey.waterfall, size, size);
+    if (!texture) return;
+    const ctx = texture.context;
+    const css = (rgb: number, alpha: number): string =>
+      `rgba(${(rgb >> 16) & 0xff},${(rgb >> 8) & 0xff},${rgb & 0xff},${alpha})`;
+    ctx.fillStyle = css(PALETTE.cyan[2], WATERFALL_BODY_ALPHA);
+    ctx.fillRect(WATERFALL_EDGE_PX, 0, size - 2 * WATERFALL_EDGE_PX, size);
+    // [column, start row, length, bright?]: segments wrap past the bottom edge to stay seamless.
+    for (const [column, start, length, bright] of WATERFALL_STREAKS) {
+      ctx.fillStyle = css(bright ? PALETTE.cyan[3] : PALETTE.cyan[1], bright ? 0.95 : 0.8);
+      for (let row = start; row < start + length; row++) ctx.fillRect(column, row % size, 1, 1);
+    }
     texture.refresh();
   }
 }

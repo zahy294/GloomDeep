@@ -100,8 +100,8 @@ export function frameBase(id: number): number {
 }
 
 /** Tiles drawn with one fixed frame instead of blob shapes (objects like torches). */
-/** Per-id: decoration (flora), not drawn in the tilemap. */
-const DECOR = Uint8Array.from(TILES, (t) => (t.decor ? 1 : 0));
+/** Per-id: decoration (flora) or waterfall, not drawn in the tilemap. */
+const DECOR = Uint8Array.from(TILES, (t) => (t.decor || t.waterfall ? 1 : 0));
 const FIXED_LOOK = Uint8Array.from(TILES, (t) => (t.autotile === false ? 1 : 0));
 
 /** Atlas frame for the tile at (x, y) in a layer, or -1 for air. */

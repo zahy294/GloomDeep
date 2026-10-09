@@ -38,6 +38,7 @@ import { CameraDirector } from '../CameraDirector';
 import { ChunkRenderer, type PreloadBudget } from '../ChunkRenderer';
 import { liquidFrame } from '../liquidFrames';
 import { VisualState } from '../VisualState';
+import { CameraGrade } from '../CameraGrade';
 import { AudioDirector } from '../../audio/AudioDirector';
 import { VISUALS } from '../biomeBlend';
 import { GlowRenderer } from '../GlowRenderer';
@@ -47,6 +48,8 @@ import { DrawCallCounter } from '../drawCallCounter';
 import { DropRenderer } from '../DropRenderer';
 import { FoliageRenderer } from '../FoliageRenderer';
 import { WeatherParticles } from '../WeatherParticles';
+import { PoolReflections } from '../PoolReflections';
+import { Waterfalls } from '../Waterfalls';
 import { InputMapper } from '../InputMapper';
 import { ParticleFX } from '../ParticleFX';
 import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
@@ -96,6 +99,8 @@ export class GameScene extends Phaser.Scene {
   private foliage!: FoliageRenderer;
   private weatherFx!: WeatherParticles;
   private liquids!: ChunkRenderer;
+  private reflections!: PoolReflections;
+  private waterfalls!: Waterfalls;
   private cursor!: TileCursor;
   private dropView!: DropRenderer;
   private fx!: ParticleFX;
@@ -110,6 +115,7 @@ export class GameScene extends Phaser.Scene {
   /** Atmosphere state shared with the sky, glow and front scenes (biome blend, weather, time). */
   private visual!: VisualState;
   private audio: AudioDirector | null = null;
+  private grade!: CameraGrade;
   private lightBackend: LightBackend | null = null;
   private drawCalls: DrawCallCounter | null = null;
   private debugOpen = false;
@@ -181,6 +187,8 @@ export class GameScene extends Phaser.Scene {
     ).quality;
     this.visual = new VisualState(qualityFeatures(quality));
     this.visual.update(this.sim, this.cameras.main, 0, 0, 0);
+    // Before the Sky and Front scenes launch: they attach their cameras through CameraGrade.of.
+    this.grade = new CameraGrade(this, this.visual);
     this.scene.launch(SceneKey.Sky, { source: this.sim, visual: this.visual });
     this.scene.launch(SceneKey.Glow, { visual: this.visual });
     this.glowScene = this.scene.get(SceneKey.Glow) as GlowScene;
@@ -208,6 +216,15 @@ export class GameScene extends Phaser.Scene {
       textureKey: TextureKey.liquids,
       depth: Depth.liquids,
     });
+    this.reflections = new PoolReflections(this, world, this.visual.features.reflections);
+    this.waterfalls = new Waterfalls(
+      this,
+      world,
+      sim.events,
+      TextureKey.waterfall,
+      TextureKey.particle,
+      TextureKey.glow,
+    );
     this.foliage = new FoliageRenderer(this, world, sim.events, TextureKey.sprites, Depth.foliage);
     this.weatherFx = new WeatherParticles(this, world, TextureKey.sprites);
     this.playerView = new PlayerRenderer(this, player, TextureKey.sprites);
@@ -282,6 +299,8 @@ export class GameScene extends Phaser.Scene {
       this.walls.destroy();
       this.liquids.destroy();
       this.foliage.destroy();
+      this.reflections.destroy();
+      this.waterfalls.destroy();
       this.weatherFx.destroy();
       this.cursor.destroy();
       this.fx.destroy();
@@ -422,6 +441,7 @@ export class GameScene extends Phaser.Scene {
     );
     // `?rain=` forces the rain for screenshots; it changes rendering only, never the simulation.
     if (this.params.rain !== null) this.visual.rain = this.params.rain;
+    this.grade.update();
     this.preloadBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
     this.foliageBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
     this.chunks.update(this.view, this.preloadBudget);
@@ -436,6 +456,8 @@ export class GameScene extends Phaser.Scene {
       delta / 1000,
     );
     this.weatherFx.update(delta / 1000, this.visual);
+    this.waterfalls.update(this.view, delta / 1000, this.visual.features.particleDensity);
+    this.reflections.update(this.view, this.sim.time);
     this.cursor.update();
     this.dropView.update(alpha);
     this.fx.update(delta / 1000);

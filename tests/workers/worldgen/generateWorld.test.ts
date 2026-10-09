@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { TILE_SIZE } from '../../../src/config';
+import { TILE_SIZE, WATER_FX } from '../../../src/config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../../src/data/biomes';
 import { tileId, TILES } from '../../../src/data/tiles';
 import { generateWorld, WORLDGEN_STEPS } from '../../../src/workers/worldgen/generateWorld';
 import { SPAWN_TREE } from '../../../src/data/trees';
 import { Simulation } from '../../../src/sim/Simulation';
+import { isSolidId } from '../../../src/workers/worldgen/context';
 import { decorSupported, isDecor } from '../../../src/sim/world/decor';
 
 const W = 700;
@@ -225,5 +226,29 @@ describe('giant trees (medium world)', () => {
       }
     }
     expect(ruin).toBeGreaterThanOrEqual(4);
+  });
+
+  it('cuts a few waterfalls: open air along each fall, ending on ground', () => {
+    const MW = 4200;
+    const MH = 1200;
+    const { fg } = generateWorld(MW, MH, 1).arrays;
+    const FALL = tileId('waterfall');
+    let falls = 0;
+    for (let x = 0; x < MW; x++) {
+      for (let y = 1; y < MH - 1; y++) {
+        if (fg[y * MW + x] !== FALL || fg[(y - 1) * MW + x] === FALL) continue;
+        // Top of a run: air above it, then falling water down to solid ground.
+        falls++;
+        expect(isSolidId(fg[(y - 1) * MW + x] ?? 0), 'air above the spring').toBe(false);
+        let bottom = y;
+        while (fg[(bottom + 1) * MW + x] === FALL) bottom++;
+        expect(bottom - y, 'a real drop').toBeGreaterThanOrEqual(WATER_FX.worldgen.minDrop - 1);
+        expect(isSolidId(fg[(bottom + 1) * MW + x] ?? 0), 'lands on ground').toBe(true);
+        // A ledge of solid ground stands beside the top of the fall.
+        const ledge = isSolidId(fg[y * MW + x - 1] ?? 0) || isSolidId(fg[y * MW + x + 1] ?? 0);
+        expect(ledge, 'a ledge beside the spring').toBe(true);
+      }
+    }
+    expect(falls).toBeGreaterThanOrEqual(3);
   });
 });

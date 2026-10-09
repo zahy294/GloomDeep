@@ -26,6 +26,8 @@ export const TextureKey = {
   glow: 'glow',
   /** Liquid tiles drawn at boot (src/render/liquidFrames.ts layout). */
   liquids: 'liquids',
+  /** Seamless vertical strip of falling water, scrolled by the waterfall renderer. */
+  waterfall: 'waterfall',
 } as const;
 
 export const DataKey = {

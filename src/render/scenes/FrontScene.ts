@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { ATMOSPHERE, DISPLAY } from '../../config';
 import { mistAlpha } from '../atmosphereMath';
 import { blendColor, blendNumber } from '../biomeBlend';
+import { CameraGrade } from '../CameraGrade';
 import { ForegroundCanopy } from '../ForegroundCanopy';
 import { MistLayer } from '../MistLayer';
 import type { VisualState } from '../VisualState';
@@ -40,6 +41,7 @@ export class FrontScene extends Phaser.Scene {
       depth: MIST_DEPTH,
     });
     this.canopy = new ForegroundCanopy(this, CANOPY_DEPTH, packSprites(this.cache));
+    CameraGrade.of(this.visual)?.addVignetteCamera(this.cameras.main);
   }
 
   override update(): void {

@@ -371,6 +371,10 @@ const SHOTS: Shot[] = [
       await page.keyboard.up('Shift');
       await page.waitForTimeout(300);
 
+      // Let every drop land in the inventory first, so the saved state is at rest.
+      await page.waitForFunction(() => window.gloamdeep?.probe()?.drops === 0, undefined, {
+        timeout: TIMEOUT_MS,
+      });
       await page.keyboard.press('Escape');
       await page.waitForSelector('text=Save & quit', { timeout: TIMEOUT_MS });
       const before = (await probe(page)) as GameProbe;
@@ -672,7 +676,8 @@ const SHOTS: Shot[] = [
   },
   {
     name: 'game-run-and-jump',
-    query: '?scene=game&ui=0',
+    // Low quality: this checks chunk streaming, and software rendering keeps up there.
+    query: '?scene=game&ui=0&quality=low',
     prepare: async (page) => {
       await waitForPlayerReady(page);
       const start = (await probe(page)) as GameProbe;
