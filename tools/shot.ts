@@ -12,6 +12,7 @@ import { CAMERA, CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } f
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
 import { TILES, tileId } from '../src/data/tiles';
+import { enemyByKey } from '../src/data/enemies';
 import { viewSize } from '../src/render/integerScale';
 import { Simulation } from '../src/sim/Simulation';
 import { generateWorld } from '../src/workers/worldgen/generateWorld';
@@ -519,6 +520,67 @@ const COMBAT_SHOTS: Shot[] = [
       }
       check(shades > 0, `no shades appeared in a dark cave in 40 s (creatures: ${seen || 'none'})`);
       report.push(`shades in the dark: ${shades} shade(s) after the lantern went out`);
+    },
+  },
+  {
+    // ...and light the lantern (Crimson lens): they shrink back out of the light (or burn).
+    name: 'shades-burn-in-light',
+    query: '?scene=game&time=noon&kit=combat&biome=rootdeep&spot=cave',
+    spawns: true,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF'); // lantern off: let them come
+      const nearest = (p: GameProbe) =>
+        Math.min(
+          ...p.enemies
+            .filter((e) => e.key === 'shade')
+            .map((e) => Math.hypot(e.x - p.playerX, e.y - p.playerY) / TILE_SIZE),
+        );
+      const deadline = Date.now() + 40_000;
+      let dark = Infinity;
+      while (Date.now() < deadline && dark > 6) {
+        dark = nearest((await probe(page)) as GameProbe);
+        if (dark > 6) await page.waitForTimeout(300);
+      }
+      check(dark <= 6, `no shade came within 6 tiles in the dark (nearest ${dark.toFixed(1)})`);
+      const before = ((await probe(page)) as GameProbe).enemies.filter((e) => e.key === 'shade');
+      await page.keyboard.press('KeyQ'); // amber → crimson
+      await page.keyboard.press('KeyF'); // light
+      const p0 = (await probe(page)) as GameProbe;
+      // Keep the cone on the nearest shade, as a player would.
+      for (let t = 0; t < 2500; t += 250) {
+        const p = (await probe(page)) as GameProbe;
+        let best: { x: number; y: number } | null = null;
+        let bestD = Infinity;
+        for (const e of p.enemies) {
+          const d = Math.hypot(e.x - p.playerX, e.y - p.playerY);
+          if (e.key === 'shade' && d < bestD) {
+            bestD = d;
+            best = e;
+          }
+        }
+        if (best) {
+          await pointAtTile(
+            page,
+            Math.floor(best.x / TILE_SIZE),
+            Math.floor(best.y / TILE_SIZE) - 1,
+          );
+        }
+        await page.waitForTimeout(250);
+      }
+      const lit = (await probe(page)) as GameProbe;
+      const after = lit.enemies.filter((e) => e.key === 'shade');
+      const litNearest = after.length > 0 ? nearest(lit) : Infinity;
+      const burned =
+        after.length < before.length || after.some((e) => e.health < enemyByKey('shade').maxHealth);
+      check(
+        litNearest > dark + 2 || burned,
+        `light did not push the shades back (nearest ${dark.toFixed(1)} → ${litNearest.toFixed(1)} tiles)`,
+      );
+      report.push(
+        `shades and light: nearest shade ${dark.toFixed(1)} tiles in the dark → ` +
+          `${litNearest.toFixed(1)} tiles lit${burned ? ', some burned' : ''} (player at ${Math.round(p0.playerX)})`,
+      );
     },
   },
 ];

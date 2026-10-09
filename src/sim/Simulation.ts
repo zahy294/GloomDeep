@@ -1,4 +1,4 @@
-import { COMBAT, HEALTH, ITEM_DROP, SIM, TILE_SIZE, TIME, WORLD } from '../config';
+import { COMBAT, HEALTH, ITEM_DROP, SIM, SPAWN, TILE_SIZE, TIME, WORLD } from '../config';
 import { ENEMIES } from '../data/enemies';
 import type { Enemy } from './entities/Enemy';
 import type { Projectile } from './entities/Projectile';
@@ -69,8 +69,6 @@ export interface SimulationOptions {
 }
 
 const NO_PAYLOAD: Record<string, never> = {};
-/** Sunlight (brightest channel, 0–255) at or above which it counts as day for spawning. */
-const DAYLIGHT_SUN = 128;
 
 /** Owns the game state and advances it at a fixed rate. Contains no rendering code. */
 export class Simulation {
@@ -231,8 +229,16 @@ export class Simulation {
     sim.inventory.cursor = cursor ? { itemId: cursor.itemId, count: cursor.count } : null;
     const left = sim.inventory.stowCursor();
     if (left) sim.dropAtPlayer(left.itemId, left.count, false);
-    // Saved while dead: come back alive.
+    // Saved while dead: come back alive, at the spawn (as respawning would have).
     p.health = save.player.health > 0 ? save.player.health : HEALTH.max;
+    if (save.player.health <= 0) {
+      p.body.x = save.spawnX - p.body.width / 2;
+      p.body.y = save.spawnY - p.body.height;
+      p.body.vx = 0;
+      p.body.vy = 0;
+      p.prevX = p.body.x;
+      p.prevY = p.body.y;
+    }
     sim.elapsed = save.elapsed;
     for (const d of save.drops) {
       const drop = createItemDrop(d.itemId, d.count, d.x, d.y, () => 0.5);
@@ -391,29 +397,32 @@ export class Simulation {
       );
     }
     this.decorSupport.update(this.spawnDrop);
-    updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
-    updateFlares(
-      this.flareState,
-      this.flares,
-      this.player,
-      this.input,
-      this.inventory,
-      this.world,
-      this.events,
-      dt,
-    );
-    updateLantern(this.player, this.input, this.inventory, this.events, dt);
-    updateLens(
-      this.lensState,
-      this.player,
-      this.input,
-      this.inventory,
-      this.world,
-      this.events,
-      this.random,
-      dt,
-    );
-    updateHealth(this.player, dt);
+    // The dead pick nothing up, throw nothing, and neither burn Lumen nor heal until respawning.
+    if (!this.player.dead) {
+      updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
+      updateFlares(
+        this.flareState,
+        this.flares,
+        this.player,
+        this.input,
+        this.inventory,
+        this.world,
+        this.events,
+        dt,
+      );
+      updateLantern(this.player, this.input, this.inventory, this.events, dt);
+      updateLens(
+        this.lensState,
+        this.player,
+        this.input,
+        this.inventory,
+        this.world,
+        this.events,
+        this.random,
+        dt,
+      );
+      updateHealth(this.player, dt);
+    }
     this.elapsed += dt;
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
     this.weather.update(this.elapsed, this.dayFraction, this.events);
@@ -437,7 +446,7 @@ export class Simulation {
       sc.region = this.light.current;
       sc.focusX = (Number.isFinite(this.input.focusX) ? this.input.focusX : b.x) / TILE_SIZE;
       sc.focusY = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
-      sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= DAYLIGHT_SUN;
+      sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= SPAWN.daylightSun;
       this.spawner.update(sc, dt);
     }
     this.steppedPayload.step = this.stepCount;

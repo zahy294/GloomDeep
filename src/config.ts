@@ -515,6 +515,8 @@ export const COMBAT_VIEW = {
   /** Eye glow: size, height on the body (fraction from the feet), strength. */
   eyeGlowPx: 10,
   eyeHeight: 0.75,
+  /** Eyes sit this share of the body width ahead of its centre. */
+  eyeForward: 0.15,
   eyeAlpha: 0.25,
   /** Shades: a larger cold glow around their eyes, so the darkness has a face. */
   shadeGlowPx: 26,
@@ -524,6 +526,10 @@ export const COMBAT_VIEW = {
   beamWidth: 8,
   /** Damage numbers: font size, rise speed, life, colours (hit, light burn, player hurt). */
   numberFontPx: 8,
+  numberStroke: '#05080a',
+  numberStrokePx: 2,
+  /** Damage numbers kept for reuse (more live at once just create extra). */
+  numberPool: 24,
   numberRise: 24,
   numberSeconds: 0.8,
   hitColor: '#f2cc5a',
@@ -610,6 +616,10 @@ export const SPAWN = {
   groundSearch: 12,
   /** Creatures farther than this from the player vanish. */
   despawnTiles: 70,
+  /** Sunlight (brightest channel, 0–255) at or above which day-only creatures spawn. */
+  daylightSun: 128,
+  /** Spots this many rows under the ground still count as the surface biome. */
+  surfaceDepth: 6,
 } as const;
 
 /** Flares (plan M7): thrown light. Pixels and seconds. */

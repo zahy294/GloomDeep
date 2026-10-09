@@ -838,7 +838,12 @@ export class GameScene extends Phaser.Scene {
       // `?enemy=` for screenshots: one creature standing a few tiles to the player's right.
       const p = sim.player.body;
       const tx = Math.floor((p.x + p.width / 2) / TILE_SIZE) + DEBUG.enemyOffsetTiles;
-      const ty = findOpenFeetRow(sim.world, tx, Math.floor((p.y + p.height) / TILE_SIZE), 2);
+      const ty = findOpenFeetRow(
+        sim.world,
+        tx,
+        Math.floor((p.y + p.height) / TILE_SIZE),
+        Math.ceil((ENEMIES[type]?.height ?? TILE_SIZE) / TILE_SIZE),
+      );
       sim.enemies.push(createEnemy(0, type, (tx + 0.5) * TILE_SIZE, ty * TILE_SIZE));
     }
     return sim;

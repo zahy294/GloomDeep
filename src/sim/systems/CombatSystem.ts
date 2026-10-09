@@ -98,6 +98,8 @@ export function updateCombat(state: CombatState, ctx: CombatContext, dt: number)
   if (!player.dead) {
     playerAttack(state, ctx);
     updateSwing(state, ctx, dt);
+  } else {
+    state.swingDuration = 0; // a swing doesn't outlive its swinger
   }
   updateProjectiles(state, ctx, dt);
   lightBurn(state, ctx, dt);

@@ -192,10 +192,10 @@ function burrow(
   dt: number,
 ): void {
   const b = enemy.body;
-  const inRock = world.isSolid(
-    Math.floor((b.x + b.width / 2) / TILE_SIZE),
-    Math.floor((b.y + b.height / 2) / TILE_SIZE),
-  );
+  const tx = Math.floor((b.x + b.width / 2) / TILE_SIZE);
+  const ty = Math.floor((b.y + b.height / 2) / TILE_SIZE);
+  // Outside the world counts as solid for collision, but it isn't rock to tunnel in.
+  const inRock = world.inBounds(tx, ty) && world.isSolid(tx, ty);
   if (enemy.state === 'lunge') {
     fall(enemy, dt);
     // Back in the ground on the way down: tunnel again.

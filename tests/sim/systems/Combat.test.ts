@@ -177,6 +177,40 @@ describe('getting hurt', () => {
   });
 });
 
+describe('while dead', () => {
+  it('no healing, no pickups, no lantern; a save made while dead loads alive at the spawn', () => {
+    const sim = arena();
+    sim.player.lanternOn = true; // Amber would heal
+    sim.player.body.x = 50 * T;
+    sim.player.health = 1;
+    const hound = addEnemy(sim, 'gloam_hound', 50, 30);
+    hound.stunned = 99;
+    step(sim, 1 / 30);
+    expect(sim.player.dead).toBe(true);
+    sim.spawnDrop(itemId('stone'), 5, sim.player.body.x + 6, sim.player.body.y + 20);
+    step(sim, 1);
+    expect(sim.player.health).toBe(0);
+    expect(sim.inventory.count(itemId('stone'))).toBe(0);
+    expect(sim.combat.swingDuration).toBe(0);
+
+    const meta = {
+      id: 'w',
+      name: 'w',
+      seed: 1,
+      sizeKey: 'small' as const,
+      width: 80,
+      height: 40,
+      createdAt: 0,
+      lastPlayed: 0,
+      playTime: 0,
+    };
+    const loaded = Simulation.fromSave(sim.toSaveState(meta, 2));
+    expect(loaded.player.dead).toBe(false);
+    expect(loaded.player.health).toBe(100);
+    expect(loaded.player.body.x + loaded.player.body.width / 2).toBeCloseTo(20.5 * T, 3);
+  });
+});
+
 describe('shades', () => {
   it('burn in light and dissolve; stay whole in the dark', () => {
     const sim = arena();

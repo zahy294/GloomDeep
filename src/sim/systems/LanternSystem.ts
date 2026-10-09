@@ -39,5 +39,5 @@ export function updateLantern(
 
 /** The lantern actually gives light (lit and fuelled). */
 export function lanternLit(player: Player): boolean {
-  return player.lanternOn && player.lumen > 0;
+  return player.lanternOn && player.lumen > 0 && !player.dead;
 }

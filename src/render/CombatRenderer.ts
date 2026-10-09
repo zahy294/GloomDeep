@@ -42,6 +42,8 @@ export class CombatRenderer {
   private readonly eyes: Phaser.GameObjects.Image[] = [];
   private readonly shots: Phaser.GameObjects.Image[] = [];
   private readonly numbers: FloatingText[] = [];
+  /** Hidden Text objects ready to show the next number (each Text owns a canvas texture). */
+  private readonly spareTexts: Phaser.GameObjects.Text[] = [];
   private readonly wisps: Wisp[] = [];
   /** Creature id → seconds of hit flash left. */
   private readonly flash = new Map<number, number>();
@@ -85,6 +87,8 @@ export class CombatRenderer {
   destroy(): void {
     for (const off of this.unsubscribe) off();
     for (const n of this.numbers) n.text.destroy();
+    for (const t of this.spareTexts) t.destroy();
+    this.spareTexts.length = 0;
     for (const w of this.wisps) w.image.destroy();
     for (const list of [this.bodies, this.eyes, this.shots]) for (const i of list) i.destroy();
     this.numbers.length = 0;
@@ -141,7 +145,10 @@ export class CombatRenderer {
       // Eyes: a faint glow so creatures read in the dark (shades' eyes are the brightest part).
       const shade = def.ai === 'shade';
       eye
-        .setPosition(x + enemy.facing * b.width * 0.15, y - b.height * COMBAT_VIEW.eyeHeight)
+        .setPosition(
+          x + enemy.facing * b.width * COMBAT_VIEW.eyeForward,
+          y - b.height * COMBAT_VIEW.eyeHeight,
+        )
         .setTint(shade ? PALETTE.moonSilver[3] : PALETTE.honey[2])
         .setAlpha(shade ? COMBAT_VIEW.shadeEyeAlpha : COMBAT_VIEW.eyeAlpha)
         .setDisplaySize(
@@ -192,15 +199,22 @@ export class CombatRenderer {
 
   private number(x: number, y: number, amount: number, color: string): void {
     if (amount <= 0) return;
-    const text = this.glowScene.add
-      .text(Math.round(x), Math.round(y), String(amount), {
-        fontFamily: 'monospace',
-        fontSize: `${COMBAT_VIEW.numberFontPx}px`,
-        color,
-        stroke: '#05080a',
-        strokeThickness: 2,
-      })
-      .setOrigin(0.5, 1);
+    const text =
+      this.spareTexts.pop() ??
+      this.glowScene.add
+        .text(0, 0, '', {
+          fontFamily: 'monospace',
+          fontSize: `${COMBAT_VIEW.numberFontPx}px`,
+          stroke: COMBAT_VIEW.numberStroke,
+          strokeThickness: COMBAT_VIEW.numberStrokePx,
+        })
+        .setOrigin(0.5, 1);
+    text
+      .setText(String(amount))
+      .setColor(color)
+      .setPosition(Math.round(x), Math.round(y))
+      .setAlpha(1)
+      .setVisible(true);
     this.numbers.push({ text, age: 0 });
   }
 
@@ -210,8 +224,10 @@ export class CombatRenderer {
       if (!n) continue;
       n.age += dt;
       if (n.age >= COMBAT_VIEW.numberSeconds) {
-        n.text.destroy();
         this.numbers.splice(i, 1);
+        if (this.spareTexts.length < COMBAT_VIEW.numberPool)
+          this.spareTexts.push(n.text.setVisible(false));
+        else n.text.destroy();
         continue;
       }
       n.text.y -= COMBAT_VIEW.numberRise * dt;

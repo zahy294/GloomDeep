@@ -4,6 +4,103 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M8 — Combat and enemies ✅ (2026-10-09)
+
+### Built
+
+- **Creatures** (`src/data/enemies.ts`): nine creatures with five AI types (`src/sim/systems/EnemyAI.ts`).
+
+  | AI | Creatures | Behaviour |
+  |---|---|---|
+  | Hopper | Moss slime | Hops towards you |
+  | Walker | Bramble sprite, spore crawler, crystal mite, gloam hound | Wanders, chases, jumps at steps and towards a higher player |
+  | Flyer | Dusk bat, ember imp | Bobs towards you; bats scatter from bright light |
+  | Burrower | Root wyrm | Tunnels through rock under you, then lunges up out of the ground |
+  | Shade | Shade | Drifts through anything towards you; shrinks back from bright light |
+
+  Each has health, contact damage, size, speed, knockback resistance, drops and spawn rules (places, time, darkness, weight).
+- **Spawning** (`src/sim/systems/SpawnSystem.ts`):
+  - A few times a second it tries random cells of the lit region just outside the view, so nothing appears on screen.
+  - It matches creatures by surface biome or depth layer and by day or night.
+  - **Shades** spawn only where the light is at most 16, weighted up to 4× by the Gloam on the cell. They hunt from up to 40 tiles.
+  - Caps: 10 creatures, 6 shades, 3 of any other kind. Burrowers spawn in rock next to a cave. Creatures more than 70 tiles away despawn.
+- **Combat** (`src/sim/systems/CombatSystem.ts`):
+  - **Weapons:** with a weapon selected, left click attacks instead of mining.
+    - Sword swings hit everything in an arc in front once per swing.
+    - The bow shoots arrows from your bag, which drop over distance.
+    - The Lumen staff spends Lumen on a piercing beam that hits shades twice as hard.
+  - **Hits:** knockback, a short stun and invulnerability, and 60 ms of hit-stop (the game freezes) whenever a hit lands.
+  - **Shades and light:** shades burn in light of 70 or more, and burn faster in a Crimson cone.
+  - **Getting hurt:** touching a creature hurts the player, with knockback, loss of control and 0.8 s of invulnerability.
+  - **Death:** at 0 health you lose a quarter of your Lumen and respawn at the spawn after 4 s. A save made while dead loads you alive at the spawn.
+- **Weapons and recipes:**
+  - Elderwood sword, bow and arrows at the workbench.
+  - Copper and iron swords and the Lumen staff at the anvil.
+  - Debug kit `?kit=combat`.
+- **Render:**
+  - Creatures from the `enemies` sheet: a two-frame animation, hop squash, a white flash when hit (Phaser 4: `setTint` + `setTintMode(FILL)`), and glowing eyes that show in the dark (shades get a large cold glow).
+  - Arrows and glowing beams.
+  - Damage numbers (pooled).
+  - Dying creatures dissolve into wisps; shades into more of them.
+  - The player swings the selected weapon or aims the bow or staff, blinks while invulnerable and disappears behind a "The light left you… Rekindling in N" overlay.
+  - The camera shakes when you're hurt.
+- **Audio:** procedural sounds for swings, shots, beams, hits, getting hurt, kills, shades dissolving and respawning.
+- **Debug and shots:**
+  - `?spawns=0` and `?enemy=<key>`; creatures appear in the probe.
+  - The shot suite turns spawns off unless a shot asks for them.
+  - New shots: `combat-sword`, `shades-in-the-dark`, `shades-burn-in-light`.
+- **Placeholder art:** weapons and creatures.
+- **Tests** (458 in total):
+  - Melee arc and once-per-swing hits, hit-stop, kills and drops, weapons instead of mining.
+  - Bow ammo, staff Lumen cost and beam bonus.
+  - Contact damage and invulnerability, death and respawn.
+  - Nothing happens while dead, and a save made while dead loads safely.
+  - Shades burn in light and stay whole in the dark.
+  - Shades spawn only in darkness and never on screen.
+  - Walkers, flyers, shades and burrowers move as they should.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Fighting feels punchy | The parts are in place: hit-stop, white flash, knockback and stun, damage numbers, hurt shake and blink, death wisps and a sound for every action. `combat-sword`: one iron sword swing takes a gloam hound 60 → 42. **Needs your playtest:** "feel" can't be measured by a script. |
+| You can clearly see that light changes where and when shades appear | ✅ Shades spawn only in darkness (tested: none in a fully lit region, several in a dark one). `shades-in-the-dark`: with the lantern out in a Rootdeep cave, 6 shades gather within 40 s. `shades-burn-in-light`: lighting the Crimson lantern at them pushes the nearest from 5.9 to 7.7 tiles away and burns them, with burn numbers trailing and wisps as they dissolve. |
+
+### Decisions and deviations
+
+- **Shades and burrowers pass through rock** (shades are darkness itself; burrowers tunnel). They can only be lit where the light reaches, so a shade deep in a wall is safe until it comes out.
+- **Weapons in the plan not built yet:** spear, sling and thorn whip. Swords, bow and staff cover melee, ranged and magic for M8.
+- **Creatures aren't saved;** they come back by the spawn rules, like most sandbox games.
+- **Spawning is off by default in the Simulation** and on in the game. Tests stay deterministic, and screenshots use `?spawns=0` unless a shot needs creatures.
+
+### Reviewer pass
+
+No blockers. Fixed:
+- A dead player still picked up drops, could throw flares, burned the lantern and healed (Amber).
+- Damage numbers created a new Text per hit; they're pooled now.
+- A save made while dead loaded you alive where you died.
+- Two tuning numbers in the sim moved to `SPAWN`.
+- A swing in progress survived death.
+- Burrowers above the world's top treated the sky as rock.
+- Small render literals moved to config.
+- The missing contrast shot (shades in light) is added.
+
+Not changed (minor):
+- Arrows check hits at the end of each step, so a fast falling arrow can pass a very small creature.
+- A kill during a swing can skip another creature for one step; it is hit on the next step.
+
+### Known issues
+
+- Creature, weapon and effect art is placeholder (two frames per creature).
+- Health has no regeneration boost or armour yet; balancing of damage, spawn rates and Lumen costs needs playtesting.
+- Damage numbers use the browser's monospace font until a pixel font arrives with UI art.
+
+### Next step
+
+**M9 — Materials:** flowing water and lava, swimming, lava + water → obsidian, falling silt and gravel, fire spreading through wood, grass and leaves.
+
+---
+
 ## M7 — The Lantern and the Gloam ✅ (2026-10-09)
 
 ### Built
