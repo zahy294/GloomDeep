@@ -64,3 +64,23 @@ export const RUINS = {
   rune: 'carved_runestone',
   spawnRuinOffset: 14,
 } as const;
+
+/**
+ * Verdant lens growth (plan 1.4: plants grow faster in its light). A lit tile with open air above
+ * it either turns into `becomes`, or sprouts one of `sprouts` (decorations) on top.
+ */
+export interface VerdantRule {
+  readonly on: string;
+  readonly becomes?: string;
+  readonly sprouts?: readonly string[];
+}
+
+export const VERDANT_GROWTH: readonly VerdantRule[] = [
+  { on: 'forest_soil', becomes: 'elderglade_grass' },
+  { on: 'elderglade_grass', sprouts: ['grass_tuft', 'fern', 'wildflower'] },
+  { on: 'moonpetal_grass', sprouts: ['silver_grass', 'moonpetal_bloom'] },
+  { on: 'mire_grass', sprouts: ['mire_reed', 'grass_tuft'] },
+  { on: 'mud', sprouts: ['mire_reed'] },
+  { on: 'stone', becomes: 'moss' },
+  { on: 'moss', sprouts: ['glowmoss_tuft'] },
+];

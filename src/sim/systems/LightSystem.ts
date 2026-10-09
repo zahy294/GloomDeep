@@ -9,10 +9,13 @@ import type { EventBus, SimEvents } from '../events';
 import type { ActionState } from '../input';
 import type { World } from '../world/World';
 import { lanternLit } from './LanternSystem';
+import { flareStrength, type Flare } from '../entities/Flare';
 
-/** Where on the player the lantern's cone starts (px from the feet-centre, facing right). */
-export const LANTERN_HAND = { x: 4, y: -18 } as const;
+import { LANTERN_HAND } from './lanternCone';
+
+export { LANTERN_HAND };
 const LANTERN_GLOW = lightByKey('lantern_glow');
+const FLARE_LIGHT = lightByKey('flare');
 const PLAYER_AURA = lightByKey('player_aura');
 /** Per tile id: the light of a glowing decoration (brightens when touched), else null. */
 const TOUCH_LIGHT: readonly (LightDef | null)[] = TILES.map((t) =>
@@ -58,6 +61,10 @@ export class LightSystem {
   private readonly updatedPayload = { x0: 0, y0: 0, width: 0, height: 0 };
   /** Glowing decorations the player touched recently: tile index → seconds of boost left. */
   private readonly touched = new Map<number, number>();
+  /** Where world.lightR/G/B is current (the inner part of the last result); null before one. */
+  current: Rect | null = null;
+  private readonly currentRect: Rect = { x0: 0, y0: 0, width: 0, height: 0 };
+  private readonly flareColor = [0, 0, 0];
 
   constructor(
     private readonly world: World,
@@ -66,7 +73,14 @@ export class LightSystem {
   ) {}
 
   /** `day`: the sunlight to use (the day cycle after weather: overcast rain, lightning). */
-  update(dt: number, time: number, day: SunLight, player: Player, input: ActionState): void {
+  update(
+    dt: number,
+    time: number,
+    day: SunLight,
+    player: Player,
+    input: ActionState,
+    flares: readonly Flare[] = [],
+  ): void {
     this.updateTouched(dt, player);
     this.timer += dt;
     if (this.inFlight) {
@@ -77,10 +91,16 @@ export class LightSystem {
     }
     if (this.timer < 1 / LIGHT.updateHz) return;
     this.timer = 0;
-    this.submit(time, day, player, input);
+    this.submit(time, day, player, input, flares);
   }
 
-  private submit(time: number, day: SunLight, player: Player, input: ActionState): void {
+  private submit(
+    time: number,
+    day: SunLight,
+    player: Player,
+    input: ActionState,
+    flares: readonly Flare[],
+  ): void {
     const { world } = this;
     const body = player.body;
     const feetX = body.x + body.width / 2;
@@ -120,7 +140,7 @@ export class LightSystem {
     const lit = lanternLit(player);
     const handX = feetX + LANTERN_HAND.x * player.facing;
     const handY = feetY + LANTERN_HAND.y;
-    const points = new Float32Array((2 + this.touched.size) * POINT_FLOATS);
+    const points = new Float32Array((2 + this.touched.size + flares.length) * POINT_FLOATS);
     let p = 0;
     const addPoint = (x: number, y: number, color: readonly number[], radius: number) => {
       points[p] = x;
@@ -145,6 +165,19 @@ export class LightSystem {
       const boost = 1 + (LIGHT.touchRadiusBoost - 1) * (left / LIGHT.touchSeconds);
       const x = index % world.width;
       addPoint(x + 0.5, (index - x) / world.width + 0.5, light.color, light.radius * boost);
+    }
+    for (const flare of flares) {
+      const k = flareStrength(flare);
+      if (k <= 0) continue;
+      const c = this.flareColor;
+      for (let ch = 0; ch < 3; ch++) c[ch] = (FLARE_LIGHT.color[ch] ?? 0) * k;
+      const fb = flare.body;
+      addPoint(
+        (fb.x + fb.width / 2) / TILE_SIZE,
+        (fb.y + fb.height / 2) / TILE_SIZE,
+        c,
+        FLARE_LIGHT.radius * k,
+      );
     }
     const lens = lensByKey(player.lens);
     const dx = input.aimX - handX;
@@ -232,6 +265,7 @@ export class LightSystem {
     this.stats.avgMs =
       this.stats.updates === 1 ? result.computeMs : this.stats.avgMs * 0.9 + result.computeMs * 0.1;
     Object.assign(this.updatedPayload, inner);
+    this.current = Object.assign(this.currentRect, inner);
     this.events.emit('lightUpdated', this.updatedPayload);
   }
 }

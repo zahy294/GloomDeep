@@ -52,9 +52,14 @@ export function hasSupport(world: World, layer: TileLayer, x: number, y: number,
   return false;
 }
 
-/** Empty cells, and decorations in the foreground (a block placed on grass replaces the tuft). */
+const INTANGIBLE = Uint8Array.from(TILES, (t) => (t.intangible ? 1 : 0));
+
+/**
+ * Empty cells, decorations in the foreground (a block placed on grass replaces the tuft) and
+ * veiled spirit platforms (unseen, so the cell looks empty).
+ */
 function replaceable(existing: number, layer: TileLayer): boolean {
-  return existing === AIR || (layer === 'fg' && isDecor(existing));
+  return existing === AIR || (layer === 'fg' && (isDecor(existing) || INTANGIBLE[existing] === 1));
 }
 
 const placedPayload = { x: 0, y: 0, id: 0, layer: 'fg' as TileLayer };

@@ -15,6 +15,13 @@ import { Weather } from './weather';
 import { DecorSupport } from './world/decor';
 import { craft, nearbyStations, recipeByKey } from './systems/CraftingSystem';
 import { updateHealth } from './systems/HealthSystem';
+import { GloamSystem } from './systems/GloamSystem';
+import { createLensState, updateLens, type LensState } from './systems/LensSystem';
+import { createFlareState, updateFlares, type FlareState } from './systems/FlareSystem';
+import { createCone, lanternCone, type Cone } from './systems/lanternCone';
+import { lanternLit } from './systems/LanternSystem';
+import { lensByKey } from '../data/lenses';
+import type { Flare } from './entities/Flare';
 import { createBuildingState, updateBuilding, type BuildingState } from './systems/BuildingSystem';
 import { updateItemDrops } from './systems/ItemDropSystem';
 import { updateLantern } from './systems/LanternSystem';
@@ -56,6 +63,12 @@ export class Simulation {
   readonly player: Player;
   readonly inventory = new Inventory();
   readonly drops: ItemDrop[] = [];
+  /** Burning flares (not saved: they burn out). */
+  readonly flares: Flare[] = [];
+  readonly gloam: GloamSystem;
+  private readonly lensState: LensState = createLensState();
+  private readonly flareState: FlareState = createFlareState();
+  private readonly crimsonCone: Cone = createCone();
   readonly mining: MiningState = createMiningState();
   private readonly building: BuildingState = createBuildingState();
   /** Player spawn, feet-centre, pixels (respawning arrives in M8). */
@@ -97,6 +110,7 @@ export class Simulation {
     this.dayFraction = options.startDayFraction ?? TIME.startDayFraction;
     sampleDayCycle(this.dayFraction, this.day);
     this.decorSupport = new DecorSupport(this.world, this.events);
+    this.gloam = new GloamSystem(this.world, this.events);
     this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
       this.world,
@@ -279,9 +293,9 @@ export class Simulation {
     return this.loop.stepMs / 1000;
   }
 
-  /** Entities currently simulated: the player plus item drops (enemies arrive in M8). */
+  /** Entities currently simulated: the player, item drops and flares (enemies arrive in M8). */
   get entityCount(): number {
-    return 1 + this.drops.length;
+    return 1 + this.drops.length + this.flares.length;
   }
 
   private step(): void {
@@ -310,13 +324,39 @@ export class Simulation {
     );
     this.decorSupport.update(this.spawnDrop);
     updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
+    updateFlares(
+      this.flareState,
+      this.flares,
+      this.player,
+      this.input,
+      this.inventory,
+      this.world,
+      this.events,
+      dt,
+    );
     updateLantern(this.player, this.input, this.inventory, this.events, dt);
+    updateLens(
+      this.lensState,
+      this.player,
+      this.input,
+      this.inventory,
+      this.world,
+      this.events,
+      this.random,
+      dt,
+    );
     updateHealth(this.player, dt);
     this.elapsed += dt;
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
     this.weather.update(this.elapsed, this.dayFraction, this.events);
     this.weather.applyToSun(this.day, this.sunNow);
-    this.light.update(dt, this.elapsed, this.sunNow, this.player, this.input);
+    this.light.update(dt, this.elapsed, this.sunNow, this.player, this.input, this.flares);
+    const lens = lensByKey(this.player.lens);
+    const crimson =
+      lanternLit(this.player) && lens.effect === 'burn'
+        ? lanternCone(this.player, this.input, lens, this.crimsonCone)
+        : null;
+    this.gloam.update(dt, this.light.current, crimson);
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
   }

@@ -76,6 +76,8 @@ const TIER = TILES.map((t) => t.tier ?? 0);
 /** Tiles that stand on the block below them (stations): that block can't be mined from under them. */
 const NEEDS_GROUND = Uint8Array.from(TILES, (t) => (t.needsGround ? 1 : 0));
 const CHOPPABLE = Uint8Array.from(TILES, (t) => (t.choppable ? 1 : 0));
+/** Veiled spirit platforms can't be touched, so they can't be mined either. */
+const INTANGIBLE = Uint8Array.from(TILES, (t) => (t.intangible ? 1 : 0));
 
 /** Damage-map key: background walls live in the same map under negative keys. */
 function damageKey(world: World, layer: TileLayer, x: number, y: number): number {
@@ -146,6 +148,7 @@ export function updateMining(
   const blockedByForeground = layer === 'bg' && world.get(tx, ty) !== AIR;
   if (
     id === AIR ||
+    INTANGIBLE[id] === 1 ||
     blockedByForeground ||
     !world.inBounds(tx, ty) ||
     !inReach(player.body, tx, ty, MINING.reachTiles)

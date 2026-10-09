@@ -103,14 +103,20 @@ export function frameBase(id: number): number {
 /** Per-id: decoration (flora) or waterfall, not drawn in the tilemap. */
 const DECOR = Uint8Array.from(TILES, (t) => (t.decor || t.waterfall ? 1 : 0));
 const FIXED_LOOK = Uint8Array.from(TILES, (t) => (t.autotile === false ? 1 : 0));
+/** Per id: the tile whose frames it borrows (veiled ores look like stone), else itself. */
+const LOOK = Uint16Array.from(TILES, (t) =>
+  t.looksLike ? (TILES.find((o) => o.key === t.looksLike)?.id ?? t.id) : t.id,
+);
+const INVISIBLE = Uint8Array.from(TILES, (t) => (t.intangible ? 1 : 0));
 
 /** Atlas frame for the tile at (x, y) in a layer, or -1 for air. */
 export function tileFrame(world: World, layer: TileLayer, x: number, y: number): number {
   const id = world.getLayer(layer, x, y);
-  if (id <= 0 || DECOR[id] === 1) return -1; // decorations are drawn by the foliage renderer
+  // Decorations are drawn by the foliage renderer; veiled spirit platforms not at all.
+  if (id <= 0 || DECOR[id] === 1 || INVISIBLE[id] === 1) return -1;
   if (FIXED_LOOK[id] === 1) return iconFrame(id);
   const shape = BLOB_INDEX[blobMask(world, layer, x, y)] ?? 0;
-  return frameBase(id) + shape * AUTOTILE.variations + variationAt(x, y);
+  return frameBase(LOOK[id] ?? id) + shape * AUTOTILE.variations + variationAt(x, y);
 }
 
 /** Frame of the isolated shape (no neighbours), variation 0; used for item icons. */

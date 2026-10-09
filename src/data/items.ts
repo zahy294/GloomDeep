@@ -1,7 +1,7 @@
 /** Item registry. Ids are array indices (like tiles); keys are what other data refers to. */
 
 /** Inventory sorting groups, in sort order. */
-export const ITEM_CATEGORIES = ['tool', 'station', 'light', 'material', 'block'] as const;
+export const ITEM_CATEGORIES = ['tool', 'lens', 'station', 'light', 'material', 'block'] as const;
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 
 /** A pickaxe: mines tiles up to `tier` (src/data/tiles.ts), `power` × faster than power 1. */
@@ -24,6 +24,10 @@ export interface ItemDef {
   /** Frame in the `items` sprite sheet; items without one show their tile's icon. */
   readonly icon?: number;
   readonly tool?: ToolDef;
+  /** A lantern lens (src/data/lenses.ts key): carrying it lets you switch to that lens. */
+  readonly lens?: string;
+  /** Thrown with the right mouse button instead of placed (flares: FLARE in config). */
+  readonly throws?: 'flare';
 }
 
 const BLOCK_STACK = 999;
@@ -299,6 +303,60 @@ export const ITEMS: readonly ItemDef[] = [
     placesTile: 'anvil',
     category: 'station',
     description: 'Forges metal tools.',
+  },
+  // M7: the lenses, gold and flares.
+  {
+    id: 33,
+    key: 'gold_bar',
+    name: 'Gold Bar',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    icon: 7,
+  },
+  {
+    id: 34,
+    key: 'azure_lens',
+    name: 'Azure Lens',
+    maxStack: 1,
+    placesTile: null,
+    category: 'lens',
+    description: 'True sight: hidden ore and spirit platforms show in its light. Q to switch.',
+    icon: 8,
+    lens: 'azure',
+  },
+  {
+    id: 35,
+    key: 'crimson_lens',
+    name: 'Crimson Lens',
+    maxStack: 1,
+    placesTile: null,
+    category: 'lens',
+    description: 'Its light burns the Gloam away. Q to switch.',
+    icon: 9,
+    lens: 'crimson',
+  },
+  {
+    id: 36,
+    key: 'verdant_lens',
+    name: 'Verdant Lens',
+    maxStack: 1,
+    placesTile: null,
+    category: 'lens',
+    description: 'Grass, flowers and glowmoss grow in its light. Q to switch.',
+    icon: 10,
+    lens: 'verdant',
+  },
+  {
+    id: 37,
+    key: 'flare',
+    name: 'Flare',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'light',
+    description: 'Right-click to throw. Burns bright for a while.',
+    icon: 11,
+    throws: 'flare',
   },
 ];
 

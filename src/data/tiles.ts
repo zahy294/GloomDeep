@@ -37,6 +37,15 @@ export interface TileDef {
    * mode), so wood is the first thing anyone can gather.
    */
   readonly choppable?: true;
+  /**
+   * Hidden by the Azure lens's "true sight": the tile this one becomes once Azure light falls on
+   * it (veiled ores look like plain rock; veiled spirit platforms can't be seen or touched).
+   */
+  readonly veiled?: string;
+  /** Can't be touched, mined or seen (a veiled spirit platform): treated as empty space. */
+  readonly intangible?: true;
+  /** Drawn exactly like this tile (veiled ores pass for plain stone, even with real art). */
+  readonly looksLike?: string;
   /** Placeholder ore: the base ramp with clusters of this ramp's colours. */
   readonly placeholderOre?: RampName;
   /** One-way platform (branches): stand on its top, jump up through it, drop through with Down. */
@@ -674,6 +683,59 @@ export const TILES: readonly TileDef[] = [
     placeholderShape: 'anvil',
     station: 'anvil',
     needsGround: true,
+  },
+  // Azure lens secrets (M7): ore veins that look like stone, platforms that can't be seen.
+  {
+    id: 53,
+    key: 'veiled_lumen',
+    name: 'Stone',
+    solid: true,
+    hardness: 0.9,
+    tier: 1,
+    drop: 'stone',
+    mergesWith: ['stone', 'forest_soil'],
+    placeholderRamp: null,
+    looksLike: 'stone',
+    veiled: 'lumen_crystal',
+  },
+  {
+    id: 54,
+    key: 'veiled_moonsilver',
+    name: 'Stone',
+    solid: true,
+    hardness: 0.9,
+    tier: 1,
+    drop: 'stone',
+    mergesWith: ['stone', 'forest_soil'],
+    placeholderRamp: null,
+    looksLike: 'stone',
+    veiled: 'moonsilver_ore',
+  },
+  {
+    id: 55,
+    key: 'veiled_spirit_platform',
+    name: 'Nothing',
+    solid: false,
+    hardness: 0,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: null,
+    veiled: 'spirit_platform',
+    intangible: true,
+  },
+  {
+    id: 56,
+    key: 'spirit_platform',
+    name: 'Spirit Platform',
+    solid: false,
+    hardness: 0.3,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'spirit',
+    platform: true,
+    autotile: false,
+    placeholderShape: 'platform',
   },
 ];
 

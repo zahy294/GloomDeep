@@ -13,6 +13,7 @@ export const DEFAULT_BINDINGS: Readonly<Partial<Record<Action, readonly string[]
   jump: ['SPACE', 'W', 'UP'],
   wallMode: ['SHIFT'],
   toggleLantern: ['F'],
+  cycleLens: ['Q'],
 };
 
 export const MOUSE_BINDINGS: Readonly<Partial<Record<Action, 'left' | 'right'>>> = {

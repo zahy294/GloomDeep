@@ -66,6 +66,17 @@ export interface SimEvents {
     readonly width: number;
     readonly height: number;
   };
+  /** Gloam levels (world.gloam) changed somewhere in this rectangle (tiles, absolute). */
+  gloamUpdated: {
+    readonly x0: number;
+    readonly y0: number;
+    readonly width: number;
+    readonly height: number;
+  };
+  /** The Azure lens revealed a veiled tile (it was replaced by its true tile). */
+  tileRevealed: { readonly x: number; readonly y: number; readonly id: number };
+  /** A flare was thrown (x, y = where it starts, pixels). */
+  flareThrown: { readonly x: number; readonly y: number };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

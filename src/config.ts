@@ -168,6 +168,20 @@ export const WORLDGEN = {
   featureClumpMax: 4,
   /** Chance per exposed cave cell of a clump = layer featureAmount × this. */
   featureChanceScale: 0.25,
+  /** Azure lens secrets: chance an ore vein with a veiled form is placed veiled (looks like rock). */
+  veiledVeinChance: 0.35,
+  /**
+   * Veiled spirit-platform bridges: a pit cut into a cave floor, spanned flush with the floor by a
+   * hidden platform (walk on without the Azure lens and you fall in). Per 1000 columns.
+   */
+  spiritBridges: {
+    perThousandColumns: 5,
+    attemptsPerBridge: 200,
+    minSpan: 4,
+    maxSpan: 9,
+    pitDepthMin: 5,
+    pitDepthMax: 9,
+  },
   /** Initial Gloam noise: wavelength, and strength × (gloamNoiseBase + noise). */
   gloamWavelength: 30,
   gloamNoiseBase: 0.5,
@@ -385,6 +399,70 @@ export const TIME = {
   dayLengthSeconds: 1200,
   /** Where a new world starts. */
   startDayFraction: 0.3,
+} as const;
+
+/**
+ * The Gloam (plan 1.4): a 0–255 level per cell that grows in darkness and burns away in light.
+ * It only changes where the light grid is current (the region around the camera).
+ */
+export const GLOAM = {
+  /** Updates per second over the light region. */
+  tickHz: 4,
+  /** Brightest channel at or below which a cell counts as dark (Gloam grows). */
+  darkLight: 24,
+  /** Brightest channel at or above which light burns Gloam away. */
+  cleanseLight: 40,
+  /** Gloam lost per second in full (255) light; scales with the light level. */
+  cleansePerSecond: 160,
+  /** Gloam gained per second in darkness next to full (255) Gloam; scales with the source. */
+  growPerSecond: 5,
+  /** A cell grows only if it or a neighbour has at least this much Gloam. */
+  spreadMin: 16,
+  /** Overlay levels: Gloam at or above each value draws the next, thicker vein frame. */
+  visibleLevels: [40, 110, 180] as readonly number[],
+  /** Placing a light burns Gloam in this radius at once (the light ring, plan 2.8). */
+  burstRadius: 6,
+  /** Gloam removed at the centre of the burst (fades to 0 at the edge). */
+  burstStrength: 255,
+  /** Crimson lens: cells lit by its cone lose this much more Gloam per second. */
+  crimsonBurnPerSecond: 400,
+  /** Overlay pulse: period (s) and alpha range. */
+  pulseSeconds: 3.2,
+  pulseMinAlpha: 0.65,
+  /** Camera: Gloam around the view drains colour by up to this much saturation. */
+  maxDesaturate: 0.45,
+  /** Fraction of sampled cells under Gloam at which the drain is full. */
+  desaturateAtCoverage: 0.5,
+} as const;
+
+/** Lens effects (plan 1.4). The cone itself (colour, range, angle) is in src/data/lenses.ts. */
+export const LENS_FX = {
+  /** Amber: health regained per second while the lantern burns. */
+  amberHealPerSecond: 0.8,
+  /** Azure/Verdant: cells of the cone examined per second (random picks; keeps it cheap). */
+  conePicksPerSecond: 120,
+  /** A cone cell must be at least this bright (the cone actually reaches it, not behind a wall). */
+  coneMinLight: 60,
+  /** Azure sees a little into rock: veiled tiles show where the cone's light is at least this. */
+  revealMinLight: 8,
+  /** Verdant: chance that a picked cell grows one stage. */
+  verdantGrowChance: 0.08,
+} as const;
+
+/** Flares (plan M7): thrown light. Pixels and seconds. */
+export const FLARE = {
+  size: 6,
+  throwSpeed: 380,
+  gravity: 700,
+  maxFallSpeed: 480,
+  /** Speed kept after a bounce, and the friction that stops it on the ground. */
+  bounce: 0.35,
+  groundFriction: 500,
+  /** Burns this long, the last `fadeSeconds` dimming. */
+  lifeSeconds: 40,
+  fadeSeconds: 6,
+  /** Time between two throws while the button is held. */
+  throwInterval: 0.35,
 } as const;
 
 /** The lantern and its fuel (plan 1.4). */

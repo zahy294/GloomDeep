@@ -80,6 +80,12 @@ export const RECIPES: readonly RecipeDef[] = [
     inputs: [{ item: 'moonsilver_ore', count: 2 }],
     station: 'furnace',
   },
+  {
+    key: 'gold_bar',
+    output: { item: 'gold_bar', count: 1 },
+    inputs: [{ item: 'gold_ore', count: 2 }],
+    station: 'furnace',
+  },
   // Anvil.
   {
     key: 'copper_pickaxe',
@@ -107,5 +113,43 @@ export const RECIPES: readonly RecipeDef[] = [
       { item: 'iron_bar', count: 4 },
     ],
     station: 'anvil',
+  },
+  // Lenses (plan 1.4: each from a different place) and flares.
+  {
+    key: 'verdant_lens',
+    output: { item: 'verdant_lens', count: 1 },
+    inputs: [
+      { item: 'glowcap_flesh', count: 10 },
+      { item: 'moss', count: 10 },
+      { item: 'copper_bar', count: 3 },
+    ],
+    station: 'anvil',
+  },
+  {
+    key: 'azure_lens',
+    output: { item: 'azure_lens', count: 1 },
+    inputs: [
+      { item: 'moonstone_crystal', count: 6 },
+      { item: 'iron_bar', count: 3 },
+    ],
+    station: 'anvil',
+  },
+  {
+    key: 'crimson_lens',
+    output: { item: 'crimson_lens', count: 1 },
+    inputs: [
+      { item: 'gold_bar', count: 4 },
+      { item: 'lumen_crystal', count: 2 },
+    ],
+    station: 'anvil',
+  },
+  {
+    key: 'flare',
+    output: { item: 'flare', count: 4 },
+    inputs: [
+      { item: 'torch', count: 2 },
+      { item: 'lumen_crystal', count: 1 },
+    ],
+    station: 'workbench',
   },
 ];

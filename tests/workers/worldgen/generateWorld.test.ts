@@ -186,6 +186,33 @@ describe('giant trees (medium world)', () => {
     expect(count('iron_ore', spawnX - 150, spawnX + 150, 0, 120)).toBeGreaterThan(40);
   });
 
+  it('hides Azure secrets: veiled ore veins and spirit bridges over chasms (M7)', () => {
+    const VEILED = new Set([tileId('veiled_lumen'), tileId('veiled_moonsilver')]);
+    const BRIDGE = tileId('veiled_spirit_platform');
+    let veiled = 0;
+    const bridges: { x: number; y: number; length: number }[] = [];
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        const id = world.get(x, y);
+        if (VEILED.has(id)) veiled++;
+        if (id === BRIDGE && world.get(x - 1, y) !== BRIDGE) {
+          let length = 0;
+          while (world.get(x + length, y) === BRIDGE) length++;
+          bridges.push({ x, y, length });
+        }
+      }
+    }
+    expect(veiled).toBeGreaterThan(100);
+    expect(bridges.length).toBeGreaterThanOrEqual(10);
+    for (const b of bridges) {
+      // Flush with the cave floor on both sides, over a pit.
+      expect(world.isSolid(b.x - 1, b.y)).toBe(true);
+      expect(world.isSolid(b.x + b.length, b.y)).toBe(true);
+      expect(world.isSolid(b.x + (b.length >> 1), b.y + 1)).toBe(false);
+      expect(world.isSolid(b.x + (b.length >> 1), b.y - 1)).toBe(false);
+    }
+  });
+
   it('every surface biome has giant trees', () => {
     const biomes = new Set(trunks().map((x) => world.surfaceBiome[x]));
     expect(biomes.size).toBe(SURFACE_BIOMES.length);

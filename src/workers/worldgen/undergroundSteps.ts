@@ -1,6 +1,6 @@
 import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../data/biomes';
-import { tileId } from '../../data/tiles';
+import { TILES, tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
 import { flora } from './flora';
 import { placeWaterfalls } from './waterfalls';
@@ -23,6 +23,11 @@ const LAYER_ROCKS = DEPTH_LAYERS.map((l) => {
   return rocks;
 });
 const LAYER_FEATURE = DEPTH_LAYERS.map((l) => (l.feature ? tileId(l.feature) : -1));
+/** Ore id → the veiled tile that hides it (Azure lens), if any. */
+const VEILED_FORM = new Map(
+  TILES.flatMap((t) => (t.veiled && !t.intangible ? [[tileId(t.veiled), t.id] as const] : [])),
+);
+const VEILED_PLATFORM = TILES.find((t) => t.intangible && t.veiled)?.id ?? -1;
 
 /** Underground = below the soil (caves never cut the grass or soil near the surface). */
 function caveAllowed(ctx: GenContext, x: number, y: number): boolean {
@@ -110,10 +115,13 @@ export function ores(ctx: GenContext): void {
             ore.size * ore.size * WORLDGEN.veinSizeScale * (WORLDGEN.veinSizeRandomMin + random()),
           ),
         );
+        // Some veins hide from plain sight: only the Azure lens shows what they are.
+        const veiled = VEILED_FORM.get(ore.id);
+        const id = veiled !== undefined && random() < WORLDGEN.veiledVeinChance ? veiled : ore.id;
         for (let i = 0; i < size; i++) {
           if (x > 0 && x < width - 1 && y > top && y < bottom) {
             const idx = y * width + x;
-            if (rocks.has(fg[idx] ?? AIR)) fg[idx] = ore.id;
+            if (rocks.has(fg[idx] ?? AIR)) fg[idx] = id;
           }
           const dir = Math.floor(random() * 4);
           x += dir === 0 ? 1 : dir === 1 ? -1 : 0;
@@ -200,6 +208,52 @@ export function liquids(ctx: GenContext): void {
 export function decorations(ctx: GenContext): void {
   caveFeatures(ctx);
   flora(ctx);
+  spiritBridges(ctx);
+}
+
+/**
+ * Veiled spirit platforms (Azure lens secrets): a pit cut into a flat stretch of cave floor and a
+ * row of unseen, untouchable platform tiles across its top, flush with the floor. Azure light
+ * turns them into real platforms; without it you drop into the pit.
+ */
+function spiritBridges(ctx: GenContext): void {
+  if (VEILED_PLATFORM < 0) return;
+  const { width, height, fg, liquid } = ctx;
+  const cfg = WORLDGEN.spiritBridges;
+  const random = stepRandom(ctx, 13);
+  const wanted = Math.round((width / 1000) * cfg.perThousandColumns);
+  const air = (x: number, y: number) =>
+    fg[y * width + x] === AIR && (liquid[y * width + x] ?? 0) === 0;
+  const solid = (x: number, y: number) => isSolidId(fg[y * width + x] ?? AIR);
+  let placed = 0;
+  for (let attempt = 0; attempt < wanted * cfg.attemptsPerBridge && placed < wanted; attempt++) {
+    const span = cfg.minSpan + Math.floor(random() * (cfg.maxSpan - cfg.minSpan + 1));
+    const depth = cfg.pitDepthMin + Math.floor(random() * (cfg.pitDepthMax - cfg.pitDepthMin + 1));
+    // Drop from a random cave cell to the floor below it.
+    const x = 2 + Math.floor(random() * (width - 4));
+    let y = 2 + Math.floor(random() * (height - 4));
+    if (!air(x, y) || !caveAllowed(ctx, x, y)) continue;
+    while (y < height - depth - 3 && air(x, y + 1)) y++;
+    const floor = y + 1;
+    const x0 = x - (span >> 1);
+    if (x0 < 2 || x0 + span >= width - 2 || floor + depth >= height - 2) continue;
+    // A flat floor row with open air above, one tile wider than the pit on each side.
+    let ok = true;
+    for (let x = x0 - 1; x <= x0 + span && ok; x++) {
+      ok = solid(x, floor) && air(x, floor - 1) && air(x, floor - 2) && caveAllowed(ctx, x, floor);
+    }
+    if (!ok) continue;
+    // Cut the pit through solid rock only (no breaking into another cave or a pool).
+    for (let y = floor; y < floor + depth && ok; y++) {
+      for (let x = x0; x < x0 + span && ok; x++) ok = solid(x, y) && caveAllowed(ctx, x, y);
+    }
+    if (!ok) continue;
+    for (let y = floor + 1; y < floor + depth; y++) {
+      for (let x = x0; x < x0 + span; x++) fg[y * width + x] = AIR;
+    }
+    for (let x = x0; x < x0 + span; x++) fg[floor * width + x] = VEILED_PLATFORM;
+    placed++;
+  }
 }
 
 /** Each layer's signature feature in small clumps on cave floors, walls and ceilings. */

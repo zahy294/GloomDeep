@@ -22,6 +22,16 @@ export interface LightDef {
 export const LIGHTS: readonly LightDef[] = [
   { key: 'torch', color: [255, 178, 96], radius: 12, flicker: 0.12 },
   { key: 'furnace', color: [255, 140, 64], radius: 8, flicker: 0.1 },
+  /** Thrown flares: bright and red-gold, flickering (FLARE in config). */
+  { key: 'flare', color: [255, 150, 110], radius: 14, flicker: 0.15 },
+  /** Revealed spirit platforms: a faint cyan shimmer. */
+  {
+    key: 'spirit',
+    color: [100, 200, 220],
+    radius: 3,
+    flicker: 0,
+    pulse: { period: 2.4, depth: 0.3 },
+  },
   { key: 'lumen_crystal', color: [96, 220, 214], radius: 6, flicker: 0 },
   { key: 'moonstone_crystal', color: [150, 165, 200], radius: 4, flicker: 0 },
   {

@@ -13,6 +13,8 @@ export const ACTIONS = [
   'wallMode',
   /** Lights or snuffs the lantern (F). */
   'toggleLantern',
+  /** Switches to the next lens the player owns (Q). */
+  'cycleLens',
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
