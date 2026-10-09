@@ -31,7 +31,12 @@ import { WispSystem } from './systems/WispSystem';
 import { CRITTERS } from '../data/critters';
 import { SettlementSystem } from './systems/SettlementSystem';
 import { BeaconSystem } from './systems/BeaconSystem';
-import { createInteractState, updateInteract, type InteractState } from './systems/InteractSystem';
+import {
+  createInteractState,
+  updateInteract,
+  type InteractContext,
+  type InteractState,
+} from './systems/InteractSystem';
 import { SPAWN_TREE } from '../data/trees';
 import { LiquidSystem } from './systems/LiquidSystem';
 import { FireSystem } from './systems/FireSystem';
@@ -133,6 +138,7 @@ export class Simulation {
   private readonly caughtPayload = { type: 0, x: 0, y: 0 };
   readonly beacons: BeaconSystem;
   private readonly interactState: InteractState = createInteractState();
+  private readonly interactContext: InteractContext;
   readonly liquids: LiquidSystem;
   readonly fire: FireSystem;
   readonly falling: FallingSystem;
@@ -204,6 +210,17 @@ export class Simulation {
       day: true,
       random: this.random,
       events: this.events,
+    };
+    this.interactContext = {
+      player: this.player,
+      input: this.input,
+      world: this.world,
+      npcs: this.settlement.npcs,
+      beacons: this.beacons,
+      events: this.events,
+      bodies: () => [this.player.body, ...this.settlement.npcs.map((n) => n.body)],
+      cleansed: () => this.gloam.cleansed,
+      tryCatch: (x, y) => this.tryCatch(x, y),
     };
     this.gloam.covered = (x, y) => this.beacons.covers(x, y);
     // The Old Dryad waits by the spawn tree (a loaded world replaces it with the saved folk).
@@ -468,18 +485,7 @@ export class Simulation {
     this.updateRespawn(dt);
     // Right-click on people, doors and beacons first: it claims the press from placing.
     const interacting =
-      !this.player.dead &&
-      updateInteract(this.interactState, {
-        player: this.player,
-        input: this.input,
-        world: this.world,
-        npcs: this.settlement.npcs,
-        beacons: this.beacons,
-        events: this.events,
-        bodies: () => [this.player.body, ...this.settlement.npcs.map((n) => n.body)],
-        cleansed: () => this.gloam.cleansed,
-        tryCatch: (x, y) => this.tryCatch(x, y),
-      });
+      !this.player.dead && updateInteract(this.interactState, this.interactContext);
     updatePlayer(this.player, this.input, this.world, dt);
     // With a weapon selected the left button attacks instead of mining; the dead do neither.
     const armed = selectedWeapon(this.inventory) !== null;
@@ -561,7 +567,6 @@ export class Simulation {
     this.wispLights.length = 0;
     if (this.wisps.wisp) this.wispLights.push(this.wisps.wisp);
     if (this.player.bounced) {
-      const pb = this.player.body;
       this.bouncedPayload.x = pb.x + pb.width / 2;
       this.bouncedPayload.y = pb.y + pb.height;
       this.events.emit('bounced', this.bouncedPayload);

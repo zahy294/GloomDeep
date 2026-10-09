@@ -92,8 +92,16 @@ export class SettlementSystem {
     const taken = new Set<number>();
     for (const npc of this.npcs) {
       if (npc.key === DRYAD.key) continue;
-      if (npc.homeId >= 0 && this.homes.has(npc.homeId)) taken.add(npc.homeId);
-      else if (npc.homeId >= 0) {
+      if (npc.homeId < 0) continue;
+      // A home's id is its smallest cell, so an edit in its corner renames it: match by place too.
+      const home = this.homes.get(npc.homeId) ?? this.homeAround(npc, taken);
+      if (home && !taken.has(home.id)) {
+        // Also restores the stroll range after loading (a restored villager starts with none).
+        npc.homeId = home.id;
+        npc.roamX0 = home.x0;
+        npc.roamX1 = home.x1;
+        taken.add(home.id);
+      } else {
         npc.homeId = -1;
         leftPayload.key = npc.key;
         leftPayload.name = VILLAGERS.find((v) => v.key === npc.key)?.name ?? npc.key;
@@ -120,6 +128,18 @@ export class SettlementSystem {
     arrivedPayload.key = next.key;
     arrivedPayload.name = next.name;
     this.events.emit('npcArrived', arrivedPayload);
+  }
+
+  /** A free home whose box holds this villager's feet. */
+  private homeAround(npc: Npc, taken: ReadonlySet<number>): Room | undefined {
+    const b = npc.body;
+    const x = Math.floor((b.x + b.width / 2) / TILE_SIZE);
+    const y = Math.floor((b.y + b.height - 1) / TILE_SIZE);
+    for (const home of this.homes.values()) {
+      if (taken.has(home.id)) continue;
+      if (x >= home.x0 && x <= home.x1 && y >= home.y0 && y <= home.y1) return home;
+    }
+    return undefined;
   }
 
   private settle(npc: Npc, home: Room): void {
@@ -153,7 +173,7 @@ export class SettlementSystem {
       } else {
         const cx = b.x + b.width / 2;
         const dx = npc.targetX - cx;
-        if (Math.abs(dx) < 2) {
+        if (Math.abs(dx) < SETTLEMENT.arrivePx) {
           npc.targetX = Number.NaN;
           npc.timer =
             SETTLEMENT.idleSecondsMin +

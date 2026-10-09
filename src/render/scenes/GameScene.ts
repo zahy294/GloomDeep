@@ -624,7 +624,9 @@ export class GameScene extends Phaser.Scene {
     events.on('travelled', () => audio.effect('travel'));
     // A colony of bats takes off together: one flutter, not one per bat.
     let lastFlutter = -Infinity;
-    events.on('critterStartled', () => {
+    events.on('critterStartled', ({ type }) => {
+      // Wings only: deer and frogs bolt silently.
+      if (CRITTERS[type]?.move !== 'perch' && CRITTERS[type]?.move !== 'flutter') return;
       if (this.sim.time - lastFlutter < LIFE_VIEW.flutterSoundGap) return;
       lastFlutter = this.sim.time;
       audio.effect('flutter');

@@ -138,6 +138,6 @@ export class WispSystem {
 
   private cellKey(x: number, y: number): number {
     const g = WISP.secretCell;
-    return Math.floor(y / g) * 100000 + Math.floor(x / g);
+    return Math.floor(y / g) * this.world.width + Math.floor(x / g);
   }
 }

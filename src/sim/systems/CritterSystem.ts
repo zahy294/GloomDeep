@@ -231,7 +231,10 @@ export class CritterSystem {
       if (Number.isNaN(c.calmLight)) c.calmLight = light;
       startledByLight = light >= def.startledByLight && light >= c.calmLight + CRITTER.startleRise;
     }
-    if ((near || startledByLight) && c.state !== 'flying') {
+    const alarmed = near || startledByLight;
+    // Already fleeing: keep running, but don't announce it again every step.
+    if (alarmed && c.state === 'flee') c.timer = CRITTER.fleeSeconds;
+    else if (alarmed && c.state === 'idle') {
       c.state = def.move === 'perch' ? 'flying' : 'flee';
       c.timer = CRITTER.fleeSeconds;
       startledPayload.id = c.id;
@@ -319,8 +322,8 @@ export class CritterSystem {
     c.lightX = Number.NaN;
     c.lightY = Number.NaN;
     const r = CRITTER.lightSearchRadius;
-    for (let y = cy - r; y <= cy + r; y += 2) {
-      for (let x = cx - r; x <= cx + r; x += 2) {
+    for (let y = cy - r; y <= cy + r; y += CRITTER.lightSearchStep) {
+      for (let x = cx - r; x <= cx + r; x += CRITTER.lightSearchStep) {
         if (!world.inBounds(x, y) || world.isSolid(x, y)) continue;
         const i = world.index(x, y);
         const l = Math.max(world.lightR[i] ?? 0, world.lightG[i] ?? 0, world.lightB[i] ?? 0);
@@ -373,14 +376,9 @@ export class CritterSystem {
 
   private swim(c: Critter, def: CritterDef, world: World, away: number, dt: number): void {
     const b = c.body;
-    const wet = (x: number, y: number) => {
-      const tx = Math.floor(x / TILE_SIZE);
-      const ty = Math.floor(y / TILE_SIZE);
-      return world.inBounds(tx, ty) && (world.liquid[world.index(tx, ty)] ?? 0) >= LIQUID.wetAmount;
-    };
     const cx = b.x + b.width / 2;
     const cy = b.y + b.height / 2;
-    if (!wet(cx, cy)) {
+    if (!wet(world, cx, cy)) {
       // Out of the water: flop down.
       b.vy = Math.min(b.vy + CRITTER.gravity * dt, CRITTER.maxFall);
       moveAndCollide(world, b, dt, collision);
@@ -395,13 +393,20 @@ export class CritterSystem {
     b.vx = c.facing * speed;
     b.vy = Math.sin(c.phase * CRITTER.wanderRate) * def.speed * CRITTER.swimBob;
     // Turn back rather than leave the water.
-    if (!wet(cx + c.facing * (b.width / 2 + 2), cy)) {
+    if (!wet(world, cx + c.facing * (b.width / 2 + CRITTER.swimLookAhead), cy)) {
       c.facing = c.facing === 1 ? -1 : 1;
       b.vx = -b.vx;
     }
-    if (!wet(cx, cy + b.vy * dt * 4)) b.vy = 0;
+    if (!wet(world, cx, cy + b.vy * dt * CRITTER.swimLookSteps)) b.vy = 0;
     moveAndCollide(world, b, dt, collision);
   }
+}
+
+/** Is the pixel (x, y) in water? */
+function wet(world: World, x: number, y: number): boolean {
+  const tx = Math.floor(x / TILE_SIZE);
+  const ty = Math.floor(y / TILE_SIZE);
+  return world.inBounds(tx, ty) && (world.liquid[world.index(tx, ty)] ?? 0) >= LIQUID.wetAmount;
 }
 
 /** Can a critter of this kind appear at cell (x, y)? */

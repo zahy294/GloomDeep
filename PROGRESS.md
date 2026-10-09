@@ -4,6 +4,96 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M10 — Living forest and the village ✅ (2026-10-10)
+
+### Built
+
+- **Cave entrances (requested with M10):** the world now has Minecraft-style entrances. Each is a mouth in the surface leading into switchback tunnels (0.4–0.9 rad slopes), with occasional chambers, down past half the world's depth. One entrance is always 60–110 columns from the spawn; the rest are spread out (1.5 per 1000 columns). Silt and gravel next to a tunnel turn to stone so tunnels don't cave in, and giant trees keep clear of the mouths. Spirit bridges are now placed after falling blocks settle (gravel used to land on them). `?spot=entrance` starts beside the nearest mouth. A worldgen test checks that every entrance flood-fills below half the world's height.
+- **Village** (`SettlementSystem`, `world/rooms.ts`, `world/doors.ts`):
+  - **Doors:** 3 tiles tall, toggled by right-click, and they won't close on anyone standing in them.
+  - **Valid homes:** a room counts when it is closed in (30–220 cells), has back walls on 90% of it, is lit inside, has a door and has floor space to stand on. Homes are checked every 2 s from each door.
+  - **Villagers:** four of them (`data/npcs.ts`): Bramwell, Fennel, Ysolde and Old Corwin. They move in one at a time as homes become available (the *n*-th needs *n* homes) and stroll inside their home. A villager whose home breaks becomes homeless and moves into the next free one.
+  - **Talking:** right-click cycles a villager's lines.
+  - **The Old Dryad:** always stands by the spawn tree. Her lines change with the share of the world's Gloam that has been cleansed (0, 5, 25, 60%).
+  - **Saving:** villagers and the starting Gloam total are saved (save format v3, with a migration).
+- **Beacons** (`BeaconSystem`): crafted at the anvil from 8 Lumen crystals, 12 runestone and 4 copper bars.
+  - Each beacon keeps a 30-tile safe circle: no creature spawns inside it, and the Gloam there burns away as if it were lit.
+  - Right-clicking one opens a travel list of the other beacons, nearest first ("42 tiles east, 10 up"). Travel only works while you stand within 6 tiles of a beacon.
+- **Critters** (`data/critters.ts`, `CritterSystem`):
+  - **Kinds:** fireflies (surface, night), moths (drawn to bright light, which they circle), cave bats (hang from ceilings), deer (day), owls on branches, mire frogs and glowfish.
+  - **Spawning:** like creatures, just off-screen, by place and time. They despawn far away and are not saved.
+  - **Reacting to you:** each kind flees within its own range. Bats also take off when light at their roost rises well above what they settled in, so a bright cave doesn't scare them but your lantern does.
+  - **Catching:** a glass jar (3 silt at the furnace) catches a firefly and becomes a placeable firefly jar light.
+  - **Sounds:** one flutter per startled group.
+- **Living flora** (`FloraSystem`, run twice a second where the light grid is current):
+  - **Lumen blooms** (cave floors in the Glowcap Grottos and Rootdeep) open at light ≥ 90 and close at ≤ 40. Only open blooms drop Lumen petals, which the lantern burns as small fuel before crystals.
+  - **Glowmoss** creeps onto neighbouring dark, supported floor.
+  - **Glowcaps** bounce you back up when you land on them fast, with a spore puff and a sound.
+  - **Fairy rings** (one 28–48 columns from the spawn, more at random in the Elderglade and Moonpetal Vale): standing inside one at night gives the **fae buff** for 90 s (×1.2 speed, ×1.15 jump, half lantern drain), shown in the HUD.
+  - **Shy vines:** hanging vines near the player curl up towards the ceiling (their scaleY is patched in the `SpriteGPULayer`), then slowly unfurl.
+- **Wisps** (`WispSystem`):
+  - **When:** at night or underground, every 45 s there is a 60% chance a wisp appears by the player.
+  - **Where it leads:** to the nearest secret within 100 tiles: veiled ore or a spirit platform, a fairy ring, or a carved runestone. Secrets already shown are remembered.
+  - **How:** it stays a few tiles ahead, waits when you fall behind, and bursts into a ring on arrival. It carries its own light point.
+- **On screen** (`LifeRenderer`):
+  - **Placeholder sheets:** `folk` (24×40: villagers and the Dryad, who sways) and `critters` (16×16).
+  - **Name tags** show over villagers within 6 tiles.
+  - **Glow:** glowing critters (fireflies, glowfish) get pulsing halos, and other critters get eye glints in the dark (bats, owls, frogs).
+  - **Wisp:** a flickering core with a fading trail.
+  - **Shared art code:** the placeholder shape code is now one module (`tools/lib/placeholderShapes.ts`).
+- **UI:**
+  - A dialogue box shows the speaker's name, role and line. It closes when you walk 6 tiles away or press Esc.
+  - The beacon travel list.
+  - Notices for arrivals, losing a home, the fae buff, caught fireflies and wisps.
+  - A HUD fae timer.
+  - Sounds: talk, arrival, bounce, flutter, catch, wisp, travel.
+- **Debug and shots:**
+  - New debug starts: `?spot=village` stamps four cottages (`data/prefabs/houses.ts`, `world/prefabs.ts`) right of the spawn, and the villagers move in through the normal rules. `?spot=fairy` starts in a fairy ring and `?spot=chamber` in a roofed cave room.
+  - `?critter=<key>` places a group of critters and `?wisp=1` summons a wisp.
+  - New shots: `village-four-homes`, `village-talk`, `caves-alive`, `fairy-ring-night`, `wisp-leads`, `cave-entrance`.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| The surface village has 4 NPCs living in lit homes | ✅ `village-four-homes`: 4 villagers housed in 4 lit cottages (arrivals through the real settlement rules); a sim test builds 4 houses and gets 4 villagers |
+| Caves feel alive with critters that react to you | ✅ `caves-alive` (bats roosting in a grotto chamber, moths at the lantern); tests: bats take flight when you come close or shine light at them, frogs hop away, fireflies are caught |
+| typecheck / test / lint / build | ✅ 500 tests |
+
+### Decisions and deviations
+
+- **Villagers stay in their homes** (strolling inside) until M11 adds schedules and trading. Their lines say so.
+- **Beacons are single tiles** with a fixed radius; there is no fuel or upkeep yet.
+- **Wisps and critters are not saved.** Both are ambient and re-spawn naturally.
+- **The village start is a debug prefab.** Generated villages and ruins are later content; M11 replaces the rows-plus-legend format with Tiled JSON prefabs, as the plan says.
+- **Bats react to rising light, not absolute light.** Absolute light made bats in glowing caves flee as soon as they appeared.
+- **Shy vines curl by shrinking each segment towards its own top.** Hanging chains therefore show small gaps while curled. That reads fine with placeholder art; real art may want per-chain handling.
+
+### Reviewer pass
+
+No blockers. Fixed:
+- **Lumen blooms never closed:** an open bloom's own glow (~56) sat above `bloomCloseLight` 40. It's now 64, with a test that checks the bloom's own light against the threshold.
+- **Villagers lost their stroll range after loading:** `check()` now refreshes `roamX0/roamX1` from the home. The save test checks this.
+- **False "lost their home" notices** when an edit changed a home's corner cell (its id): villagers are matched to a free home that contains their feet.
+- **`critterStartled` fired every step while a deer or frog fled:** it now fires only on the idle → startled change, with a test. The flutter sound now plays only for winged critters.
+- **Per-step allocations:** the interact context is built once, and the glowfish `wet` check is now a module function.
+- **Unnamed numbers** moved to config: `SETTLEMENT.arrivePx`, `CRITTER.lightSearchStep`, `swimLookAhead`, `swimLookSteps`; the wisp cell key now uses `world.width`.
+
+Not changed (logged as known issues): the fae buff isn't saved, critters stay frozen in `spawns=0` debug starts, doors can be placed on an NPC, an unknown NPC key falls back to the Dryad's lines, and the debug village is stamped from GameScene.
+
+### Known issues
+
+- A bat that has taken flight keeps flying until it despawns; it never roosts again.
+- Placeholder art for folk and critters (`folk`, `critters` need real sheets; prompts not written yet).
+- Fireflies are small and dim on the night surface; real art should give them a brighter core.
+- From the review: the fae buff isn't saved; critters don't move in `spawns=0` debug starts; a door can be placed on top of an NPC; an NPC with an unknown key uses the Dryad's lines; tests for doors, rooms and prefabs live in `Village.test.ts` rather than one file per module.
+
+### Next step
+
+**M11 — Towns & Folk:** the Tiled JSON prefab pipeline, NPC routines, dialogue, quests and trade, Canopyhold, the Rootdeep Citadel districts, and caravans on lit roads. Waiting for the user's go-ahead.
+
+---
+
 ## M9 — Materials ✅ (2026-10-09)
 
 ### Built

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CRITTER, FLORA_FX, LUMEN, TILE_SIZE, WISP } from '../../../src/config';
+import { CRITTER, FLORA_FX, LIGHT, LUMEN, TILE_SIZE, WISP } from '../../../src/config';
+import { lightByKey } from '../../../src/data/lights';
 import { CRITTERS } from '../../../src/data/critters';
 import { ITEMS, itemId } from '../../../src/data/items';
 import { tileId } from '../../../src/data/tiles';
@@ -116,6 +117,14 @@ describe('critters', () => {
     expect(frog.body.x).toBeGreaterThan(8 * T);
   });
 
+  it('a fleeing frog is startled once, not every step', () => {
+    const { system, player, startled, run } = setup();
+    system.critters.push(critter(type('frog'), 8 * T, 15 * T - 5));
+    player.body.x = 6 * T;
+    run(0.5);
+    expect(startled).toEqual([type('frog')]);
+  });
+
   it('a bat roosting in a glowing cave stays put until the light rises', () => {
     const { system, world, startled, run } = setup();
     const i = world.index(25, 5);
@@ -196,6 +205,13 @@ describe('flora', () => {
     world.lightG[world.index(10, 14)] = 0;
     run(TICK);
     expect(world.get(10, 14)).toBe(BLOOM);
+  });
+
+  it("an open bloom's own glow is below the close threshold (so it can close)", () => {
+    const def = lightByKey('lumen_bloom');
+    const own = (Math.max(...def.color) * Math.min(255, def.radius * LIGHT.airFalloff)) / 255;
+    expect(own).toBeLessThan(FLORA_FX.bloomCloseLight);
+    expect(FLORA_FX.bloomCloseLight).toBeLessThan(FLORA_FX.bloomOpenLight);
   });
 
   it('glowmoss spreads over dark floor but not into light', () => {

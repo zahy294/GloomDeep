@@ -592,7 +592,8 @@ export const FLORA_FX = {
   tickHz: 2,
   /** Lumen blooms open at this light and close again at or below this. */
   bloomOpenLight: 90,
-  bloomCloseLight: 40,
+  // Above an open bloom's own glow (~56 at its cell), or it would keep itself open forever.
+  bloomCloseLight: 64,
   /** Glowmoss: cells picked per cell of the region per second, chance one spreads, and how dark. */
   mossPicksPerCell: 0.02,
   mossSpreadChance: 0.25,
@@ -670,6 +671,11 @@ export const CRITTER = {
   startleRise: 40,
   /** Fluttering groups scatter over this many tiles. */
   groupSpread: 3,
+  /** Moths sample every this-many tiles when looking for light. */
+  lightSearchStep: 2,
+  /** Fish look this many pixels past their nose for the water's edge, and this many steps ahead below. */
+  swimLookAhead: 2,
+  swimLookSteps: 4,
 } as const;
 
 /** Your village (plan 1.7, M10): homes and folk. Tiles and seconds. */
@@ -693,6 +699,8 @@ export const SETTLEMENT = {
   talkSlop: 6,
   /** Fast travel works only within this many tiles of a beacon. */
   travelReach: 6,
+  /** A strolling villager has arrived within this many pixels of where they meant to go. */
+  arrivePx: 2,
 } as const;
 
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */

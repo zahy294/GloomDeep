@@ -155,6 +155,12 @@ describe('village', () => {
     const loaded = Simulation.fromSave(decodeSave(encodeSave(sim.toSaveState(meta, SAVE_VERSION))));
     expect(loaded.settlement.npcs.map((n) => n.key).sort()).toEqual(['dryad', 'tinker']);
     expect(loaded.gloam.initial).toBe(sim.gloam.initial);
+    // They get their stroll range back once the homes are re-checked.
+    const before = sim.settlement.npcs.find((n) => n.key === 'tinker');
+    step(loaded, SETTLEMENT.checkSeconds * 2);
+    const after = loaded.settlement.npcs.find((n) => n.key === 'tinker');
+    expect(after?.roamX1).toBeGreaterThan(after?.roamX0 ?? Infinity);
+    expect([after?.roamX0, after?.roamX1]).toEqual([before?.roamX0, before?.roamX1]);
   });
 });
 
