@@ -57,7 +57,16 @@ export class FallingSystem {
     this.unsubscribe();
   }
 
-  update(dt: number, spawnDrop: SpawnDrop, hurt: (body: Body, damage: number) => void): void {
+  /**
+   * `hurt`: a fast block hits whatever it overlaps. `occupied(x, y)`: a body (player, creature)
+   * fills that cell, so a block landing there becomes a drop instead of entombing it.
+   */
+  update(
+    dt: number,
+    spawnDrop: SpawnDrop,
+    hurt: (body: Body, damage: number) => void,
+    occupied: (x: number, y: number) => boolean,
+  ): void {
     const { world } = this;
     // Loosen unsupported blocks; clearing one queues the cell above it (a column falls in turn).
     while (this.queue.size > 0) {
@@ -91,7 +100,7 @@ export class FallingSystem {
       if (speed >= FALLING.damageSpeed) hurt(b, FALLING.damage);
       moveAndCollide(world, b, dt, collision);
       if (!collision.onGround) continue;
-      this.land(block, spawnDrop);
+      this.land(block, spawnDrop, occupied);
       this.blocks.splice(k, 1);
     }
   }
@@ -118,13 +127,18 @@ export class FallingSystem {
     return out;
   }
 
-  private land(block: FallingBlock, spawnDrop: SpawnDrop): void {
+  private land(
+    block: FallingBlock,
+    spawnDrop: SpawnDrop,
+    occupied: (x: number, y: number) => boolean,
+  ): void {
     const { world } = this;
     const b = block.body;
     const x = Math.floor((b.x + b.width / 2) / TILE_SIZE);
     const y = Math.floor((b.y + b.height - 1) / TILE_SIZE);
     const here = world.get(x, y);
-    if (world.inBounds(x, y) && (here === AIR || isDecor(here) || INTANGIBLE[here] === 1)) {
+    const open = here === AIR || isDecor(here) || INTANGIBLE[here] === 1;
+    if (world.inBounds(x, y) && open && !occupied(x, y)) {
       world.set(x, y, block.tile);
       landedPayload.x = x;
       landedPayload.y = y;

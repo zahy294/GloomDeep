@@ -66,15 +66,19 @@ export class LiquidSystem {
     this.flush();
   }
 
-  /** Adds liquid to a cell (buckets). Returns false if the cell is solid or holds the other liquid. */
+  /**
+   * Adds liquid to a cell (buckets). Only where it all fits: the cell must be open and hold no
+   * other liquid and enough room (nothing is created or lost).
+   */
   pour(x: number, y: number, type: number, amount: number): boolean {
     const { world } = this;
     if (!world.inBounds(x, y) || world.isSolid(x, y)) return false;
     const i = world.index(x, y);
     const here = world.liquidType[i] ?? KIND.none;
-    if (here !== KIND.none && here !== type && (world.liquid[i] ?? 0) > 0) return false;
+    const has = world.liquid[i] ?? 0;
+    if ((here !== KIND.none && here !== type && has > 0) || has + amount > LIQUID.max) return false;
     world.liquidType[i] = type;
-    world.liquid[i] = Math.min(LIQUID.max, (world.liquid[i] ?? 0) + amount);
+    world.liquid[i] = has + amount;
     this.mark(x, y);
     this.flush();
     return true;
@@ -122,16 +126,20 @@ export class LiquidSystem {
           if (SOLID[fg[j] ?? 0] !== 1) {
             const below = liquidType[j] ?? KIND.none;
             if (below !== KIND.none && below !== type && (liquid[j] ?? 0) > 0) {
-              this.react(x, y, x, y + 1);
-              continue;
-            }
-            const move = Math.min(a, LIQUID.max - (liquid[j] ?? 0));
-            if (move > 0) {
-              liquid[j] = (liquid[j] ?? 0) + move;
-              liquidType[j] = type;
-              a -= move;
-              this.mark(x, y + 1);
-              this.mark(x, y);
+              // Real bodies of water and lava meet: obsidian. Thin films just don't mix.
+              if (a > LIQUID.minSpread && (liquid[j] ?? 0) > LIQUID.minSpread) {
+                this.react(x, y, x, y + 1);
+                continue;
+              }
+            } else {
+              const move = Math.min(a, LIQUID.max - (liquid[j] ?? 0));
+              if (move > 0) {
+                liquid[j] = (liquid[j] ?? 0) + move;
+                liquidType[j] = type;
+                a -= move;
+                this.mark(x, y + 1);
+                this.mark(x, y);
+              }
             }
           }
         }
@@ -146,6 +154,7 @@ export class LiquidSystem {
             const side = liquidType[j] ?? KIND.none;
             const b = liquid[j] ?? 0;
             if (side !== KIND.none && side !== type && b > 0) {
+              if (a <= LIQUID.minSpread || b <= LIQUID.minSpread) continue; // films don't mix
               this.react(x, y, nx, y);
               a = liquid[i] ?? 0;
               break;

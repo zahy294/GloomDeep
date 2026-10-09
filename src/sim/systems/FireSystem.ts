@@ -28,6 +28,8 @@ function keyOf(world: World, layer: TileLayer, x: number, y: number): number {
 }
 
 const startedPayload = { x: 0, y: 0 };
+/** A cell's block burns first; the wall behind only if the block doesn't. */
+const LAYERS: readonly TileLayer[] = ['fg', 'bg'];
 const burnedPayload = { x: 0, y: 0, layer: 'fg' as TileLayer };
 
 /**
@@ -54,18 +56,24 @@ export class FireSystem {
     if (!world.inBounds(x, y) || this.burning.size >= FIRE.maxBurning) return false;
     const i = world.index(x, y);
     if ((world.liquid[i] ?? 0) > 0 && world.liquidType[i] === KIND.water) return false; // wet
-    for (const layer of ['fg', 'bg'] as const) {
-      const id = world.getLayer(layer, x, y);
-      const seconds = BURN_SECONDS[id] ?? 0;
-      const key = keyOf(world, layer, x, y);
-      if (seconds <= 0 || this.burning.has(key)) continue;
-      this.burning.set(key, seconds);
-      startedPayload.x = x;
-      startedPayload.y = y;
-      this.events.emit('fireStarted', startedPayload);
-      return true;
+    for (const layer of LAYERS) {
+      if (this.start(layer, x, y)) return true;
     }
     return false;
+  }
+
+  /** Starts a fire on one layer of a cell if it burns there and isn't burning yet (and under the cap). */
+  private start(layer: TileLayer, x: number, y: number): boolean {
+    const { world } = this;
+    if (this.burning.size >= FIRE.maxBurning) return false;
+    const seconds = BURN_SECONDS[world.getLayer(layer, x, y)] ?? 0;
+    const key = keyOf(world, layer, x, y);
+    if (seconds <= 0 || this.burning.has(key)) return false;
+    this.burning.set(key, seconds);
+    startedPayload.x = x;
+    startedPayload.y = y;
+    this.events.emit('fireStarted', startedPayload);
+    return true;
   }
 
   /** Water in the cell or in one of its 4 neighbours (water flowing over a fire puts it out). */
@@ -113,7 +121,9 @@ export class FireSystem {
       const id = world.getLayer(layer, x, y);
       // Mined, replaced, or water on it or right next to it: out.
       const wet = this.wetAround(x, y);
-      const exposed = y < (world.skyline[x] ?? 0);
+      // Open to the sky: above the first sun-blocking row, or that row itself for a block (grass).
+      const sky = world.skyline[x] ?? 0;
+      const exposed = layer === 'fg' ? y <= sky : y < sky;
       const rained =
         raining > 0 && exposed && this.random() < FIRE.rainOutPerSecond * raining * step;
       if ((BURN_SECONDS[id] ?? 0) <= 0 || wet || rained) {
@@ -125,12 +135,7 @@ export class FireSystem {
         if (this.random() < FIRE.spreadPerSecond * step) this.ignite(x + dx, y + dy);
       }
       if (layer === 'fg' && this.random() < FIRE.spreadPerSecond * step) {
-        // Into the wall behind.
-        const wallKey = -(i + 1);
-        const wall = world.bg[i] ?? AIR;
-        if ((BURN_SECONDS[wall] ?? 0) > 0 && !this.burning.has(wallKey)) {
-          this.burning.set(wallKey, BURN_SECONDS[wall] ?? 0);
-        }
+        this.start('bg', x, y); // into the wall behind
       }
       const next = left - step;
       if (next > 0) {

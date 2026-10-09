@@ -4,6 +4,87 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M9 — Materials ✅ (2026-10-09)
+
+### Built
+
+- **Fix first (playtest bug):** dropped items no longer orbit the player. The pull steered only by adding acceleration, so a drop moving sideways circled at top speed. A pulled drop now flies straight at the player and is collected when the next step reaches them. There is a regression test.
+- **Liquids** (`src/sim/systems/LiquidSystem.ts`):
+  - Water and lava flow cell by cell (0–255 per cell) in a 96×64-tile region around the view, 20 ticks a second; lava moves every 4th tick.
+  - Rows are processed bottom-up so liquid falls first, then evens out sideways, alternating direction so it doesn't drift.
+  - Where real amounts of water and lava meet, the lava cools to **obsidian** with steam.
+  - A block placed into liquid displaces it. Lava sets flammable neighbours alight.
+- **Light through liquids:** water cells dim light per channel (red first, so deep water turns blue); lava cells glow. Liquid cells reach the light job as two extra ids.
+- **Swimming:** in water you sink slowly, move at about half speed and swim up by holding jump. Lava hurts on every touch.
+- **Buckets** (crafted from iron at the anvil): right-click scoops a full cell of water or lava, and pours it back into an open cell. Nothing is created or lost.
+- **Falling silt and gravel** (`src/sim/systems/FallingSystem.ts`):
+  - When the block under them is mined, they fall as blocks and land as tiles again, so a whole column follows (a cave-in).
+  - A fast block hurts what it hits, and never lands inside the player or a creature (it becomes a drop instead).
+  - Blocks still falling when the game saves are kept as item drops.
+- **Fire** (`src/sim/systems/FireSystem.ts`):
+  - Wood, leaves, grass, plants, peat and workbenches burn, as blocks and as walls. Each burns for its own time, spreads to neighbours and leaves what it burns down to (grass leaves soil, peat leaves ash, wood leaves nothing).
+  - Water on or next to a fire puts it out; rain puts out fires open to the sky.
+  - Started by lava and by flares at rest. Touching fire hurts.
+  - At most 400 cells burn at once; the 48 nearest light the area.
+- **Render:**
+  - Liquid cells draw their fill level, and surfaces ripple (two phases that move along the surface).
+  - Animated flames with a glow, embers rising from them.
+  - Splashes when entering liquid, steam where lava meets water, dust where a block lands, and the falling blocks themselves.
+  - Bucket icons; sounds for splash, hiss, ignition and thud.
+- **Debug kit** `?kit=materials`.
+- **Shots:**
+  - `flood-pit`: dig a pit beside the spawn and flood it.
+  - `lava-obsidian`: lava in a pit, water on top.
+  - `forest-fire`: a flare thrown into the glade.
+  - `gravel-cave-in`: mine the support under a gravel column.
+- **Tests** (474 in total): flow and conservation, flooding through a breached dam, obsidian, displacement, swimming, lava damage, buckets, cave-ins and crushing, fire spread, burn-out, water and rain putting it out, flares igniting, and water dimming red light faster than blue.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Flood a cave | ✅ Tested: breaching a dam floods the cave behind it. `flood-pit`: 4 buckets flood a dug pit (5 cells of water, with ripples). |
+| Turn lava into obsidian | ✅ Tested; `lava-obsidian` leaves an obsidian block where the water lands (and the lava sets the grass beside the pit alight). |
+| Set a patch of forest on fire | ✅ `forest-fire`: a thrown flare sets the glade burning, up to 14 cells at once in the shot. Tested: grass and a wooden column burn down. |
+| Trigger a gravel cave-in | ✅ `gravel-cave-in`: mining the block under a 4-high gravel column drops it one tile. Tested: whole columns fall and land as tiles. |
+| Frame rate stays above 55 FPS | ✅ On the real GPU (headed Chromium, d3d11): 165 FPS (the display cap) with 312 cells burning; simulation CPU 0.2–0.25 ms per frame. A liquid tick costs 0.21 ms with a 96×64 lake in full flow. |
+
+### Decisions and deviations
+
+- **Liquids flow only near the view,** like the Gloam. Far-away liquid waits until you return.
+- **Buckets hold exactly one full cell,** so they can't create or destroy liquid.
+- **Water and lava react only above a thin-film amount (8),** so a trickle can't turn a whole lake into obsidian.
+- **Fires aren't saved;** they go out when a world is reloaded.
+- **Ignition:** lava and resting flares start fires. Lightning doesn't; it always comes with rain, which would put the fire out at once.
+- **Splashes** only come from the player entering liquid. Creatures and dropped items don't splash yet.
+
+### Reviewer pass
+
+No blockers. Fixed:
+- A falling block could land inside the player and entomb them.
+- Rain never reached burning grass, because the grass row counted as "under" the sky.
+- Fire spreading into walls skipped the burning cap and its event.
+- The fire light list was rebuilt and sorted every step, counted cells twice and followed the player instead of the view.
+- Buckets created liquid: you could scoop 96 and pour 255.
+- One-unit films made obsidian.
+- An array was allocated on every ignition.
+
+Not changed (minor):
+- Loose blocks that start unsupported only fall once something next to them changes.
+- A water cell hides the light of glowing plants under it.
+- Emitter angles and flame-drawing constants are local to the placeholder art.
+
+### Known issues
+
+- Liquid, flame and steam art is placeholder.
+- Liquid in a cell where a block lands disappears.
+
+### Next step
+
+**M10 — A living world:** reactive flora (Lumen blooms, shy vines, spreading glowmoss, bouncy glowcaps, fairy rings), critters, wisps that lead to secrets, the Old Dryad, and the first village (lit homes, arriving NPCs, beacons).
+
+---
+
 ## M8 — Combat and enemies ✅ (2026-10-09)
 
 ### Built

@@ -1,6 +1,7 @@
 import {
   COMBAT,
   FIRE,
+  LIGHT,
   HEALTH,
   ITEM_DROP,
   LIQUID,
@@ -533,7 +534,12 @@ export class Simulation {
     const wasIn = player.inLiquid;
     this.liquids.update(dt, r);
     this.fire.update(dt, this.weather.sample.rain);
-    this.falling.update(dt, this.spawnDrop, (body, damage) => this.crush(body, damage));
+    this.falling.update(
+      dt,
+      this.spawnDrop,
+      (body, damage) => this.crush(body, damage),
+      (x, y) => this.bodyAt(x, y),
+    );
 
     // Flares at rest set alight what they lie on or in.
     for (const flare of this.flares) {
@@ -573,23 +579,57 @@ export class Simulation {
       }
     }
 
-    // The burning cells nearest the player light the area.
+    this.updateFireLights(dt, fx, fy);
+  }
+
+  /**
+   * The burning cells nearest the view centre, as light points (each cell once, even if block and
+   * wall both burn). Rebuilt only as often as the light grid updates.
+   */
+  private updateFireLights(dt: number, fx: number, fy: number): void {
+    this.fireLightTimer += dt;
+    if (this.fireLightTimer < 1 / LIGHT.updateHz) return;
+    this.fireLightTimer = 0;
     const lights = this.fireLights;
     lights.length = 0;
-    if (this.fire.burning.size > 0) {
-      const px = b.x / TILE_SIZE;
-      const py = b.y / TILE_SIZE;
-      for (const key of this.fire.burning.keys()) lights.push(key >= 0 ? key : -key - 1);
-      const W = world.width;
-      lights.sort((a, c) => {
-        const ax = (a % W) - px;
-        const ay = Math.floor(a / W) - py;
-        const cx = (c % W) - px;
-        const cy = Math.floor(c / W) - py;
-        return ax * ax + ay * ay - (cx * cx + cy * cy);
-      });
-      if (lights.length > FIRE.maxLights) lights.length = FIRE.maxLights;
+    if (this.fire.burning.size === 0) return;
+    const seen = this.fireLightCells;
+    seen.clear();
+    for (const key of this.fire.burning.keys()) {
+      const index = key >= 0 ? key : -key - 1;
+      if (seen.has(index)) continue;
+      seen.add(index);
+      lights.push(index);
     }
+    this.fireFocusX = fx;
+    this.fireFocusY = fy;
+    lights.sort(this.byFireDistance);
+    if (lights.length > FIRE.maxLights) lights.length = FIRE.maxLights;
+  }
+
+  private fireLightTimer = 0;
+  private readonly fireLightCells = new Set<number>();
+  private fireFocusX = 0;
+  private fireFocusY = 0;
+  private readonly byFireDistance = (a: number, c: number): number => {
+    const W = this.world.width;
+    const ax = (a % W) - this.fireFocusX;
+    const ay = Math.floor(a / W) - this.fireFocusY;
+    const cx = (c % W) - this.fireFocusX;
+    const cy = Math.floor(c / W) - this.fireFocusY;
+    return ax * ax + ay * ay - (cx * cx + cy * cy);
+  };
+
+  /** Does the player's or a creature's body overlap tile (x, y)? */
+  private bodyAt(x: number, y: number): boolean {
+    const hit = (o: Body) =>
+      o.x < (x + 1) * TILE_SIZE &&
+      x * TILE_SIZE < o.x + o.width &&
+      o.y < (y + 1) * TILE_SIZE &&
+      y * TILE_SIZE < o.y + o.height;
+    if (!this.player.dead && hit(this.player.body)) return true;
+    for (const e of this.enemies) if (hit(e.body)) return true;
+    return false;
   }
 
   /** Does a body overlap a burning cell? */

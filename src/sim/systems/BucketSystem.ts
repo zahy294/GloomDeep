@@ -54,7 +54,8 @@ export function updateBuckets(
     const world = liquids.world;
     if (!world.inBounds(tx, ty)) return;
     const i = world.index(tx, ty);
-    if ((world.liquid[i] ?? 0) < LIQUID.wetAmount) return;
+    // A bucket holds exactly one full cell: scoop only full cells (pouring gives back the same).
+    if ((world.liquid[i] ?? 0) < LIQUID.max) return;
     const { type } = liquids.take(tx, ty);
     gives = FULL[type] ?? -1;
     if (gives < 0) return;

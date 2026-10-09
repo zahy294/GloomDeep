@@ -166,6 +166,42 @@ describe('buckets', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('a bucket only scoops a full cell, and pours only where it all fits', () => {
+    const sim = box();
+    const w = sim.world;
+    w.liquid[w.index(11, 29)] = LIQUID.max - 1;
+    w.liquidType[w.index(11, 29)] = KIND.water;
+    expect(sim.liquids.pour(11, 29, KIND.water, LIQUID.max)).toBe(false);
+    sim.giveItems([{ item: 'bucket', count: 1 }]);
+    const slot = sim.inventory.slots.findIndex((s) => s?.itemId === itemId('bucket'));
+    sim.enqueue({ type: 'selectSlot', slot });
+    sim.input.setAim(11.5 * T, 29.5 * T);
+    sim.input.setHeld('useAlt', true);
+    step(sim, 1 / 60);
+    expect(sim.inventory.count(itemId('water_bucket'))).toBe(0);
+  });
+
+  it('rain puts out burning grass open to the sky', () => {
+    const sim = new Simulation({
+      size: { width: 40, height: 20, chunkSize: 20 },
+      generate: (w) => {
+        for (let x = 0; x < 40; x++) w.set(x, 10, tileId('elderglade_grass'));
+        for (let y = 11; y < 20; y++) for (let x = 0; x < 40; x++) w.set(x, y, STONE);
+        return { spawnX: 2 * T, spawnY: 10 * T };
+      },
+    });
+    let burned = 0;
+    sim.events.on('tileBurned', () => burned++);
+    sim.fire.ignite(20, 10);
+    // Heavy rain the whole time.
+    for (let i = 0; i < 6 * 60; i++) {
+      sim.fire.update(1 / 60, 1);
+    }
+    expect(sim.fire.burning.size + burned).toBeLessThan(40); // it didn't sweep the whole row
+  });
+});
+
 describe('falling silt and gravel', () => {
   it('mining the support brings a gravel column down, which lands as tiles again', () => {
     const sim = box();
@@ -193,6 +229,8 @@ describe('falling silt and gravel', () => {
     w.set(8, 9, AIR); // a change next to it wakes the check
     step(sim, 2);
     expect(sim.player.health).toBe(100 - FALLING.damage);
+    // It didn't entomb the player: no gravel tile where the body is.
+    for (let y = 27; y < 30; y++) expect(w.get(8, y)).not.toBe(tileId('gravel'));
   });
 });
 
