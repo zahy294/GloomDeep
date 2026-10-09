@@ -55,6 +55,10 @@ export interface ItemDef {
   /** Thrown with the right mouse button instead of placed (flares: FLARE in config). */
   readonly throws?: 'flare';
   readonly weapon?: WeaponDef;
+  /**
+   * A bucket (M9): `empty` scoops up a full cell of liquid, the others pour one out (right mouse).
+   */
+  readonly bucket?: 'empty' | 'water' | 'lava';
   /** Damage this item adds when shot as ammo. */
   readonly ammoDamage?: number;
 }
@@ -458,6 +462,40 @@ export const ITEMS: readonly ItemDef[] = [
       pierce: 3,
     },
   },
+  // M9: buckets. Right-click scoops liquid into an empty bucket or pours a full one out.
+  {
+    id: 44,
+    key: 'bucket',
+    name: 'Bucket',
+    maxStack: STATION_STACK,
+    placesTile: null,
+    category: 'tool',
+    description: 'Right-click a pool to scoop up water or lava.',
+    icon: 18,
+    bucket: 'empty',
+  },
+  {
+    id: 45,
+    key: 'water_bucket',
+    name: 'Water Bucket',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Right-click to pour.',
+    icon: 19,
+    bucket: 'water',
+  },
+  {
+    id: 46,
+    key: 'lava_bucket',
+    name: 'Lava Bucket',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Right-click to pour. Careful.',
+    icon: 20,
+    bucket: 'lava',
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {
@@ -505,6 +543,16 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'lumen_staff', count: 1 },
     { item: 'crimson_lens', count: 1 },
     { item: 'torch', count: 20 },
+    { item: 'flare', count: 10 },
+  ],
+  materials: [
+    { item: 'iron_pickaxe', count: 1 },
+    { item: 'water_bucket', count: 1 },
+    { item: 'lava_bucket', count: 1 },
+    { item: 'bucket', count: 4 },
+    { item: 'gravel', count: 40 },
+    { item: 'silt', count: 40 },
+    { item: 'elderwood_planks', count: 60 },
     { item: 'flare', count: 10 },
   ],
   crafting: [

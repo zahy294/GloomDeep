@@ -1,4 +1,4 @@
-import { PLAYER } from '../../config';
+import { LIQUID, PLAYER, SWIM, TILE_SIZE } from '../../config';
 import type { Player } from '../entities/Player';
 import type { ActionState } from '../input';
 import { createCollisionResult, moveAndCollide } from '../physics/tileCollision';
@@ -13,6 +13,14 @@ export function updatePlayer(player: Player, input: ActionState, world: World, d
   player.prevY = body.y;
 
   player.invuln = Math.max(0, player.invuln - dt);
+  // Swimming: what liquid is around the middle of the body.
+  const mx = Math.floor((body.x + body.width / 2) / TILE_SIZE);
+  const my = Math.floor((body.y + body.height / 2) / TILE_SIZE);
+  const mi = world.inBounds(mx, my) ? my * world.width + mx : -1;
+  player.inLiquid =
+    mi >= 0 && (world.liquid[mi] ?? 0) >= LIQUID.wetAmount ? (world.liquidType[mi] ?? 0) : 0;
+  const swimming = player.inLiquid !== 0;
+  const maxRun = swimming ? PLAYER.maxRunSpeed * SWIM.speedFactor : PLAYER.maxRunSpeed;
   player.knockbackTimer = Math.max(0, player.knockbackTimer - dt);
   // Knocked back (or dead): no steering, and only air friction so the knockback carries.
   const control = player.knockbackTimer === 0 && !player.dead;
@@ -28,14 +36,19 @@ export function updatePlayer(player: Player, input: ActionState, world: World, d
     // Turning around: acceleration plus friction, so reversing is snappy.
     const a = body.vx * dir < 0 ? accel + friction : accel;
     const v = body.vx + dir * a * dt;
-    body.vx = Math.abs(v) > PLAYER.maxRunSpeed ? dir * PLAYER.maxRunSpeed : v;
+    body.vx = Math.abs(v) > maxRun ? dir * maxRun : v;
   } else {
     const drop = friction * dt;
     body.vx = Math.abs(body.vx) <= drop ? 0 : body.vx - Math.sign(body.vx) * drop;
   }
 
-  // Gravity
-  body.vy = Math.min(body.vy + PLAYER.gravity * dt, PLAYER.maxFallSpeed);
+  // Gravity (gentle in liquid, where holding jump swims upwards)
+  if (swimming) {
+    body.vy = Math.min(body.vy + PLAYER.gravity * SWIM.gravityFactor * dt, SWIM.maxFallSpeed);
+    if (control && input.isHeld('jump')) body.vy = Math.min(body.vy, -SWIM.swimUpSpeed);
+  } else {
+    body.vy = Math.min(body.vy + PLAYER.gravity * dt, PLAYER.maxFallSpeed);
+  }
 
   // Coyote time and jump buffer
   player.coyoteTimer = player.onGround ? PLAYER.coyoteTime : Math.max(0, player.coyoteTimer - dt);

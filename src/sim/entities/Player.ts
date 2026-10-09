@@ -30,6 +30,8 @@ export interface Player {
   /** Out of health: no control until respawning (respawnTimer counts down). */
   dead: boolean;
   respawnTimer: number;
+  /** Liquid around the body's middle (src/data/biomes.ts LIQUID): 0 none, else water or lava. */
+  inLiquid: number;
 }
 
 /** Spawn is the FEET-CENTER in pixels. */
@@ -55,5 +57,6 @@ export function createPlayer(spawnX: number, spawnY: number): Player {
     knockbackTimer: 0,
     dead: false,
     respawnTimer: 0,
+    inLiquid: 0,
   };
 }

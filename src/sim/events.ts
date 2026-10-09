@@ -97,7 +97,7 @@ export interface SimEvents {
     readonly x: number;
     readonly y: number;
     readonly amount: number;
-    readonly source: 'melee' | 'arrow' | 'beam' | 'light';
+    readonly source: 'melee' | 'arrow' | 'beam' | 'light' | 'hazard';
   };
   /** A creature died (centre, pixels); drops are already spawned. */
   enemyDied: { readonly id: number; readonly type: number; readonly x: number; readonly y: number };
@@ -105,6 +105,22 @@ export interface SimEvents {
   playerHurt: { readonly amount: number; readonly x: number; readonly y: number };
   playerDied: Record<string, never>;
   playerRespawned: Record<string, never>;
+  /** Liquid amounts changed somewhere in this rectangle (tiles). */
+  liquidChanged: {
+    readonly x0: number;
+    readonly y0: number;
+    readonly width: number;
+    readonly height: number;
+  };
+  /** Water met lava: the cell cooled into obsidian (steam). */
+  liquidReaction: { readonly x: number; readonly y: number };
+  /** Something entered water or lava (x, y = surface point, pixels). */
+  splash: { readonly x: number; readonly y: number; readonly lava: boolean };
+  /** A cell caught fire / burned down to what it leaves (tiles). */
+  fireStarted: { readonly x: number; readonly y: number };
+  tileBurned: { readonly x: number; readonly y: number; readonly layer: TileLayer };
+  /** A falling block of silt or gravel landed and became a tile. */
+  blockLanded: { readonly x: number; readonly y: number; readonly id: number };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

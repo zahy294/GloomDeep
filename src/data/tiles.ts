@@ -46,6 +46,13 @@ export interface TileDef {
   readonly intangible?: true;
   /** Drawn exactly like this tile (veiled ores pass for plain stone, even with real art). */
   readonly looksLike?: string;
+  /** Loose material (silt, gravel): falls when nothing solid is under it (FallingSystem). */
+  readonly falls?: true;
+  /**
+   * Burns (FireSystem): seconds a fire on it lasts, and the tile it leaves (grass burns down to
+   * soil; null = nothing left). Applies to the tile as a block and as a background wall.
+   */
+  readonly flammable?: { readonly seconds: number; readonly becomes: string | null };
   /** Placeholder ore: the base ramp with clusters of this ramp's colours. */
   readonly placeholderOre?: RampName;
   /** One-way platform (branches): stand on its top, jump up through it, drop through with Down. */
@@ -108,6 +115,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'forest_soil',
     mergesWith: ['forest_soil'],
     placeholderRamp: 'leaf',
+    flammable: { seconds: 2, becomes: 'forest_soil' },
   },
   {
     id: 3,
@@ -149,6 +157,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'elderwood_planks',
     mergesWith: [],
     placeholderRamp: 'bark',
+    flammable: { seconds: 7, becomes: null },
   },
   {
     id: 7,
@@ -207,6 +216,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'forest_soil',
     mergesWith: ['forest_soil'],
     placeholderRamp: 'moonSilver',
+    flammable: { seconds: 2, becomes: 'forest_soil' },
   },
   {
     id: 12,
@@ -217,6 +227,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'mud',
     mergesWith: ['mud'],
     placeholderRamp: 'tealShadow',
+    flammable: { seconds: 2, becomes: 'mud' },
   },
   {
     id: 13,
@@ -227,6 +238,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'peat',
     mergesWith: ['mud'],
     placeholderRamp: 'bark',
+    flammable: { seconds: 14, becomes: 'ash' },
   },
   {
     id: 14,
@@ -237,6 +249,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'silt',
     mergesWith: ['forest_soil'],
     placeholderRamp: 'honey',
+    falls: true,
   },
   {
     id: 15,
@@ -247,6 +260,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'gravel',
     mergesWith: ['stone'],
     placeholderRamp: 'stone',
+    falls: true,
   },
   {
     id: 16,
@@ -279,6 +293,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'rootwood',
     mergesWith: [],
     placeholderRamp: 'bark',
+    flammable: { seconds: 9, becomes: null },
   },
   {
     id: 19,
@@ -383,6 +398,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: ['rootwood'],
     placeholderRamp: 'bark',
     choppable: true,
+    flammable: { seconds: 8, becomes: null },
   },
   {
     id: 28,
@@ -395,6 +411,7 @@ export const TILES: readonly TileDef[] = [
     placeholderRamp: 'leaf',
     sunTransmit: 0.72,
     lightFalloff: 28,
+    flammable: { seconds: 2.5, becomes: null },
   },
   {
     id: 29,
@@ -407,6 +424,7 @@ export const TILES: readonly TileDef[] = [
     placeholderRamp: 'mint',
     sunTransmit: 0.78,
     lightFalloff: 26,
+    flammable: { seconds: 2.5, becomes: null },
   },
   {
     id: 30,
@@ -419,6 +437,7 @@ export const TILES: readonly TileDef[] = [
     placeholderRamp: 'moss',
     sunTransmit: 0.68,
     lightFalloff: 32,
+    flammable: { seconds: 2.5, becomes: null },
   },
   {
     id: 31,
@@ -432,6 +451,7 @@ export const TILES: readonly TileDef[] = [
     platform: true,
     autotile: false,
     placeholderShape: 'platform',
+    flammable: { seconds: 5, becomes: null },
   },
   {
     id: 32,
@@ -457,6 +477,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'leaf',
     decor: { support: 'ground', sprite: 'flora', frame: 0, sway: 0.25 },
+    flammable: { seconds: 1, becomes: null },
   },
   {
     id: 34,
@@ -468,6 +489,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'emerald',
     decor: { support: 'ground', sprite: 'flora', frame: 1, sway: 0.18 },
+    flammable: { seconds: 1.2, becomes: null },
   },
   {
     id: 35,
@@ -479,6 +501,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'gold',
     decor: { support: 'ground', sprite: 'flora', frame: 2, sway: 0.22 },
+    flammable: { seconds: 1, becomes: null },
   },
   {
     id: 36,
@@ -491,6 +514,7 @@ export const TILES: readonly TileDef[] = [
     placeholderRamp: 'moonSilver',
     light: 'moonpetal',
     decor: { support: 'ground', sprite: 'flora', frame: 3, sway: 0.18 },
+    flammable: { seconds: 1, becomes: null },
   },
   {
     id: 37,
@@ -502,6 +526,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'moonSilver',
     decor: { support: 'ground', sprite: 'flora', frame: 4, sway: 0.3 },
+    flammable: { seconds: 1, becomes: null },
   },
   {
     id: 38,
@@ -513,6 +538,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'moss',
     decor: { support: 'ground', sprite: 'flora', frame: 5, sway: 0.28 },
+    flammable: { seconds: 1.5, becomes: null },
   },
   {
     id: 39,
@@ -547,6 +573,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'moss',
     decor: { support: 'ceiling', sprite: 'flora', frame: 8, sway: 0.15 },
+    flammable: { seconds: 1.5, becomes: null },
   },
   {
     id: 42,
@@ -558,6 +585,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'leaf',
     decor: { support: 'ceiling', sprite: 'flora', frame: 9, sway: 0.2 },
+    flammable: { seconds: 1.5, becomes: null },
   },
   {
     id: 43,
@@ -605,6 +633,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'leaf',
     decor: { support: 'ground', sprite: 'saplings', frame: 0, sway: 0.04 },
+    flammable: { seconds: 3, becomes: null },
   },
   {
     id: 47,
@@ -616,6 +645,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'mint',
     decor: { support: 'ground', sprite: 'saplings', frame: 1, sway: 0.05 },
+    flammable: { seconds: 3, becomes: null },
   },
   {
     id: 48,
@@ -627,6 +657,7 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'moss',
     decor: { support: 'ground', sprite: 'saplings', frame: 2, sway: 0.06 },
+    flammable: { seconds: 3, becomes: null },
   },
   {
     id: 49,
@@ -654,6 +685,7 @@ export const TILES: readonly TileDef[] = [
     station: 'workbench',
     needsGround: true,
     platform: true,
+    flammable: { seconds: 6, becomes: null },
   },
   {
     id: 51,

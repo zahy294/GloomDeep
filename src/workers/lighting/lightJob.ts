@@ -3,6 +3,13 @@
  * Plain data + typed arrays only, so jobs can be posted to a worker with transferables.
  */
 
+/**
+ * Ids the LightSystem writes into a job's `fg` for liquid cells (beyond the tile registry): water
+ * dims light per channel (blue lasts longest), lava glows.
+ */
+export const WATER_LIGHT_ID = 65000;
+export const LAVA_LIGHT_ID = 65001;
+
 /** The lantern's cone (plan 2.3: "a cone of light in the direction of the mouse"). */
 export interface LightCone {
   /** Origin in tile units (fractional), absolute world coordinates. */

@@ -1,4 +1,6 @@
-import { LIGHT, TILE_SIZE } from '../../config';
+import { LIGHT, LIQUID, TILE_SIZE } from '../../config';
+import { LIQUID as LIQUID_KIND } from '../../data/biomes';
+import { LAVA_LIGHT_ID, WATER_LIGHT_ID } from '../../workers/lighting/lightJob';
 import { lensByKey } from '../../data/lenses';
 import { lightByKey, type LightDef } from '../../data/lights';
 import { TILES } from '../../data/tiles';
@@ -9,6 +11,7 @@ import type { EventBus, SimEvents } from '../events';
 import type { ActionState } from '../input';
 import type { World } from '../world/World';
 import { lanternLit } from './LanternSystem';
+import { flickerFactor } from '../../workers/lighting/computeLight';
 import { flareStrength, type Flare } from '../entities/Flare';
 
 import { LANTERN_HAND } from './lanternCone';
@@ -22,6 +25,8 @@ const TOUCH_LIGHT: readonly (LightDef | null)[] = TILES.map((t) =>
   t.decor && t.light ? lightByKey(t.light) : null,
 );
 const POINT_FLOATS = 6;
+const SOLID_TILE = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
+const FIRE_LIGHT = lightByKey('fire');
 
 /** Sunlight colour and strength, 0–255 per channel. */
 export type SunLight = Pick<DaySample, 'sunR' | 'sunG' | 'sunB'>;
@@ -80,6 +85,7 @@ export class LightSystem {
     player: Player,
     input: ActionState,
     flares: readonly Flare[] = [],
+    fires: readonly number[] = [],
   ): void {
     this.updateTouched(dt, player);
     this.timer += dt;
@@ -91,7 +97,7 @@ export class LightSystem {
     }
     if (this.timer < 1 / LIGHT.updateHz) return;
     this.timer = 0;
-    this.submit(time, day, player, input, flares);
+    this.submit(time, day, player, input, flares, fires);
   }
 
   private submit(
@@ -100,6 +106,7 @@ export class LightSystem {
     player: Player,
     input: ActionState,
     flares: readonly Flare[],
+    fires: readonly number[],
   ): void {
     const { world } = this;
     const body = player.body;
@@ -132,6 +139,15 @@ export class LightSystem {
     for (let y = 0; y < region.height; y++) {
       const from = (region.y0 + y) * world.width + region.x0;
       fg.set(world.fg.subarray(from, from + region.width), y * region.width);
+      // Liquid in an open cell lights as water (dims) or lava (glows).
+      for (let x = 0; x < region.width; x++) {
+        const w = from + x;
+        if ((world.liquid[w] ?? 0) < LIQUID.wetAmount || SOLID_TILE[world.fg[w] ?? 0] === 1)
+          continue;
+        const type = world.liquidType[w];
+        if (type === LIQUID_KIND.water) fg[y * region.width + x] = WATER_LIGHT_ID;
+        else if (type === LIQUID_KIND.lava) fg[y * region.width + x] = LAVA_LIGHT_ID;
+      }
     }
     const skyline = world.skyline.slice(region.x0, region.x0 + region.width);
     const canopyTop = world.canopyTop.slice(region.x0, region.x0 + region.width);
@@ -140,7 +156,9 @@ export class LightSystem {
     const lit = lanternLit(player);
     const handX = feetX + LANTERN_HAND.x * player.facing;
     const handY = feetY + LANTERN_HAND.y;
-    const points = new Float32Array((2 + this.touched.size + flares.length) * POINT_FLOATS);
+    const points = new Float32Array(
+      (2 + this.touched.size + flares.length + fires.length) * POINT_FLOATS,
+    );
     let p = 0;
     const addPoint = (x: number, y: number, color: readonly number[], radius: number) => {
       points[p] = x;
@@ -178,6 +196,13 @@ export class LightSystem {
         c,
         FLARE_LIGHT.radius * k,
       );
+    }
+    // Burning cells (tile indices), flickering like the fire they are.
+    for (const index of fires) {
+      const x = index % world.width;
+      const y = (index - x) / world.width;
+      const k = flickerFactor(FIRE_LIGHT.flicker, time, x, y);
+      addPoint(x + 0.5, y + 0.5, FIRE_LIGHT.color, FIRE_LIGHT.radius * k);
     }
     const lens = lensByKey(player.lens);
     const dx = input.aimX - handX;

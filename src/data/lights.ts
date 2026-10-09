@@ -22,6 +22,9 @@ export interface LightDef {
 export const LIGHTS: readonly LightDef[] = [
   { key: 'torch', color: [255, 178, 96], radius: 12, flicker: 0.12 },
   { key: 'furnace', color: [255, 140, 64], radius: 8, flicker: 0.1 },
+  /** Lava (a liquid, lit through the light job's liquid cells) and burning tiles. */
+  { key: 'lava', color: [255, 110, 40], radius: 7, flicker: 0.06 },
+  { key: 'fire', color: [255, 150, 60], radius: 8, flicker: 0.3 },
   /** Thrown flares: bright and red-gold, flickering (FLARE in config). */
   { key: 'flare', color: [255, 150, 110], radius: 14, flicker: 0.15 },
   /** Revealed spirit platforms: a faint cyan shimmer. */

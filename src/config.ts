@@ -265,6 +265,8 @@ export const BUILDING = {
   reachTiles: 6,
   /** Seconds between placements while the button is held. */
   placeInterval: 0.1,
+  /** Seconds between bucket scoops or pours while held. */
+  bucketInterval: 0.25,
 } as const;
 
 export const INVENTORY = {
@@ -372,6 +374,8 @@ export const LIGHT = {
   airFalloff: 16,
   /** Loss per tile through solid blocks: light only creeps a few tiles into walls. */
   solidFalloff: 56,
+  /** Loss per tile through water, per channel: red goes first, so deep water looks blue. */
+  waterFalloff: { r: 44, g: 30, b: 20 },
   /**
    * The region recomputed around the camera, in tiles: the view (60×34) plus a border so the
    * camera's look-ahead never reaches the edge, plus a margin that only feeds light inwards
@@ -451,6 +455,65 @@ export const LENS_FX = {
   verdantGrowChance: 0.08,
 } as const;
 
+/**
+ * Liquids (plan 2.7, M9): a 0–255 amount per cell (world.liquid) that falls and spreads, only in
+ * a region around the camera (plan 3.4: "only near the player").
+ */
+export const LIQUID = {
+  /** Water ticks per second; lava moves on every `lavaEvery`-th tick (it is thick). */
+  tickHz: 20,
+  lavaEvery: 4,
+  /** The active region, tiles, centred on the view. */
+  activeWidth: 96,
+  activeHeight: 64,
+  max: 255,
+  /** Liquid only spreads sideways from cells holding more than this (no endless thin films). */
+  minSpread: 8,
+  /** Sideways flow per tick: this share of the difference with the neighbour. */
+  spreadShare: 1 / 3,
+  /** A cell needs at least this much to count as liquid for swimming, light and splashes. */
+  wetAmount: 96,
+  /** Chance per lava tick that lava touching something flammable sets it alight. */
+  lavaIgniteChance: 0.08,
+} as const;
+
+/** Swimming and lava (PlayerSystem, M9). Pixels and seconds. */
+export const SWIM = {
+  gravityFactor: 0.3,
+  maxFallSpeed: 90,
+  speedFactor: 0.55,
+  /** Each jump press (or holding jump) swims upward at this speed. */
+  swimUpSpeed: 200,
+  /** Lava: damage per touch (with the usual invulnerability window between touches). */
+  lavaDamage: 22,
+} as const;
+
+/** Falling silt and gravel (FallingSystem, M9). Pixels and seconds. */
+export const FALLING = {
+  gravity: 900,
+  maxFallSpeed: 600,
+  /** Damage to whatever a falling block lands on, if it falls at least `damageSpeed`. */
+  damage: 18,
+  damageSpeed: 200,
+} as const;
+
+/** Fire (FireSystem, M9). Seconds and tiles. */
+export const FIRE = {
+  tickHz: 6,
+  /** Chance per second that fire jumps to each flammable neighbour (8 around, same cell's wall). */
+  spreadPerSecond: 1.2,
+  /** Fires stop spreading past this many burning cells (keeps a forest fire affordable). */
+  maxBurning: 400,
+  /** Burning cells sent to the light job as point lights (nearest first). */
+  maxLights: 48,
+  /** Water in a cell puts its fire out; rain puts out sky-exposed fires at this chance per second. */
+  rainOutPerSecond: 0.5,
+  /** Touching a burning cell hurts (with the usual invulnerability window). */
+  damage: 8,
+  /** A resting flare sets what it lies on (or next to) alight at this chance per second. */
+  flareIgnitePerSecond: 0.8,
+} as const;
+
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
 export const LIGHT_FX = {
   /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */
@@ -500,6 +563,8 @@ export const COMBAT = {
   burnReportEvery: 3,
   /** Lumen beams hit shades this much harder. */
   beamShadeMultiplier: 2,
+  /** Creatures hurt by fire, lava or a falling block can't be hurt that way again for this long. */
+  hazardInvuln: 0.5,
 } as const;
 
 /** Combat on screen (src/render/CombatRenderer.ts). Pixels and seconds. */

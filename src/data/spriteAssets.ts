@@ -64,7 +64,7 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frames: 3,
   },
   /** Item icons (frame = `icon` in src/data/items.ts): pickaxes, bars, lenses, flare, weapons. */
-  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 18 },
+  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 21 },
   /** Creatures (src/data/enemies.ts `frame`): two 24×24 frames each. */
   {
     id: 'enemies',

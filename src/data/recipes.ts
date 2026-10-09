@@ -160,6 +160,12 @@ export const RECIPES: readonly RecipeDef[] = [
     ],
     station: 'anvil',
   },
+  {
+    key: 'bucket',
+    output: { item: 'bucket', count: 1 },
+    inputs: [{ item: 'iron_bar', count: 3 }],
+    station: 'anvil',
+  },
   // Lenses (plan 1.4: each from a different place) and flares.
   {
     key: 'verdant_lens',

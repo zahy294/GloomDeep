@@ -1,4 +1,16 @@
-import { COMBAT, HEALTH, ITEM_DROP, SIM, SPAWN, TILE_SIZE, TIME, WORLD } from '../config';
+import {
+  COMBAT,
+  FIRE,
+  HEALTH,
+  ITEM_DROP,
+  LIQUID,
+  SIM,
+  SPAWN,
+  SWIM,
+  TILE_SIZE,
+  TIME,
+  WORLD,
+} from '../config';
 import { ENEMIES } from '../data/enemies';
 import type { Enemy } from './entities/Enemy';
 import type { Projectile } from './entities/Projectile';
@@ -11,6 +23,13 @@ import {
   type CombatState,
 } from './systems/CombatSystem';
 import { SpawnSystem } from './systems/SpawnSystem';
+import { LiquidSystem } from './systems/LiquidSystem';
+import { FireSystem } from './systems/FireSystem';
+import { FallingSystem } from './systems/FallingSystem';
+import { createBucketState, updateBuckets, type BucketState } from './systems/BucketSystem';
+import { hitEnemy, hurtPlayer } from './systems/CombatSystem';
+import { LIQUID as LIQUID_KIND } from '../data/biomes';
+import type { Body } from './physics/tileCollision';
 import { itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
@@ -94,6 +113,15 @@ export class Simulation {
   readonly gloam: GloamSystem;
   private readonly lensState: LensState = createLensState();
   private readonly flareState: FlareState = createFlareState();
+  readonly liquids: LiquidSystem;
+  readonly fire: FireSystem;
+  readonly falling: FallingSystem;
+  private readonly bucketState: BucketState = createBucketState();
+  /** The region where liquids flow (around the view). Reused every step. */
+  private readonly liquidRegion: TileRect = { x0: 0, y0: 0, width: 0, height: 0 };
+  /** Burning cells sent to the light job, nearest first (reused). */
+  private readonly fireLights: number[] = [];
+  private readonly splashPayload = { x: 0, y: 0, lava: false };
   private readonly crimsonCone: Cone = createCone();
   readonly mining: MiningState = createMiningState();
   private readonly building: BuildingState = createBuildingState();
@@ -137,6 +165,11 @@ export class Simulation {
     sampleDayCycle(this.dayFraction, this.day);
     this.decorSupport = new DecorSupport(this.world, this.events);
     this.gloam = new GloamSystem(this.world, this.events);
+    this.fire = new FireSystem(this.world, this.events, this.random);
+    this.liquids = new LiquidSystem(this.world, this.events, this.random, (x, y) =>
+      this.fire.ignite(x, y),
+    );
+    this.falling = new FallingSystem(this.world, this.events);
     this.spawnsEnabled = options.spawns ?? false;
     this.combatContext = {
       player: this.player,
@@ -287,17 +320,21 @@ export class Simulation {
       },
       dayFraction: this.dayFraction,
       elapsed: this.elapsed,
-      drops: this.drops.map((d) => ({
-        itemId: d.itemId,
-        count: d.count,
-        x: d.body.x + d.body.width / 2,
-        y: d.body.y + d.body.height / 2,
-        vx: d.body.vx,
-        vy: d.body.vy,
-        age: d.age,
-        magnetized: d.magnetized,
-        pickupAfter: d.pickupAfter,
-      })),
+      drops: [
+        ...this.drops.map((d) => ({
+          itemId: d.itemId,
+          count: d.count,
+          x: d.body.x + d.body.width / 2,
+          y: d.body.y + d.body.height / 2,
+          vx: d.body.vx,
+          vy: d.body.vy,
+          age: d.age,
+          magnetized: d.magnetized,
+          pickupAfter: d.pickupAfter,
+        })),
+        // Blocks in mid-fall are saved as their item, so nothing is lost.
+        ...this.falling.savedAsDrops(),
+      ],
       randomState: this.rng.state,
       spawnX: this.spawnX,
       spawnY: this.spawnY,
@@ -362,7 +399,12 @@ export class Simulation {
   /** Entities currently simulated: the player, item drops, flares, creatures and shots. */
   get entityCount(): number {
     return (
-      1 + this.drops.length + this.flares.length + this.enemies.length + this.projectiles.length
+      1 +
+      this.drops.length +
+      this.flares.length +
+      this.enemies.length +
+      this.projectiles.length +
+      this.falling.blocks.length
     );
   }
 
@@ -393,6 +435,18 @@ export class Simulation {
         this.inventory,
         this.world,
         this.events,
+        dt,
+      );
+    }
+    if (!this.player.dead) {
+      updateBuckets(
+        this.bucketState,
+        this.player,
+        this.input,
+        this.inventory,
+        this.liquids,
+        this.events,
+        (item) => this.dropAtPlayer(item, 1, false),
         dt,
       );
     }
@@ -427,7 +481,16 @@ export class Simulation {
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
     this.weather.update(this.elapsed, this.dayFraction, this.events);
     this.weather.applyToSun(this.day, this.sunNow);
-    this.light.update(dt, this.elapsed, this.sunNow, this.player, this.input, this.flares);
+    this.updateMaterials(dt);
+    this.light.update(
+      dt,
+      this.elapsed,
+      this.sunNow,
+      this.player,
+      this.input,
+      this.flares,
+      this.fireLights,
+    );
     const lens = lensByKey(this.player.lens);
     const crimson =
       lanternLit(this.player) && lens.effect === 'burn'
@@ -451,6 +514,112 @@ export class Simulation {
     }
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
+  }
+
+  /**
+   * M9 materials: liquids flow around the view, fire burns and spreads, loose blocks fall; resting
+   * flares light what they lie on; lava, fire and falling blocks hurt; entering liquid splashes.
+   */
+  private updateMaterials(dt: number): void {
+    const { world, player } = this;
+    const b = player.body;
+    const fx = (Number.isFinite(this.input.focusX) ? this.input.focusX : b.x) / TILE_SIZE;
+    const fy = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
+    const r = this.liquidRegion;
+    r.x0 = Math.max(0, Math.floor(fx - LIQUID.activeWidth / 2));
+    r.y0 = Math.max(0, Math.floor(fy - LIQUID.activeHeight / 2));
+    r.width = Math.min(world.width - r.x0, LIQUID.activeWidth);
+    r.height = Math.min(world.height - r.y0, LIQUID.activeHeight);
+    const wasIn = player.inLiquid;
+    this.liquids.update(dt, r);
+    this.fire.update(dt, this.weather.sample.rain);
+    this.falling.update(dt, this.spawnDrop, (body, damage) => this.crush(body, damage));
+
+    // Flares at rest set alight what they lie on or in.
+    for (const flare of this.flares) {
+      const fb = flare.body;
+      if (fb.vx !== 0 || fb.vy !== 0) continue;
+      if (this.random() >= FIRE.flareIgnitePerSecond * dt) continue;
+      const tx = Math.floor((fb.x + fb.width / 2) / TILE_SIZE);
+      const ty = Math.floor((fb.y + fb.height / 2) / TILE_SIZE);
+      if (!this.fire.ignite(tx, ty)) this.fire.ignite(tx, ty + 1);
+    }
+
+    // Hazards: lava and fire hurt the player and creatures (rate-limited by invulnerability).
+    if (!player.dead) {
+      const inFire = this.touchesFire(b);
+      if (player.inLiquid === LIQUID_KIND.lava) hurtPlayer(this.combatContext, SWIM.lavaDamage, 0);
+      else if (inFire) hurtPlayer(this.combatContext, FIRE.damage, 0);
+      if (player.inLiquid !== 0 && wasIn === 0) {
+        this.splashPayload.x = b.x + b.width / 2;
+        this.splashPayload.y = b.y + b.height / 2;
+        this.splashPayload.lava = player.inLiquid === LIQUID_KIND.lava;
+        this.events.emit('splash', this.splashPayload);
+      }
+    }
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const enemy = this.enemies[i];
+      if (!enemy) continue;
+      const e = enemy.body;
+      const cx = Math.floor((e.x + e.width / 2) / TILE_SIZE);
+      const cy = Math.floor((e.y + e.height / 2) / TILE_SIZE);
+      const inLava =
+        world.inBounds(cx, cy) &&
+        world.liquidType[world.index(cx, cy)] === LIQUID_KIND.lava &&
+        (world.liquid[world.index(cx, cy)] ?? 0) >= LIQUID.wetAmount;
+      if (inLava) hitEnemy(this.combat, this.combatContext, enemy, SWIM.lavaDamage, 0, 0, 'hazard');
+      else if (this.touchesFire(e)) {
+        hitEnemy(this.combat, this.combatContext, enemy, FIRE.damage, 0, 0, 'hazard');
+      }
+    }
+
+    // The burning cells nearest the player light the area.
+    const lights = this.fireLights;
+    lights.length = 0;
+    if (this.fire.burning.size > 0) {
+      const px = b.x / TILE_SIZE;
+      const py = b.y / TILE_SIZE;
+      for (const key of this.fire.burning.keys()) lights.push(key >= 0 ? key : -key - 1);
+      const W = world.width;
+      lights.sort((a, c) => {
+        const ax = (a % W) - px;
+        const ay = Math.floor(a / W) - py;
+        const cx = (c % W) - px;
+        const cy = Math.floor(c / W) - py;
+        return ax * ax + ay * ay - (cx * cx + cy * cy);
+      });
+      if (lights.length > FIRE.maxLights) lights.length = FIRE.maxLights;
+    }
+  }
+
+  /** Does a body overlap a burning cell? */
+  private touchesFire(body: Body): boolean {
+    if (this.fire.burning.size === 0) return false;
+    const x0 = Math.floor(body.x / TILE_SIZE);
+    const x1 = Math.floor((body.x + body.width - 1e-4) / TILE_SIZE);
+    const y0 = Math.floor(body.y / TILE_SIZE);
+    const y1 = Math.floor((body.y + body.height - 1e-4) / TILE_SIZE);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) if (this.fire.isBurning(x, y)) return true;
+    }
+    return false;
+  }
+
+  /** A falling block hits whatever it overlaps. */
+  private crush(body: Body, damage: number): void {
+    const p = this.player.body;
+    const overlap = (o: Body) =>
+      body.x < o.x + o.width &&
+      o.x < body.x + body.width &&
+      body.y < o.y + o.height &&
+      o.y < body.y + body.height;
+    if (!this.player.dead && overlap(p)) hurtPlayer(this.combatContext, damage, 0);
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const enemy = this.enemies[i];
+      if (enemy && overlap(enemy.body)) {
+        hitEnemy(this.combat, this.combatContext, enemy, damage, 0, 0, 'hazard');
+      }
+    }
   }
 
   /** Dead: count down, then come back at the spawn with full health (briefly invulnerable). */

@@ -71,7 +71,11 @@ const hurtPayload = { amount: 0, x: 0, y: 0 };
 const attackPayload = { kind: 'melee' as WeaponDef['kind'], dirX: 0, dirY: 0, duration: 0 };
 const NO_PAYLOAD: Record<string, never> = {};
 
-export type HitSource = 'melee' | 'arrow' | 'beam' | 'light';
+/**
+ * What hurt a creature. `light` (shades burning) ignores invulnerability; `hazard` (fire, lava,
+ * a falling block) respects it but neither knocks back nor triggers hit-stop.
+ */
+export type HitSource = 'melee' | 'arrow' | 'beam' | 'light' | 'hazard';
 
 /** Everything combat touches, gathered by the Simulation each step. */
 export interface CombatContext {
@@ -276,7 +280,9 @@ export function hitEnemy(
   if (!def) return;
   const dealt = Math.min(enemy.health, amount);
   enemy.health -= dealt;
-  if (source !== 'light') {
+  if (source === 'hazard') {
+    enemy.invuln = COMBAT.hazardInvuln;
+  } else if (source !== 'light') {
     enemy.invuln = COMBAT.enemyInvuln;
     const k = knockback * def.knockbackTaken;
     if (k > 0) {

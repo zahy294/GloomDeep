@@ -2,7 +2,7 @@ import { LIGHT } from '../../config';
 import { LIGHTS, lightByKey, type LightDef } from '../../data/lights';
 import { TILES } from '../../data/tiles';
 import { hash2 } from '../../sim/random';
-import type { LightJob, LightResult } from './lightJob';
+import { LAVA_LIGHT_ID, WATER_LIGHT_ID, type LightJob, type LightResult } from './lightJob';
 
 // Flicker is visual tuning, not gameplay: two sines (slow sway + fast shimmer) so fire does not
 // look mechanical. Speeds are radians per second; the mix weights sum to 1 so the factor stays
@@ -46,6 +46,11 @@ for (let id = 0; id < TILES.length; id++) {
   }
   if (def.light) tileLight[id] = LIGHTS.indexOf(lightByKey(def.light));
 }
+// Liquid cells reach the job as these ids (the LightSystem substitutes them for non-solid tiles).
+fallR[WATER_LIGHT_ID] = LIGHT.waterFalloff.r;
+fallG[WATER_LIGHT_ID] = LIGHT.waterFalloff.g;
+fallB[WATER_LIGHT_ID] = LIGHT.waterFalloff.b;
+tileLight[LAVA_LIGHT_ID] = LIGHTS.indexOf(lightByKey('lava'));
 
 // Scratch buffers, grown to the largest job seen and reused.
 let capacity = 0;
