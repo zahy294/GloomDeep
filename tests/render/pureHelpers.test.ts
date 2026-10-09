@@ -56,6 +56,8 @@ describe('parseDebugParams', () => {
     kit: null,
     spawns: true,
     enemy: null,
+    wisp: false,
+    critter: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -81,6 +83,8 @@ describe('parseDebugParams', () => {
       kit: null,
       spawns: true,
       enemy: null,
+      wisp: false,
+      critter: null,
     });
   });
 
