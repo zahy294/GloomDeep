@@ -36,6 +36,8 @@ export interface CritterDef {
   readonly drawnToLight?: true;
   /** Glows (drawn as a halo; colour 0xRRGGBB). */
   readonly glow?: number;
+  /** Eyes that catch the light: a faint glint in the dark (colour), so caves show who's there. */
+  readonly eyes?: number;
   /** A glass jar catches it (right-click): the jar becomes this item. */
   readonly caughtAs?: string;
   /** First of its two frames in the `critters` sprite sheet, and its placeholder colours. */
@@ -98,6 +100,7 @@ export const CRITTERS: readonly CritterDef[] = [
     fleeSpeed: 130,
     fleeRange: 5,
     startledByLight: 120,
+    eyes: 0xe07a8a,
     frame: 4,
     ramp: 'tealShadow',
     group: [2, 5],
@@ -131,6 +134,7 @@ export const CRITTERS: readonly CritterDef[] = [
     speed: 0,
     fleeSpeed: 90,
     fleeRange: 6,
+    eyes: 0xf2cc5a,
     frame: 8,
     ramp: 'bark',
     group: [1, 1],
@@ -147,6 +151,7 @@ export const CRITTERS: readonly CritterDef[] = [
     speed: 60,
     fleeSpeed: 120,
     fleeRange: 4,
+    eyes: 0xd8e070,
     frame: 10,
     ramp: 'moss',
     group: [1, 3],

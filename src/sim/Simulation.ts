@@ -783,6 +783,12 @@ export class Simulation {
   private travel(x: number, y: number): void {
     if (!this.beacons.at(x, y) || this.player.dead) return;
     const b = this.player.body;
+    // Only from a beacon: you must be standing by one to use the network.
+    const px = (b.x + b.width / 2) / TILE_SIZE;
+    const py = (b.y + b.height / 2) / TILE_SIZE;
+    const reach = SETTLEMENT.travelReach;
+    if (!this.beacons.beacons.some((k) => Math.hypot(k.x + 0.5 - px, k.y + 0.5 - py) <= reach))
+      return;
     b.x = (x + 0.5) * TILE_SIZE - b.width / 2;
     b.y = (y + 1) * TILE_SIZE - b.height;
     b.vx = 0;

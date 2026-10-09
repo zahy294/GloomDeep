@@ -73,6 +73,16 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frameHeight: 24,
     frames: 18,
   },
+  /** Critters (src/data/critters.ts `frame`): two 16×16 frames each (M10). */
+  {
+    id: 'critters',
+    placeholder: 'sprites/critters.png',
+    frameWidth: 16,
+    frameHeight: 16,
+    frames: 14,
+  },
+  /** Villagers and the Old Dryad (src/data/npcs.ts FOLK): two 24×40 frames each (M10). */
+  { id: 'folk', placeholder: 'sprites/folk.png', frameWidth: 24, frameHeight: 40, frames: 10 },
   /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote. */
   {
     id: 'particles',

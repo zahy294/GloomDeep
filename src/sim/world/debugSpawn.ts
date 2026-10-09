@@ -6,13 +6,24 @@ export interface DebugSpawnTarget {
   /** A surface biome or depth layer key from src/data/biomes.ts, or null for the world centre. */
   biome: string | null;
   /** 'cave': an open pocket underground; 'waterfall': dry ground beside the fall nearest the centre. */
-  spot: 'cave' | 'waterfall' | null;
+  /**
+   * 'fairy': in the middle of the fairy ring nearest the centre; 'chamber': on the floor of a tall,
+   * wide cave room (critters on its ceiling stay in view).
+   */
+  spot: 'cave' | 'waterfall' | 'fairy' | 'chamber' | null;
 }
+
+const FAIRY = tileId('fairy_mushroom');
 
 /** How far below the surface a cave pocket must be (rows), so it is not just a surface dip. */
 const MIN_CAVE_DEPTH = 24;
 /** Open rows needed above a cave floor (the player is 3 tiles tall, plus headroom). */
 const CAVE_HEADROOM = 4;
+/** 'chamber': open rows above the floor, and open columns each side at head height. */
+const CHAMBER_HEADROOM = 9;
+const CHAMBER_HALF_WIDTH = 6;
+/** ...and a roof within this many rows (so its ceiling is on screen). */
+const CHAMBER_MAX_HEIGHT = 14;
 
 /**
  * A feet position (tiles: x, and the row the feet rest on top of) for debug starts and screenshots
@@ -24,11 +35,13 @@ export function findDebugSpawn(
   target: DebugSpawnTarget,
 ): { x: number; y: number } | null {
   if (target.spot === 'waterfall') return findWaterfallSpawn(world);
+  if (target.spot === 'fairy') return findFairyRing(world);
   let x0 = 0;
   let x1 = world.width;
   let rowMin = 0;
   let rowMax = world.height;
-  let underground = target.spot === 'cave';
+  let underground = target.spot === 'cave' || target.spot === 'chamber';
+  const floor = target.spot === 'chamber' ? isChamberFloor : isCaveFloor;
 
   const surface = SURFACE_BIOMES.findIndex((b) => b.key === target.biome);
   const layer = DEPTH_LAYERS.findIndex((l) => l.key === target.biome);
@@ -51,7 +64,7 @@ export function findDebugSpawn(
       if (x < x0 || x >= x1) continue;
       const top = Math.max(rowMin, world.groundRow(x) + MIN_CAVE_DEPTH);
       for (let y = top + CAVE_HEADROOM; y < rowMax; y++) {
-        if (isCaveFloor(world, x, y)) return { x, y };
+        if (floor(world, x, y)) return { x, y };
       }
     }
   }
@@ -64,6 +77,26 @@ function isCaveFloor(world: World, x: number, y: number): boolean {
   for (let dy = 1; dy <= CAVE_HEADROOM; dy++) {
     const i = (y - dy) * world.width + x;
     if (world.isSolid(x, y - dy) || world.liquidType[i] !== 0) return false;
+  }
+  return true;
+}
+
+/** A cave floor under a tall room: CHAMBER_HEADROOM open rows, and open to both sides. */
+function isChamberFloor(world: World, x: number, y: number): boolean {
+  if (!world.isSolid(x, y)) return false;
+  for (let dy = 1; dy <= CHAMBER_HEADROOM; dy++) {
+    if (world.isSolid(x, y - dy) || world.liquidType[(y - dy) * world.width + x] !== 0)
+      return false;
+  }
+  // A roof in view (a room, not a shaft to the surface).
+  let roofed = false;
+  for (let dy = CHAMBER_HEADROOM + 1; dy <= CHAMBER_MAX_HEIGHT && !roofed; dy++) {
+    roofed = world.isSolid(x, y - dy);
+  }
+  if (!roofed) return false;
+  const mid = y - Math.ceil(CHAMBER_HEADROOM / 2);
+  for (let dx = -CHAMBER_HALF_WIDTH; dx <= CHAMBER_HALF_WIDTH; dx++) {
+    if (!world.inBounds(x + dx, mid) || world.isSolid(x + dx, mid)) return false;
   }
   return true;
 }
@@ -119,6 +152,25 @@ function standNear(world: World, fall: number, floor: number): { x: number; y: n
       open = !world.isSolid(x, floor - dy) && world.get(x, floor - dy) !== WATERFALL;
     }
     if (open) return { x, y: floor };
+  }
+  return null;
+}
+
+/** The middle of the fairy ring nearest the world centre: the gap among its mushrooms. */
+function findFairyRing(world: World): { x: number; y: number } | null {
+  const centre = Math.floor(world.width / 2);
+  const isFairy = (x: number) => world.get(x, world.groundRow(x) - 1) === FAIRY;
+  for (let d = 0; d < world.width / 2; d++) {
+    for (const x of [centre - d, centre + d]) {
+      if (!isFairy(x)) continue;
+      // Walk to both ends of the ring (mushrooms with at most one gap between) and stand between.
+      let left = x;
+      while (isFairy(left - 1) || isFairy(left - 2)) left -= isFairy(left - 1) ? 1 : 2;
+      let right = x;
+      while (isFairy(right + 1) || isFairy(right + 2)) right += isFairy(right + 1) ? 1 : 2;
+      const mid = Math.round((left + right) / 2);
+      return { x: mid, y: world.groundRow(mid) };
+    }
   }
   return null;
 }

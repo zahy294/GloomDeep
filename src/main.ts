@@ -28,6 +28,8 @@ const bridge = new UiBridge({
   hud: null,
   icons: [],
   notice: null,
+  dialogue: null,
+  travel: null,
   respawnIn: null,
   packDir: debug.pack ?? DEFAULT_PACK_DIR,
   worlds: [],

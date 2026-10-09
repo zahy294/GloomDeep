@@ -33,9 +33,11 @@ export interface DebugParams {
   biome: string | null;
   /**
    * Debug start: `spot=cave` spawns in an open cave pocket, `spot=waterfall` beside a waterfall,
-   * `spot=entrance` at the cave entrance nearest the spawn.
+   * `spot=entrance` at the cave entrance nearest the spawn, `spot=village` among four lit
+   * cottages stamped beside the spawn (villagers move in over the first seconds), `spot=fairy`
+   * inside the fairy ring nearest the centre, `spot=chamber` in a tall open cave room.
    */
-  spot: 'cave' | 'waterfall' | 'entrance' | null;
+  spot: 'cave' | 'waterfall' | 'entrance' | 'village' | 'fairy' | 'chamber' | null;
   /** Debug start world size (`size=small|medium|large`). */
   size: WorldSizeKey | null;
   /** `rain=0..1` forces the rain intensity for rendering only (screenshots); null = real weather. */
@@ -46,6 +48,10 @@ export interface DebugParams {
   spawns: boolean;
   /** `enemy=<key>` puts one creature (src/data/enemies.ts) a few tiles right of a debug start. */
   enemy: string | null;
+  /** `critter=<key>` puts a group of critters (src/data/critters.ts) near a debug start. */
+  critter: string | null;
+  /** `wisp=1` makes a wisp appear at once (if a secret is near) for screenshots. */
+  wisp: boolean;
 }
 
 function intParam(params: URLSearchParams, name: string): number | null {
@@ -88,11 +94,15 @@ export function parseDebugParams(search: string): DebugParams {
     pack: nameParam(params, 'pack'),
     biome: nameParam(params, 'biome'),
     spot:
-      (['cave', 'waterfall', 'entrance'] as const).find((s) => s === params.get('spot')) ?? null,
+      (['cave', 'waterfall', 'entrance', 'village', 'fairy', 'chamber'] as const).find(
+        (s) => s === params.get('spot'),
+      ) ?? null,
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
     rain: unitParam(params, 'rain'),
     kit: nameParam(params, 'kit'),
     spawns: params.get('spawns') !== '0',
     enemy: nameParam(params, 'enemy'),
+    wisp: params.get('wisp') === '1',
+    critter: nameParam(params, 'critter'),
   };
 }

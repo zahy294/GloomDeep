@@ -5,6 +5,7 @@ import { Hud, NoticeView } from './Hud';
 import { Generating } from './Generating';
 import { Hotbar, InventoryScreen } from './Inventory';
 import { PauseMenu } from './PauseMenu';
+import { DialogueBox, TravelMenu } from './Village';
 import { WorldSelect } from './WorldSelect';
 
 function useUiState(bridge: UiBridge): UiState {
@@ -44,6 +45,8 @@ export function App({ bridge }: { bridge: UiBridge }) {
     hud,
     icons,
     notice,
+    dialogue,
+    travel,
     respawnIn,
     worlds,
     generation,
@@ -69,6 +72,8 @@ export function App({ bridge }: { bridge: UiBridge }) {
           )}
           {hud && <Hud hud={hud} />}
           {notice && <NoticeView key={notice.id} notice={notice} />}
+          {dialogue && !inventoryOpen && <DialogueBox dialogue={dialogue} />}
+          {travel && !inventoryOpen && <TravelMenu bridge={bridge} travel={travel} />}
           {inventory && <Hotbar bridge={bridge} view={inventory} icons={icons} />}
           {inventory && inventoryOpen && (
             <InventoryScreen bridge={bridge} view={inventory} icons={icons} />

@@ -32,6 +32,13 @@ export interface GameProbe {
   falling: number;
   /** Live creatures: key, feet-centre (pixels), health. */
   enemies: { key: string; x: number; y: number; health: number }[];
+  /** M10: villagers and the Dryad (feet-centre px, home id or -1), critter keys, the wisp. */
+  npcs: { key: string; x: number; y: number; home: number }[];
+  critters: string[];
+  wisp: boolean;
+  fae: number;
+  /** Name of whoever is talking, or null. */
+  dialogue: string | null;
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */

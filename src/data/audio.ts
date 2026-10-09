@@ -98,6 +98,17 @@ export const SOUND_DESIGN = {
       noise: { type: 'lowpass', hz: 300, decay: 0.18, gain: 0.25 },
       tone: { type: 'sine', from: 120, to: 50, decay: 0.15, gain: 0.08 },
     },
+    // M10 life and village.
+    talk: { tone: { type: 'triangle', from: 520, to: 600, decay: 0.12, gain: 0.05 } },
+    arrive: { tone: { type: 'triangle', from: 392, to: 784, decay: 0.8, gain: 0.07 } },
+    bounce: { tone: { type: 'sine', from: 180, to: 520, decay: 0.25, gain: 0.09 } },
+    flutter: { noise: { type: 'bandpass', hz: 2200, decay: 0.25, gain: 0.08 } },
+    catch: { tone: { type: 'sine', from: 1300, to: 1900, decay: 0.3, gain: 0.06 } },
+    wisp: { tone: { type: 'sine', from: 1600, to: 2400, decay: 0.9, gain: 0.05 } },
+    travel: {
+      noise: { type: 'highpass', hz: 2400, decay: 0.6, gain: 0.08 },
+      tone: { type: 'sine', from: 300, to: 1200, decay: 0.7, gain: 0.07 },
+    },
   },
   /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
   envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },

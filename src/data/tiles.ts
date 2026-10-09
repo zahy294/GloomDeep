@@ -96,6 +96,8 @@ export interface DecorDef {
   readonly frame: number;
   /** Sway amplitude in radians at full wind (0 = rigid). */
   readonly sway: number;
+  /** Shy vines (M10): curl up towards their support when the player comes close. */
+  readonly shy?: true;
 }
 
 /** First-pass tile registry. Add tiles here; no engine code should need to change. */
@@ -599,7 +601,7 @@ export const TILES: readonly TileDef[] = [
     drop: null,
     mergesWith: [],
     placeholderRamp: 'leaf',
-    decor: { support: 'ceiling', sprite: 'flora', frame: 9, sway: 0.2 },
+    decor: { support: 'ceiling', sprite: 'flora', frame: 9, sway: 0.2, shy: true },
     flammable: { seconds: 1.5, becomes: null },
   },
   {

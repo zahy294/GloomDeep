@@ -13,7 +13,12 @@ import {
   GLOAM,
   COMBAT_VIEW,
   MATERIALS_VIEW,
+  VILLAGE_UI,
+  LIFE_VIEW,
 } from '../../config';
+import { CRITTERS } from '../../data/critters';
+import { COTTAGE } from '../../data/prefabs/houses';
+import { stampPrefab } from '../../sim/world/prefabs';
 import { ENEMIES } from '../../data/enemies';
 import { createEnemy } from '../../sim/entities/Enemy';
 import { NAMED_TIMES } from '../../data/dayCycle';
@@ -68,6 +73,7 @@ import { gloamCoverage, gloamFrame } from '../gloamFrames';
 import { LightEffects } from '../LightEffects';
 import { MaterialsRenderer } from '../MaterialsRenderer';
 import { CombatRenderer } from '../CombatRenderer';
+import { LifeRenderer } from '../LifeRenderer';
 import { selectedWeapon } from '../../sim/systems/CombatSystem';
 import { ownedLenses } from '../../sim/systems/LensSystem';
 import { PackFile, SceneKey, TextureKey } from './keys';
@@ -155,6 +161,7 @@ export class GameScene extends Phaser.Scene {
     tool: null,
   };
   private combatView!: CombatRenderer;
+  private lifeView!: LifeRenderer;
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
   private paused = false;
@@ -170,6 +177,10 @@ export class GameScene extends Phaser.Scene {
   private noticeId = 0;
   /** Active lens and owned lenses last sent to the HUD. */
   private hudLensKey = '';
+  /** Who is talking (npc id) and the beacon whose travel list is open (tiles), or -1/null. */
+  private talkingTo = -1;
+  private travelFrom: { x: number; y: number } | null = null;
+  private dialogueId = 0;
   /** The current mouse press threw a held stack (see POINTER_DOWN in create). */
   private throwPress = false;
 
@@ -346,6 +357,15 @@ export class GameScene extends Phaser.Scene {
       sim.enemies,
       sim.projectiles,
     );
+    this.lifeView = new LifeRenderer(
+      this,
+      this.glowScene,
+      sim.events,
+      sim.settlement.npcs,
+      sim.critters.critters,
+      sim.wisps,
+      player,
+    );
     sim.events.on('playerHurt', () =>
       this.cameraDirector.shake(COMBAT_VIEW.hurtShake, COMBAT_VIEW.hurtShakeSeconds),
     );
@@ -370,6 +390,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.pause}`, () => {
       if (this.inventoryOpen) this.toggleInventory();
+      else if (this.talkingTo >= 0 || this.travelFrom) this.closeVillagePanels();
       else this.setPaused(!this.paused);
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.toggleInventory}`, () => {
@@ -397,7 +418,13 @@ export class GameScene extends Phaser.Scene {
       this.bridge.commands.on('pointerOverUi', ({ over }) => this.setPointerOverUi(over)),
       this.bridge.commands.on('resume', () => this.setPaused(false)),
       this.bridge.commands.on('saveAndQuit', () => void this.saveAndQuit()),
+      this.bridge.commands.on('travelTo', ({ x, y }) => {
+        sim.enqueue({ type: 'travel', x, y });
+        this.closeVillagePanels();
+      }),
+      this.bridge.commands.on('closePanel', () => this.closeVillagePanels()),
     ];
+    this.listenToVillage();
     sim.events.on('inventoryChanged', () => this.publishInventory());
     sim.events.on('miningBlocked', ({ reason, tier }) => {
       const pick = pickaxeForTier(tier);
@@ -418,6 +445,7 @@ export class GameScene extends Phaser.Scene {
       this.lightEffects.destroy();
       this.materials.destroy();
       this.combatView.destroy();
+      this.lifeView.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
       this.waterfalls.destroy();
@@ -437,6 +465,8 @@ export class GameScene extends Phaser.Scene {
         inventoryOpen: false,
         hud: null,
         notice: null,
+        dialogue: null,
+        travel: null,
         respawnIn: null,
         paused: false,
       });
@@ -463,6 +493,64 @@ export class GameScene extends Phaser.Scene {
       this.sim.enqueue({ type: 'stowCursor' }); // a held stack goes back into the bag
     }
     this.bridge.set({ inventoryOpen: this.inventoryOpen });
+  }
+
+  /** Talking, beacon travel and the M10 notices (arrivals, the fae buff, caught fireflies). */
+  private listenToVillage(): void {
+    const { events } = this.sim;
+    events.on('talk', ({ npcId, name, role, text }) => {
+      this.talkingTo = npcId;
+      this.bridge.set({ dialogue: { name, role, text, id: ++this.dialogueId } });
+    });
+    events.on('beaconMenu', ({ x, y, beacons }) => {
+      this.travelFrom = { x, y };
+      const options = beacons
+        .filter((b) => b.x !== x || b.y !== y)
+        .map((b) => ({ x: b.x, y: b.y, d: Math.hypot(b.x - x, b.y - y) }))
+        .sort((a, b) => a.d - b.d)
+        .map((b) => ({ x: b.x, y: b.y, label: beaconLabel(b.x - x, b.y - y) }));
+      this.bridge.set({ travel: { options } });
+    });
+    events.on('npcArrived', ({ name }) => this.notify(`${name} has moved into the village!`));
+    events.on('npcHomeless', ({ name }) => this.notify(`${name} has lost their home`));
+    events.on('faeBuff', () => this.notify('The fae dance around you'));
+    events.on('critterCaught', ({ type }) =>
+      this.notify(`Caught a ${CRITTERS[type]?.name.toLowerCase() ?? 'critter'}`),
+    );
+    events.on('wispAppeared', () => this.notify('A wisp beckons…'));
+  }
+
+  private closeVillagePanels(): void {
+    if (this.travelFrom) this.setPointerOverUi(false); // the list may close under the cursor
+    this.talkingTo = -1;
+    this.travelFrom = null;
+    this.bridge.set({ dialogue: null, travel: null });
+  }
+
+  /** Talking and travel lists close when the player walks away from the speaker or beacon. */
+  private checkVillagePanels(): void {
+    if (this.talkingTo < 0 && !this.travelFrom) return;
+    const b = this.sim.player.body;
+    const px = b.x + b.width / 2;
+    const py = b.y + b.height / 2;
+    const reach = VILLAGE_UI.closeTiles * TILE_SIZE;
+    const npc = this.sim.settlement.npcs.find((n) => n.id === this.talkingTo);
+    const npcFar =
+      this.talkingTo >= 0 &&
+      (!npc || Math.hypot(npc.body.x + npc.body.width / 2 - px, npc.body.y - b.y) > reach);
+    const from = this.travelFrom;
+    const beaconFar =
+      from !== null &&
+      Math.hypot((from.x + 0.5) * TILE_SIZE - px, (from.y + 0.5) * TILE_SIZE - py) > reach;
+    if (npcFar) {
+      this.talkingTo = -1;
+      this.bridge.set({ dialogue: null });
+    }
+    if (beaconFar) {
+      this.travelFrom = null;
+      this.setPointerOverUi(false);
+      this.bridge.set({ travel: null });
+    }
   }
 
   /** Shows a short message above the hotbar (it fades by itself). */
@@ -527,6 +615,20 @@ export class GameScene extends Phaser.Scene {
     events.on('splash', () => audio.effect('splash'));
     events.on('liquidReaction', () => audio.effect('hiss'));
     events.on('blockLanded', () => audio.effect('thud'));
+    events.on('talk', () => audio.effect('talk'));
+    events.on('npcArrived', () => audio.effect('arrive'));
+    events.on('bounced', () => audio.effect('bounce'));
+    events.on('critterCaught', () => audio.effect('catch'));
+    events.on('wispAppeared', () => audio.effect('wisp'));
+    events.on('wispArrived', () => audio.effect('wisp'));
+    events.on('travelled', () => audio.effect('travel'));
+    // A colony of bats takes off together: one flutter, not one per bat.
+    let lastFlutter = -Infinity;
+    events.on('critterStartled', () => {
+      if (this.sim.time - lastFlutter < LIFE_VIEW.flutterSoundGap) return;
+      lastFlutter = this.sim.time;
+      audio.effect('flutter');
+    });
     // One crackle per burst of ignitions, not one per burning cell.
     let lastIgnite = -Infinity;
     events.on('fireStarted', () => {
@@ -690,6 +792,7 @@ export class GameScene extends Phaser.Scene {
     this.lightEffects.update(alpha, delta / 1000, this.sim.time);
     this.materials.update(this.view, alpha, delta / 1000, this.sim.time);
     this.combatView.update(alpha, delta / 1000, this.sim.time);
+    this.lifeView.update(alpha, delta / 1000, this.sim.time);
     this.fx.update(delta / 1000);
     // The light grid is computed around what the camera shows.
     input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
@@ -743,6 +846,16 @@ export class GameScene extends Phaser.Scene {
         y: e.body.y + e.body.height,
         health: e.health,
       })),
+      npcs: this.sim.settlement.npcs.map((n) => ({
+        key: n.key,
+        x: n.body.x + n.body.width / 2,
+        y: n.body.y + n.body.height,
+        home: n.homeId,
+      })),
+      critters: this.sim.critters.critters.map((c) => CRITTERS[c.type]?.key ?? '?'),
+      wisp: this.sim.wisps.wisp !== null,
+      fae: player.fae,
+      dialogue: this.bridge.state.dialogue?.name ?? null,
     };
   }
 
@@ -789,6 +902,7 @@ export class GameScene extends Phaser.Scene {
       this.timer.roll();
       if (this.debugOpen) this.publishDebug();
       this.publishHud();
+      this.checkVillagePanels();
       this.refreshStations();
       // How much of the view the Gloam covers drains the colour grade (eased, a few times a second).
       const coverage = gloamCoverage(this.sim.world, this.view, TILE_SIZE);
@@ -809,6 +923,7 @@ export class GameScene extends Phaser.Scene {
     const hud = this.bridge.state.hud;
     const lumen = Math.round(player.lumen);
     const health = Math.round(player.health);
+    const fae = Math.ceil(player.fae);
     const respawn = player.dead ? Math.ceil(player.respawnTimer) : null;
     if (this.bridge.state.respawnIn !== respawn) this.bridge.set({ respawnIn: respawn });
     const lensKey = ownedLenses(this.sim.inventory)
@@ -820,7 +935,8 @@ export class GameScene extends Phaser.Scene {
       hud.health === health &&
       this.hudLensKey === `${player.lens}|${lensKey}` &&
       hud.lanternOn === player.lanternOn &&
-      hud.clock === clock
+      hud.clock === clock &&
+      hud.fae === fae
     ) {
       return;
     }
@@ -841,6 +957,7 @@ export class GameScene extends Phaser.Scene {
         lanternOn: player.lanternOn,
         lensName: lens.name,
         clock,
+        fae,
       },
     });
   }
@@ -851,6 +968,20 @@ export class GameScene extends Phaser.Scene {
     const i = Math.max(0, tileY - 1) * world.width + tileX;
     const rgb = `${world.lightR[i] ?? 0},${world.lightG[i] ?? 0},${world.lightB[i] ?? 0}`;
     return `${rgb} · ${light.stats.avgMs.toFixed(2)} ms avg`;
+  }
+
+  /** `?spot=village`: four cottages in a row right of the spawn; stand in the middle gap. */
+  private stampVillage(sim: Simulation, spawnX: number): { x: number; y: number } {
+    const width = Math.max(...COTTAGE.rows.map((r) => r.length));
+    const step = width + DEBUG.villageGap;
+    const x0 = spawnX + DEBUG.villageOffset;
+    for (let k = 0; k < DEBUG.villageHouses; k++) {
+      const x = x0 + k * step;
+      stampPrefab(sim.world, COTTAGE, x, sim.world.groundRow(x), DEBUG.villageHeadroom);
+    }
+    const fx = x0 + Math.floor(DEBUG.villageHouses / 2) * step - Math.ceil(DEBUG.villageGap / 2);
+    const tall = Math.ceil(PLAYER.height / TILE_SIZE);
+    return { x: fx, y: findOpenFeetRow(sim.world, fx, sim.world.groundRow(fx), tall) };
   }
 
   /**
@@ -876,6 +1007,8 @@ export class GameScene extends Phaser.Scene {
       );
       const fx = mouth + (mouth > sx ? -DEBUG.entranceStandOff : DEBUG.entranceStandOff);
       feet = { x: fx, y: sim.world.groundRow(fx) };
+    } else if (spot === 'village') {
+      feet = this.stampVillage(sim, Math.floor(generated.spawnX / TILE_SIZE));
     } else if (biome !== null || spot !== null) {
       feet = findDebugSpawn(sim.world, { biome, spot });
       if (!feet)
@@ -887,6 +1020,22 @@ export class GameScene extends Phaser.Scene {
       p.body.y = feet.y * TILE_SIZE - p.body.height;
       p.prevX = p.body.x;
       p.prevY = p.body.y;
+    }
+    if (this.params.wisp) sim.wisps.summon(sim.player);
+    const critter = CRITTERS.findIndex((c) => c.key === this.params.critter);
+    if (critter >= 0) {
+      const p = sim.player.body;
+      const tx = Math.floor((p.x + p.width / 2) / TILE_SIZE) + DEBUG.critterOffsetTiles;
+      let ty = Math.floor(p.y / TILE_SIZE);
+      // Ceiling perchers: look from the ceiling above that column, however tall the room.
+      if (CRITTERS[critter]?.perch === 'ceiling') {
+        const top = Math.max(0, ty - DEBUG.critterCeilingTiles);
+        while (ty > top && !sim.world.isSolid(tx, ty - 1)) ty--;
+      }
+      if (
+        !sim.critters.placeNear(sim.world, critter, tx, ty, DEBUG.critterSearchTiles, Math.random)
+      )
+        console.warn(`No spot for critter=${this.params.critter} near the debug start`);
     }
     const type = ENEMIES.findIndex((e) => e.key === this.params.enemy);
     if (type >= 0) {
@@ -942,4 +1091,13 @@ export class GameScene extends Phaser.Scene {
     });
     this.timer.resetMax();
   }
+}
+
+/** "42 tiles east, 10 up" (tile offsets from the beacon you stand at). */
+function beaconLabel(dx: number, dy: number): string {
+  const parts: string[] = [];
+  if (dx !== 0) parts.push(`${Math.abs(dx)} tiles ${dx > 0 ? 'east' : 'west'}`);
+  if (Math.abs(dy) >= VILLAGE_UI.levelTiles)
+    parts.push(`${Math.abs(dy)} ${dy > 0 ? 'down' : 'up'}`);
+  return parts.length > 0 ? parts.join(', ') : 'Right here';
 }

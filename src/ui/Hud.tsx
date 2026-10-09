@@ -53,6 +53,11 @@ export function Hud({ hud }: { hud: HudView }) {
           <span class="hud-dim">{hud.lanternOn ? `${hud.lumen} Lumen` : 'lantern off'}</span>
         </div>
         <div class="hud-row hud-dim">{hud.clock} · F: lantern</div>
+        {hud.fae > 0 && (
+          <div class="hud-row fae" title="Fairy ring: faster, higher jumps, a gentler lantern">
+            ✦ Fae-touched {hud.fae}s
+          </div>
+        )}
       </div>
     </div>
   );

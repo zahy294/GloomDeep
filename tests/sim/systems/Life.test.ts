@@ -50,6 +50,7 @@ function critter(t: number, x: number, y: number): Critter {
     state: 'idle',
     timer: 1,
     phase: 0,
+    calmLight: Number.NaN,
     lightX: Number.NaN,
     lightY: Number.NaN,
   };
@@ -113,6 +114,19 @@ describe('critters', () => {
     run(1);
     expect(frog.state === 'flee' || frog.body.x > 8 * T).toBe(true);
     expect(frog.body.x).toBeGreaterThan(8 * T);
+  });
+
+  it('a bat roosting in a glowing cave stays put until the light rises', () => {
+    const { system, world, startled, run } = setup();
+    const i = world.index(25, 5);
+    world.lightR[i] = 200;
+    const bat = critter(type('cave_bat'), 25 * T, 5 * T);
+    system.critters.push(bat);
+    run(1);
+    expect(startled).toEqual([]);
+    world.lightR[i] = 200 + CRITTER.startleRise;
+    run(0.1);
+    expect(startled).toEqual([type('cave_bat')]);
   });
 
   it('only catchable critters are caught, and only within reach', () => {

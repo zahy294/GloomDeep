@@ -5,6 +5,8 @@ import { tileId } from '../../../src/data/tiles';
 import { decodeSave, encodeSave, SAVE_VERSION } from '../../../src/persistence/saveFormat';
 import { Simulation } from '../../../src/sim/Simulation';
 import { findRoom } from '../../../src/sim/world/rooms';
+import { COTTAGE } from '../../../src/data/prefabs/houses';
+import { stampPrefab } from '../../../src/sim/world/prefabs';
 import { AIR, type World } from '../../../src/sim/world/World';
 
 const T = TILE_SIZE;
@@ -156,6 +158,23 @@ describe('village', () => {
   });
 });
 
+describe('prefabs', () => {
+  it('a stamped cottage on uneven ground is a valid, lit home', () => {
+    const sim = flat();
+    const w = sim.world;
+    // A bump and a dip under the footprint: cleared and filled.
+    w.set(32, 39, STONE);
+    for (let y = 40; y < 43; y++) w.set(35, y, AIR);
+    stampPrefab(w, COTTAGE, 30, 40, 4);
+    for (let y = 41; y < 43; y++) expect(w.isSolid(35, y)).toBe(true);
+    sim.input.setFocus(35 * T, 36 * T);
+    step(sim, 1); // light the grid around it
+    const room = findRoom(w, 33, 39);
+    expect(room).not.toBeNull();
+    expect(room?.problem).toBeNull();
+  });
+});
+
 describe('beacons', () => {
   it('no creatures spawn inside a beacon circle, and its Gloam burns away', () => {
     const sim = flat();
@@ -168,5 +187,29 @@ describe('beacons', () => {
     sim.input.setFocus(100 * T, 35 * T);
     step(sim, 3);
     expect(w.gloam[w.index(100, 41)] ?? 0).toBeLessThan(255 - GLOAM.cleansePerSecond);
+  });
+  it('right-clicking a beacon lists the network; travel works only from a beacon', () => {
+    const sim = flat();
+    const w = sim.world;
+    w.set(12, 39, tileId('beacon'));
+    w.set(150, 39, tileId('beacon'));
+    const menus: { x: number; y: number; count: number }[] = [];
+    sim.events.on('beaconMenu', (e) => menus.push({ x: e.x, y: e.y, count: e.beacons.length }));
+    const travelled: number[] = [];
+    sim.events.on('travelled', (e) => travelled.push(e.x));
+    sim.input.setAim(12.5 * T, 39.5 * T);
+    sim.input.setHeld('useAlt', true);
+    step(sim, 0.05);
+    sim.input.setHeld('useAlt', false);
+    expect(menus).toEqual([{ x: 12, y: 39, count: 2 }]);
+    sim.enqueue({ type: 'travel', x: 150, y: 39 });
+    step(sim, 0.05);
+    expect(travelled).toEqual([150]);
+    expect(Math.floor((sim.player.body.x + sim.player.body.width / 2) / T)).toBe(150);
+    // Walk away from the beacon: no more travel.
+    sim.player.body.x = 120 * T;
+    sim.enqueue({ type: 'travel', x: 12, y: 39 });
+    step(sim, 0.05);
+    expect(travelled).toEqual([150]);
   });
 });

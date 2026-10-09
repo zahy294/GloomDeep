@@ -47,6 +47,15 @@ export class ParticleFX {
         onBreak();
       }),
       events.on('tilePlaced', ({ x, y, id }) => this.burst(id, x, y, FEEDBACK.placeParticles)),
+      events.on('bounced', ({ x, y }) => {
+        // A puff of spores from the glowcap.
+        this.emitter.setParticleTint([PALETTE.mint[3], PALETTE.rose[3], PALETTE.mint[2]]);
+        this.emitter.explode(FEEDBACK.bounceParticles, x, y);
+      }),
+      events.on('critterCaught', ({ x, y }) => {
+        this.emitter.setParticleTint([PALETTE.leaf[3], PALETTE.honey[3]]);
+        this.emitter.explode(FEEDBACK.catchParticles, x, y);
+      }),
       events.on('itemPickedUp', ({ x, y }) => {
         this.emitter.setParticleTint([PALETTE.honey[3], PALETTE.mint[3]]);
         this.emitter.explode(3, x, y);

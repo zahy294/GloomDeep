@@ -8,7 +8,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { preview } from 'vite';
-import { CAMERA, CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../src/config';
+import {
+  BUILDING,
+  CAMERA,
+  CHUNK_RENDER,
+  DEBUG,
+  DISPLAY,
+  TILE_SIZE,
+  WORLD,
+  WORLD_SIZES,
+} from '../src/config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
 import { TILES, tileId } from '../src/data/tiles';
@@ -608,6 +617,16 @@ async function liquidCells(page: Page, x: number, y: number, r: number, type: nu
 }
 
 /** Right-clicks a tile once (a pour, a throw). */
+/** Right-clicks a world pixel (things that move, like villagers). */
+async function rightClickPx(page: Page, x: number, y: number): Promise<void> {
+  const p = (await probe(page)) as GameProbe;
+  await page.mouse.move(CANVAS_LEFT + (x - p.cameraX) * ZOOM, CANVAS_TOP + (y - p.cameraY) * ZOOM);
+  await page.mouse.down({ button: 'right' });
+  await page.waitForTimeout(80);
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(300);
+}
+
 async function rightClickTile(page: Page, x: number, y: number): Promise<void> {
   await pointAtTile(page, x, y);
   await page.mouse.down({ button: 'right' });
@@ -761,6 +780,92 @@ const MATERIAL_SHOTS: Shot[] = [
   },
 ];
 
+/** M10: the village, critters, fairy rings and wisps. */
+const BUILDING_REACH = BUILDING.reachTiles;
+const housed = (p: GameProbe) => p.npcs.filter((n) => n.key !== 'dryad' && n.home >= 0).length;
+const LIFE_SHOTS: Shot[] = [
+  {
+    // "Done when": four villagers living in four lit homes (stamped cottages; arrivals are real).
+    name: 'village-four-homes',
+    query: '?scene=game&time=sunset&ui=0&spot=village',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = await waitForProbe(page, (q) => housed(q) >= 4, 'four villagers to move in');
+      await page.waitForTimeout(1500);
+      report.push(
+        `village: ${housed(p)} villagers housed (${p.npcs.map((n) => n.key).join(', ')})`,
+      );
+    },
+  },
+  {
+    name: 'village-talk',
+    query: '?scene=game&time=sunset&spot=village',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await waitForProbe(page, (q) => housed(q) >= 2, 'villagers to move in');
+      // Villagers stroll about their homes: wait for one within talking reach, aim where it is.
+      const reachable = (q: GameProbe) =>
+        q.npcs.find(
+          (n) =>
+            n.key !== 'dryad' &&
+            Math.abs(n.x - q.playerX) < (BUILDING_REACH - 0.5) * TILE_SIZE &&
+            Math.abs(n.y - q.playerY) < TILE_SIZE * 2,
+        );
+      const q = await waitForProbe(page, (r) => reachable(r) !== undefined, 'a villager in reach');
+      const now = reachable(q);
+      if (now) await rightClickPx(page, now.x, now.y - 20);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      const end = await waitForProbe(page, (q) => q.dialogue !== null, 'the dialogue box');
+      await page.waitForTimeout(400);
+      report.push(`talk: ${end.dialogue} spoke`);
+    },
+  },
+  {
+    // Caves feel alive: bats on the ceiling, moths at the lantern, fish in pools.
+    name: 'caves-alive',
+    query: '?scene=game&time=night&ui=0&spot=chamber&critter=cave_bat',
+    spawns: true,
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const deadline = Date.now() + 15_000;
+      let p = (await probe(page)) as GameProbe;
+      while (Date.now() < deadline && p.critters.length < 4) {
+        await page.waitForTimeout(250);
+        p = (await probe(page)) as GameProbe;
+      }
+      check(p.critters.length > 0, 'critters should appear in the caves');
+      await page.waitForTimeout(800);
+      report.push(`caves: ${p.critters.length} critters (${[...new Set(p.critters)].join(', ')})`);
+    },
+  },
+  {
+    name: 'fairy-ring-night',
+    query: '?scene=game&time=night&ui=0&spot=fairy',
+    spawns: true,
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = await waitForProbe(page, (q) => q.fae > 0, 'the fae buff');
+      await page.waitForTimeout(3000); // fireflies drift in
+      const end = (await probe(page)) as GameProbe;
+      report.push(
+        `fairy ring: fae buff ${Math.round(p.fae)} s; ${end.critters.filter((c) => c === 'firefly').length} fireflies`,
+      );
+    },
+  },
+  {
+    name: 'wisp-leads',
+    query: '?scene=game&time=night&ui=0&spot=cave&wisp=1',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await waitForLight(page);
+      await page.waitForTimeout(1200);
+      const p = (await probe(page)) as GameProbe;
+      check(p.wisp, 'a wisp should be leading the way');
+      report.push('wisp: appeared and leads towards a secret');
+    },
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
   ...FOREST_SHOTS,
@@ -769,6 +874,7 @@ const SHOTS: Shot[] = [
   ...GLOAM_SHOTS,
   ...COMBAT_SHOTS,
   ...MATERIAL_SHOTS,
+  ...LIFE_SHOTS,
   // M10: a cave entrance near the spawn, and inside it, looking down the switchbacks.
   {
     name: 'cave-entrance',

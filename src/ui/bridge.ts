@@ -50,6 +50,21 @@ export interface HudView {
   lenses: readonly { name: string; color: string; active: boolean }[];
   /** Clock text, e.g. "18:05". */
   clock: string;
+  /** Whole seconds of the fairy-ring buff left (0 = none). */
+  fae: number;
+}
+
+/** Someone talking (M10); `id` changes per line so the text fades in anew. */
+export interface DialogueView {
+  name: string;
+  role: string;
+  text: string;
+  id: number;
+}
+
+/** A beacon's travel list (M10): the other beacons, nearest first (tile positions). */
+export interface TravelView {
+  options: readonly { x: number; y: number; label: string }[];
 }
 
 export interface StackView {
@@ -98,6 +113,10 @@ export interface UiState {
   /** Icon per item id (null = no icon); set once the game scene has loaded the pack. */
   icons: readonly (IconRect | null)[];
   notice: Notice | null;
+  /** Null unless someone is talking. */
+  dialogue: DialogueView | null;
+  /** Null unless a beacon's travel list is open. */
+  travel: TravelView | null;
   /** Seconds until the player respawns, or null while alive. */
   respawnIn: number | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
@@ -128,6 +147,10 @@ export interface UiCommands {
   deleteWorld: { id: string };
   backToTitle: Record<string, never>;
   resume: Record<string, never>;
+  /** Fast travel to the beacon at tile (x, y), from the travel list. */
+  travelTo: { x: number; y: number };
+  /** Close the travel list (or the dialogue). */
+  closePanel: Record<string, never>;
   saveAndQuit: Record<string, never>;
 }
 

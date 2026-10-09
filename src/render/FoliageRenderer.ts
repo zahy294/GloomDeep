@@ -28,6 +28,12 @@ const ROTATION_AMPLITUDE_WORD = 9;
 const ROTATION_MASK: number[] = Array.from({ length: ROTATION_AMPLITUDE_WORD + 1 }, (_, i) =>
   i === ROTATION_BASE_WORD || i === ROTATION_AMPLITUDE_WORD ? 1 : 0,
 );
+/** Member word holding the static scaleY (no animation on it): shy vines curl by patching it. */
+const SCALE_Y_WORD = 16;
+const SCALE_MASK: number[] = Array.from({ length: SCALE_Y_WORD + 1 }, (_, i) =>
+  i === SCALE_Y_WORD ? 1 : 0,
+);
+const scalePatch = new Uint32Array(SCALE_Y_WORD + 1);
 /** Float32/Uint32 views of the same 4 bytes, to write floats into raw member data. */
 const floatBits = new Float32Array(1);
 const wordBits = new Uint32Array(floatBits.buffer);
@@ -43,6 +49,11 @@ interface Slot {
   bendGoal: Float32Array;
   /** 1 while the member is in the bent list. */
   bent: Uint8Array;
+  /** Shy vines: 1 if shy; how curled (0..1) and the goal; 1 while in the curling list. */
+  shy: Uint8Array;
+  curl: Float32Array;
+  curlGoal: Float32Array;
+  curling: Uint8Array;
   /** Member index per tile of the chunk (row-major), −1 where there is no decoration. */
   memberAt: Int32Array;
   count: number;
@@ -80,6 +91,9 @@ export class FoliageRenderer {
   /** Members currently bent or recovering, as slot index * capacity + member index. */
   private readonly activeBends = new Int32Array(FOLIAGE.bend.maxActive);
   private activeCount = 0;
+  /** Shy vines currently curled or unfurling, encoded like activeBends. */
+  private readonly activeCurls = new Int32Array(FOLIAGE.shy.maxActive);
+  private curlCount = 0;
   private appliedWind = 0;
   private sinceWindPatch = 0;
 
@@ -113,6 +127,10 @@ export class FoliageRenderer {
         bend: new Float32Array(capacity),
         bendGoal: new Float32Array(capacity),
         bent: new Uint8Array(capacity),
+        shy: new Uint8Array(capacity),
+        curl: new Float32Array(capacity),
+        curlGoal: new Float32Array(capacity),
+        curling: new Uint8Array(capacity),
         memberAt: new Int32Array(tilesPerChunk).fill(-1),
         count: 0,
         dirty: false,
@@ -173,6 +191,7 @@ export class FoliageRenderer {
       this.applyWind(wind);
     }
     this.updateBends(playerX, playerY, dt);
+    this.updateCurls(playerX, playerY, dt);
   }
 
   destroy(): void {
@@ -255,6 +274,10 @@ export class FoliageRenderer {
         slot.bend[count] = 0;
         slot.bendGoal[count] = 0;
         slot.bent[count] = 0;
+        slot.shy[count] = decor.shy ? 1 : 0;
+        slot.curl[count] = 0;
+        slot.curlGoal[count] = 0;
+        slot.curling[count] = 0;
         slot.memberAt[(ty - y0) * size + (tx - x0)] = count;
         count++;
       }
@@ -351,6 +374,66 @@ export class FoliageRenderer {
     }
   }
 
+  /** Shy vines near the player curl up towards their support; they unfurl slowly once it leaves. */
+  private updateCurls(playerX: number, playerY: number, dt: number): void {
+    const { world } = this;
+    const cfg = FOLIAGE.shy;
+    const capacity = FOLIAGE.layerCapacity;
+    for (let a = 0; a < this.curlCount; a++) {
+      const id = this.activeCurls[a] ?? 0;
+      const slot = this.slots[Math.floor(id / capacity)];
+      if (slot) slot.curlGoal[id % capacity] = 0;
+    }
+    const size = world.chunkSize;
+    const tileX = Math.floor(playerX / TILE_SIZE);
+    const feetRow = Math.floor((playerY - 1) / TILE_SIZE);
+    for (let ty = feetRow - cfg.rowsAboveFeet; ty <= feetRow; ty++) {
+      for (let tx = tileX - cfg.columns; tx <= tileX + cfg.columns; tx++) {
+        if (!world.inBounds(tx, ty)) continue;
+        const cx = Math.floor(tx / size);
+        const cy = Math.floor(ty / size);
+        const slot = this.loaded.get(cy * world.chunksX + cx);
+        const i = slot?.memberAt[(ty - cy * size) * size + (tx - cx * size)] ?? -1;
+        if (!slot || i < 0 || slot.shy[i] !== 1) continue;
+        slot.curlGoal[i] = 1;
+        if (slot.curling[i] === 0 && this.curlCount < this.activeCurls.length) {
+          slot.curling[i] = 1;
+          this.activeCurls[this.curlCount++] = slot.index * capacity + i;
+        }
+      }
+    }
+    for (let a = this.curlCount - 1; a >= 0; a--) {
+      const id = this.activeCurls[a] ?? 0;
+      const slot = this.slots[Math.floor(id / capacity)];
+      const i = id % capacity;
+      if (!slot) {
+        this.removeCurl(a);
+        continue;
+      }
+      const goal = slot.curlGoal[i] ?? 0;
+      const current = slot.curl[i] ?? 0;
+      const rate = goal > current ? cfg.curlRate : cfg.unfurlRate;
+      let next = goal + (current - goal) * Math.exp(-rate * dt);
+      const settled = goal === 0 && next < cfg.release;
+      if (settled) next = 0;
+      if (next !== current) {
+        slot.curl[i] = next;
+        floatBits[0] = 1 - next * (1 - cfg.minScale);
+        scalePatch[SCALE_Y_WORD] = wordBits[0] ?? 0;
+        slot.layer.patchMember(i, scalePatch, SCALE_MASK);
+      }
+      if (settled) {
+        slot.curling[i] = 0;
+        this.removeCurl(a);
+      }
+    }
+  }
+
+  private removeCurl(a: number): void {
+    this.activeCurls[a] = this.activeCurls[this.curlCount - 1] ?? 0;
+    this.curlCount--;
+  }
+
   private removeActive(a: number): void {
     this.activeBends[a] = this.activeBends[this.activeCount - 1] ?? 0;
     this.activeCount--;
@@ -364,5 +447,11 @@ export class FoliageRenderer {
       }
     }
     slot.bent.fill(0);
+    for (let a = this.curlCount - 1; a >= 0; a--) {
+      if (Math.floor((this.activeCurls[a] ?? 0) / FOLIAGE.layerCapacity) === slot.index) {
+        this.removeCurl(a);
+      }
+    }
+    slot.curling.fill(0);
   }
 }

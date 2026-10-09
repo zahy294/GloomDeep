@@ -27,6 +27,8 @@ export interface Critter {
   timer: number;
   /** Wander phase (flutter paths). */
   phase: number;
+  /** The light where it settled (NaN until first seen): only light rising above it startles. */
+  calmLight: number;
   /** Moths: the bright spot they circle (pixels), NaN if none. */
   lightX: number;
   lightY: number;
@@ -91,6 +93,38 @@ export class CritterSystem {
       return c;
     }
     return null;
+  }
+
+  /**
+   * Debug and screenshots: a group of one kind at the nearest spot that fits within `radius`
+   * tiles of (tx, ty). Returns false if there is none.
+   */
+  placeNear(
+    world: World,
+    type: number,
+    tx: number,
+    ty: number,
+    radius: number,
+    random: () => number,
+  ): boolean {
+    const def = CRITTERS[type];
+    if (!def) return false;
+    for (let r = 0; r <= radius; r++) {
+      for (let y = ty - r; y <= ty + r; y++) {
+        for (let x = tx - r; x <= tx + r; x++) {
+          if (Math.max(Math.abs(x - tx), Math.abs(y - ty)) !== r || !fits(world, def, x, y))
+            continue;
+          for (let k = 0; k < def.group[1]; k++) {
+            const gx =
+              def.move === 'flutter' || def.move === 'swim' ? x + (random() - 0.5) * 2 : x + k;
+            if (k > 0 && !fits(world, def, Math.round(gx), y)) continue;
+            this.critters.push(this.create(type, def, gx, y, random));
+          }
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private trySpawn(ctx: CritterContext): boolean {
@@ -163,6 +197,7 @@ export class CritterSystem {
       state: 'idle',
       timer: random() * CRITTER.idleSeconds,
       phase: random() * Math.PI * 2,
+      calmLight: Number.NaN,
       lightX: Number.NaN,
       lightY: Number.NaN,
     };
@@ -188,8 +223,14 @@ export class CritterSystem {
     const dy = cy - py;
     const dist = Math.hypot(dx, dy);
     const near = dist < def.fleeRange * TILE_SIZE;
-    const startledByLight =
-      def.startledByLight !== undefined && lightAtPx(world, cx, cy) >= def.startledByLight;
+    // Light-shy critters startle when light at them rises well above what they settled in (your
+    // lantern swinging onto a roost), not merely because their cave glows.
+    let startledByLight = false;
+    if (def.startledByLight !== undefined) {
+      const light = lightAtPx(world, cx, cy);
+      if (Number.isNaN(c.calmLight)) c.calmLight = light;
+      startledByLight = light >= def.startledByLight && light >= c.calmLight + CRITTER.startleRise;
+    }
     if ((near || startledByLight) && c.state !== 'flying') {
       c.state = def.move === 'perch' ? 'flying' : 'flee';
       c.timer = CRITTER.fleeSeconds;

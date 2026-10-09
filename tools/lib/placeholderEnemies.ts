@@ -5,73 +5,11 @@
  * (squash, bob, flap); the second frame is a pose change.
  */
 import { ENEMIES } from '../../src/data/enemies';
-import { PALETTE, type RampName } from '../../src/data/palette';
 import { spriteAsset } from '../../src/data/spriteAssets';
-import { createImage, setPixel, type RgbaImage } from './image';
+import { createImage, type RgbaImage } from './image';
+import { ShapeSprite as Sprite } from './placeholderShapes';
 
 const SIZE = 24;
-type Shade = 0 | 1 | 2 | 3;
-
-class Sprite {
-  readonly ramp: (RampName | null)[] = new Array<RampName | null>(SIZE * SIZE).fill(null);
-  readonly shade: Shade[] = new Array<Shade>(SIZE * SIZE).fill(1);
-  /** Pixels that keep their colour through the outline pass (eyes, glints). */
-  private readonly keep = new Set<number>();
-
-  set(x: number, y: number, ramp: RampName, shade: Shade, keep = false): this {
-    if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return this;
-    const i = y * SIZE + x;
-    this.ramp[i] = ramp;
-    this.shade[i] = shade;
-    if (keep) this.keep.add(i);
-    return this;
-  }
-
-  rect(x0: number, y0: number, w: number, h: number, ramp: RampName, shade: Shade = 2): this {
-    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) this.set(x, y, ramp, shade);
-    return this;
-  }
-
-  /** Filled ellipse with a lighter top-left (light from the top-left). */
-  blob(cx: number, cy: number, rx: number, ry: number, ramp: RampName): this {
-    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
-      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
-        const nx = (x + 0.5 - cx) / rx;
-        const ny = (y + 0.5 - cy) / ry;
-        if (nx * nx + ny * ny > 1) continue;
-        this.set(x, y, ramp, nx + ny < -0.6 ? 3 : nx + ny > 0.7 ? 1 : 2);
-      }
-    }
-    return this;
-  }
-
-  eye(x: number, y: number, ramp: RampName = 'honey'): this {
-    return this.set(x, y, ramp, 3, true);
-  }
-
-  outline(): this {
-    const empty = (x: number, y: number) =>
-      x < 0 || y < 0 || x >= SIZE || y >= SIZE || this.ramp[y * SIZE + x] === null;
-    const edge: number[] = [];
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        const i = y * SIZE + x;
-        if (this.ramp[i] === null || this.keep.has(i)) continue;
-        if (empty(x - 1, y) || empty(x + 1, y) || empty(x, y - 1) || empty(x, y + 1)) edge.push(i);
-      }
-    }
-    for (const i of edge) this.shade[i] = 0;
-    return this;
-  }
-
-  draw(out: RgbaImage, ox: number): void {
-    for (let i = 0; i < this.ramp.length; i++) {
-      const ramp = this.ramp[i];
-      if (ramp)
-        setPixel(out, ox + (i % SIZE), Math.floor(i / SIZE), PALETTE[ramp][this.shade[i] ?? 1]);
-    }
-  }
-}
 
 /** Creatures stand on the bottom edge, centred; frame 1 is the alternate pose. */
 const DRAW: Record<string, (s: Sprite, f: 0 | 1) => void> = {
@@ -139,7 +77,7 @@ export function buildEnemies(): RgbaImage {
     const draw = DRAW[enemy.key];
     if (!draw) throw new Error(`No placeholder drawing for enemy ${enemy.key}`);
     for (const f of [0, 1] as const) {
-      const s = new Sprite();
+      const s = new Sprite(SIZE);
       draw(s, f);
       s.draw(out, (enemy.frame + f) * def.frameWidth);
     }

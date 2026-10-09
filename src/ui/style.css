@@ -717,3 +717,54 @@ body {
   font-size: calc(var(--px) * 8);
   color: var(--ink-dim);
 }
+
+/* M10: talking to villagers and the Dryad, beacon travel. */
+.dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--px) * 48);
+  transform: translateX(-50%);
+  width: calc(var(--px) * 220);
+  padding: calc(var(--px) * 4) calc(var(--px) * 6);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+}
+
+.dialogue-name {
+  margin-bottom: calc(var(--px) * 2);
+  color: var(--glow);
+}
+
+.dialogue-text {
+  line-height: 1.35;
+  animation: dialogue-in 0.25s ease-out;
+}
+
+@keyframes dialogue-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.travel-panel {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--px) * 60);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 2);
+  min-width: calc(var(--px) * 140);
+  padding: calc(var(--px) * 5);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+}
+
+.travel-option {
+  text-align: left;
+}
+
+.fae {
+  color: #c8f078;
+}

@@ -85,6 +85,13 @@ export class WispSystem {
     }
   }
 
+  /** Debug and screenshots: a wisp appears now (if there's a secret within reach). */
+  summon(player: Player): void {
+    const b = player.body;
+    this.timer = 0;
+    this.appear(b.x + b.width / 2, b.y + b.height / 2);
+  }
+
   private appear(px: number, py: number): void {
     const target = this.findSecret(px / TILE_SIZE, py / TILE_SIZE);
     if (!target) return;

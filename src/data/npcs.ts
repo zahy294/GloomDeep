@@ -115,6 +115,22 @@ export const DRYAD_LINES: readonly { readonly from: number; readonly lines: read
     },
   ];
 
+/** Everyone with a sprite, in `folk` sheet order (two frames each: standing, mid-step). */
+export const FOLK: readonly NpcDef[] = [...VILLAGERS, DRYAD];
+
+export function folkFrame(key: string): number {
+  return (
+    Math.max(
+      0,
+      FOLK.findIndex((n) => n.key === key),
+    ) * 2
+  );
+}
+
+export function npcDef(key: string): NpcDef | undefined {
+  return FOLK.find((n) => n.key === key);
+}
+
 export function dryadLines(cleansed: number): readonly string[] {
   let lines = DRYAD_LINES[0]?.lines ?? [];
   for (const tier of DRYAD_LINES) if (cleansed >= tier.from) lines = tier.lines;

@@ -359,6 +359,9 @@ export const FEEDBACK = {
   breakParticles: 10,
   mineParticlesPerSecond: 14,
   placeParticles: 5,
+  /** Spore puff when bouncing off a glowcap; sparkle when catching a firefly. */
+  bounceParticles: 10,
+  catchParticles: 6,
   particleLifespanMs: 450,
   particleSpeedMin: 30,
   particleSpeedMax: 110,
@@ -663,6 +666,8 @@ export const CRITTER = {
   /** Fleeing frogs hop this much more often; swimming fish bob by this share of their speed. */
   fleeHopPace: 0.3,
   swimBob: 0.3,
+  /** Light-shy critters startle when light rises this much above where they settled. */
+  startleRise: 40,
   /** Fluttering groups scatter over this many tiles. */
   groupSpread: 3,
 } as const;
@@ -686,6 +691,8 @@ export const SETTLEMENT = {
   dryadOffset: 3,
   /** Right-clicking someone within this many pixels of the cursor talks to them. */
   talkSlop: 6,
+  /** Fast travel works only within this many tiles of a beacon. */
+  travelReach: 6,
 } as const;
 
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
@@ -739,6 +746,52 @@ export const COMBAT = {
   beamShadeMultiplier: 2,
   /** Creatures hurt by fire, lava or a falling block can't be hurt that way again for this long. */
   hazardInvuln: 0.5,
+} as const;
+
+/** Talking and beacon travel UI (src/render/scenes/GameScene.ts, M10). Tiles. */
+export const VILLAGE_UI = {
+  /** The speech box / travel list closes when you walk this far from the speaker or beacon. */
+  closeTiles: 6,
+  /** Travel labels mention height only past this many tiles. */
+  levelTiles: 4,
+} as const;
+
+/** Villagers, critters and wisps on screen (src/render/LifeRenderer.ts, M10). Pixels, seconds. */
+export const LIFE_VIEW = {
+  /** Two-frame animation rates (frames per second); the Dryad sways slowly. */
+  walkRate: 5,
+  flapRate: 12,
+  swayRate: 0.8,
+  animPhase: 0.37,
+  /** Names show over villagers within this many tiles of the player. */
+  tagTiles: 6,
+  tagFontPx: 8,
+  tagGap: 3,
+  tagColor: '#f2e6c8',
+  tagStroke: '#05080a',
+  tagStrokePx: 2,
+  /** Glowing critters: halo size, pulse rate and the dimmest point of the pulse. */
+  haloPx: 18,
+  glowPulse: 3,
+  haloMin: 0.45,
+  /** Critter eye glints: size, strength, height on the body (share from the top), lead. */
+  eyePx: 7,
+  eyeAlpha: 0.95,
+  eyeAt: 0.3,
+  eyeHangingAt: 0.8,
+  eyeForward: 1,
+  /** Wisp: core size, flicker, and a trail of this many points sampled every wispTrailStep s. */
+  wispPx: 22,
+  wispFlicker: 0.15,
+  wispFlickerRate: 11,
+  wispTrail: 8,
+  wispTrailStep: 0.05,
+  wispTrailPx: 12,
+  /** At most one flutter sound per this many seconds (a startled colony takes off at once). */
+  flutterSoundGap: 0.4,
+  /** The ring when a wisp appears or arrives. */
+  ringRadius: 40,
+  ringSeconds: 0.9,
 } as const;
 
 /** Combat on screen (src/render/CombatRenderer.ts). Pixels and seconds. */
@@ -905,6 +958,17 @@ export const DEBUG = {
   defaultSeed: 1,
   /** `?spot=entrance`: stand this many tiles before the cave mouth (on the spawn's side). */
   entranceStandOff: 6,
+  /** `?spot=village`: cottages start this many tiles right of the spawn, this far apart. */
+  villageOffset: 16,
+  villageGap: 3,
+  villageHouses: 4,
+  /** Rows cleared above each cottage (trees, overhangs). */
+  villageHeadroom: 6,
+  /** `?critter=`: look for a fitting spot this far from a point a few tiles right of the player. */
+  critterOffsetTiles: 8,
+  critterSearchTiles: 10,
+  /** Ceiling perchers: climb at most this far to find the ceiling above that spot. */
+  critterCeilingTiles: 60,
   /** `?enemy=`: how many tiles right of the player the creature stands. */
   enemyOffsetTiles: 4,
 } as const;
@@ -1287,6 +1351,20 @@ export const FOLIAGE = {
     maxActive: 64,
     /** A recovering plant is released when its lean falls below this. */
     releaseRadians: 0.004,
+  },
+  /** Shy vines (decor.shy) curl up when the player is near. */
+  shy: {
+    /** Tile columns each side of the player, and rows above the feet, that startle a vine. */
+    columns: 3,
+    rowsAboveFeet: 5,
+    /** Height a fully curled vine segment keeps (share of its sprite). */
+    minScale: 0.2,
+    /** Exponential rates (1/s): curling up (fast) and unfurling again (slow). */
+    curlRate: 14,
+    unfurlRate: 1.5,
+    maxActive: 64,
+    /** An unfurling vine is released when it is this close to full length. */
+    release: 0.005,
   },
 } as const;
 
