@@ -294,6 +294,8 @@ export const LIGHT = {
   /** A job not answered within this many seconds is abandoned and re-submitted. */
   jobTimeoutSeconds: 1,
   /** Touching a glowing plant brightens it for this long (plan 2.0 bioluminescence)... */
+  /** Sunlight never drops below this fraction under a leaf canopy (a dim, dappled forest floor). */
+  canopyMinSun: 0.18,
   touchSeconds: 4,
   /** ...with its light radius multiplied by up to this much, fading back over that time. */
   touchRadiusBoost: 1.8,

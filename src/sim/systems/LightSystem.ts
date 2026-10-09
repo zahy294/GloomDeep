@@ -114,6 +114,8 @@ export class LightSystem {
       fg.set(world.fg.subarray(from, from + region.width), y * region.width);
     }
     const skyline = world.skyline.slice(region.x0, region.x0 + region.width);
+    const canopyTop = world.canopyTop.slice(region.x0, region.x0 + region.width);
+    const canopyShade = world.canopyShade.slice(region.x0, region.x0 + region.width);
 
     const lit = lanternLit(player);
     const handX = feetX + LANTERN_HAND.x * player.facing;
@@ -155,6 +157,8 @@ export class LightSystem {
       ...region,
       fg,
       skyline,
+      canopyTop,
+      canopyShade,
       sunR: day.sunR,
       sunG: day.sunG,
       sunB: day.sunB,

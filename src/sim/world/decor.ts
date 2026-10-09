@@ -7,7 +7,9 @@ import { AIR, type World } from './World';
 const DECOR: readonly (DecorDef | undefined)[] = TILES.map((t) => t.decor);
 const DROP_ITEM = TILES.map((t) => (t.drop ? itemId(t.drop) : -1));
 /** Per-id: something decorations can stand on or hang from (blocks, branches, leaf canopies). */
-const ANCHOR = Uint8Array.from(TILES, (t) => (t.solid || t.platform || t.blocksSun ? 1 : 0));
+const ANCHOR = Uint8Array.from(TILES, (t) =>
+  t.solid || t.platform || t.sunTransmit !== undefined ? 1 : 0,
+);
 
 export function isDecor(id: number): boolean {
   return DECOR[id] !== undefined;

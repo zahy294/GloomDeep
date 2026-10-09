@@ -66,6 +66,8 @@ export class WorkerLightBackend implements LightBackend {
     this.worker.postMessage(job, [
       job.fg.buffer,
       job.skyline.buffer,
+      job.canopyTop.buffer,
+      job.canopyShade.buffer,
       job.points.buffer,
       job.outR.buffer,
       job.outG.buffer,

@@ -1,3 +1,4 @@
+import { LIGHT } from '../../config';
 import { TILES } from '../../data/tiles';
 import { DEPTH_LAYERS } from '../../data/biomes';
 import type { EventBus, SimEvents, TileLayer } from '../events';
@@ -15,8 +16,8 @@ export const AIR = 0;
 
 /** Per-id solidity, so collision checks are one typed-array read instead of an object lookup. */
 const SOLID = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
-/** Per-id: stops straight-down sunlight (solid blocks and leaf canopies). */
-const BLOCKS_SUN = Uint8Array.from(TILES, (t) => (t.solid || t.blocksSun ? 1 : 0));
+/** Per-id fraction of straight-down sunlight passing through (1 = all; leaves less; solid 0). */
+const SUN_TRANSMIT = Float32Array.from(TILES, (t) => (t.solid ? 0 : (t.sunTransmit ?? 1)));
 /** Per-id: one-way platform. */
 const PLATFORM = Uint8Array.from(TILES, (t) => (t.platform ? 1 : 0));
 
@@ -41,11 +42,17 @@ export class World {
   readonly lightB: Uint8Array;
   readonly gloam: Uint8Array;
   /**
-   * Per column: the first row whose foreground tile blocks sunlight (solid, or a leaf canopy);
-   * sunlight falls straight down to it. `height` when the column is open all the way down. Kept
-   * current on every foreground write. For the ground itself use `groundRow`.
+   * Per column: the first row with a solid foreground tile (sunlight falls straight down to it).
+   * `height` when the column is open all the way down. Kept current on every foreground write.
    */
   readonly skyline: Int32Array;
+  /**
+   * Per column: the first row of leaf canopy above the ground (`height` if none), and the fraction
+   * of sunlight that gets through the canopy (dappled shade under trees; gaps get full sun).
+   * Kept with the skyline because the light worker only sees the region around the view.
+   */
+  readonly canopyTop: Int32Array;
+  readonly canopyShade: Float32Array;
   /** Surface biome index per column (src/data/biomes.ts SURFACE_BIOMES). */
   readonly surfaceBiome: Uint8Array;
   /** First row of each depth layer (src/data/biomes.ts DEPTH_LAYERS). */
@@ -88,6 +95,8 @@ export class World {
     }
     this.chunks = chunks;
     this.skyline = new Int32Array(size.width).fill(size.height);
+    this.canopyTop = new Int32Array(size.width).fill(size.height);
+    this.canopyShade = new Float32Array(size.width).fill(1);
     this.surfaceBiome = new Uint8Array(size.width);
     this.layerTops = new Int32Array(DEPTH_LAYERS.length);
   }
@@ -120,11 +129,9 @@ export class World {
     return this.inBounds(x, y) && PLATFORM[this.fg[y * this.width + x] ?? AIR] === 1;
   }
 
-  /** First row with a solid tile in column x (scans from `fromY`; `height` if none). */
-  groundRow(x: number, fromY = 0): number {
-    let y = Math.max(0, fromY);
-    while (y < this.height && SOLID[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
-    return y;
+  /** First row with a solid tile in column x (`height` if none): the ground under the sky. */
+  groundRow(x: number): number {
+    return this.skyline[x] ?? this.height;
   }
 
   /** Sets a foreground tile, marks its chunk changed and emits `tileChanged`. */
@@ -199,22 +206,30 @@ export class World {
   /** Marks every chunk changed and rebuilds derived data (after bulk generation). */
   touchAll(): void {
     for (const chunk of this.chunks) chunk.markChanged();
-    for (let x = 0; x < this.width; x++) this.rescanSkyline(x, 0);
+    for (let x = 0; x < this.width; x++) this.rescanColumn(x);
   }
 
-  private updateSkyline(x: number, y: number, id: number): void {
-    const top = this.skyline[x] ?? this.height;
-    if (BLOCKS_SUN[id] === 1) {
-      if (y < top) this.skyline[x] = y;
-    } else if (y === top) {
-      this.rescanSkyline(x, y);
+  /** Only edits at or above the ground can change what the sun sees in this column. */
+  private updateSkyline(x: number, y: number): void {
+    if (y <= (this.skyline[x] ?? this.height)) this.rescanColumn(x);
+  }
+
+  /** Recomputes the column's skyline and canopy shade, scanning down to the first solid tile. */
+  private rescanColumn(x: number): void {
+    let shade = 1;
+    let canopyTop = this.height;
+    let y = 0;
+    for (; y < this.height; y++) {
+      const pass = SUN_TRANSMIT[this.fg[y * this.width + x] ?? AIR] ?? 1;
+      if (pass === 0) break;
+      if (pass < 1) {
+        if (canopyTop === this.height) canopyTop = y;
+        shade *= pass;
+      }
     }
-  }
-
-  private rescanSkyline(x: number, fromY: number): void {
-    let y = fromY;
-    while (y < this.height && BLOCKS_SUN[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
     this.skyline[x] = y;
+    this.canopyTop[x] = canopyTop;
+    this.canopyShade[x] = Math.max(LIGHT.canopyMinSun, shade);
   }
 
   private write(data: Uint16Array, layer: TileLayer, x: number, y: number, id: number): void {
@@ -224,7 +239,7 @@ export class World {
     if (previous === id) return;
     data[i] = id;
     this.touch(x, y);
-    if (layer === 'fg') this.updateSkyline(x, y, id);
+    if (layer === 'fg') this.updateSkyline(x, y);
     const payload = this.tileChangedPayload;
     payload.x = x;
     payload.y = y;

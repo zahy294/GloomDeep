@@ -127,11 +127,16 @@ export function emissiveFactor(
 }
 
 function seedSun(job: LightJob): void {
-  const { width, height, y0, skyline } = job;
+  const { width, height, y0, skyline, canopyTop, canopyShade } = job;
   if (job.sunR <= 0 && job.sunG <= 0 && job.sunB <= 0) return;
   for (let cx = 0; cx < width; cx++) {
     const rows = Math.min(height, skyline[cx]! - y0);
-    for (let cy = 0; cy < rows; cy++) seed(job, cy * width + cx, job.sunR, job.sunG, job.sunB);
+    const shadeFrom = canopyTop[cx]! - y0;
+    const shade = canopyShade[cx]!;
+    for (let cy = 0; cy < rows; cy++) {
+      const s = cy < shadeFrom ? 1 : shade; // dappled light below a leaf canopy
+      seed(job, cy * width + cx, job.sunR * s, job.sunG * s, job.sunB * s);
+    }
   }
 }
 

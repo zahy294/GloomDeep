@@ -34,6 +34,9 @@ export interface LightJob {
    * down through everything above it). May be above y0 or below the region's bottom.
    */
   skyline: Int32Array;
+  /** Per column of the region: first leaf-canopy row and the fraction of sun that gets through. */
+  canopyTop: Int32Array;
+  canopyShade: Float32Array;
   /** Current sunlight colour/strength, 0–255 per channel. */
   sunR: number;
   sunG: number;

@@ -21,6 +21,8 @@ function makeJob(width: number, height: number, over: Partial<LightJob> = {}): L
     height,
     fg: new Uint16Array(n).fill(AIR),
     skyline: new Int32Array(width).fill(-1000),
+    canopyTop: new Int32Array(width).fill(1_000_000),
+    canopyShade: new Float32Array(width).fill(1),
     sunR: 0,
     sunG: 0,
     sunB: 0,
@@ -316,5 +318,25 @@ describe('per-tile falloff', () => {
     expect(at(open, 8, 2) - at(shaded, 8, 2)).toBe(leafFalloff - LIGHT.airFalloff);
     expect(leafFalloff).toBeGreaterThan(LIGHT.airFalloff);
     expect(leafFalloff).toBeLessThan(LIGHT.solidFalloff);
+  });
+});
+
+describe('canopy shade', () => {
+  it('sunlight below a leaf canopy is scaled by the column shade; gaps get full sun', () => {
+    const w = 6;
+    const job = makeJob(w, 10, {
+      skyline: new Int32Array(w).fill(10),
+      canopyTop: Int32Array.from([3, 3, 1_000_000, 3, 3, 3]),
+      canopyShade: Float32Array.from([0.25, 0.25, 1, 0.25, 0.25, 0.25]),
+      sunR: 200,
+      sunG: 200,
+      sunB: 200,
+    });
+    const res = computeLight(job);
+    expect(at(res, 0, 1)).toBe(200); // above the canopy: full sun
+    expect(at(res, 2, 8)).toBe(200); // the gap column: full sun to the ground
+    // Under the canopy, next to the gap: the gap's light spreading sideways beats the shade.
+    expect(at(res, 3, 8)).toBe(200 - LIGHT.airFalloff);
+    expect(at(res, 5, 8)).toBe(Math.max(50, 200 - 3 * LIGHT.airFalloff));
   });
 });

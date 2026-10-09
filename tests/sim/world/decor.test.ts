@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { tileId } from '../../../src/data/tiles';
+import { LIGHT } from '../../../src/config';
+import { TILES, tileId } from '../../../src/data/tiles';
 import { EventBus, type SimEvents } from '../../../src/sim/events';
 import { hasSupport } from '../../../src/sim/systems/BuildingSystem';
 import { tileFrame } from '../../../src/sim/world/autotile';
@@ -75,23 +76,38 @@ describe('decorations', () => {
 });
 
 describe('leaf canopies and the skyline', () => {
-  it('leaves stop sunlight (skyline) without being solid; groundRow finds the real ground', () => {
+  it('leaves filter sunlight (dappled shade) without being solid or moving the skyline', () => {
     const { world } = setup();
     world.set(3, 12, SOIL);
     expect(world.skyline[3]).toBe(12);
+    expect(world.canopyShade[3]).toBe(1);
     world.set(3, 4, LEAVES);
-    expect(world.skyline[3]).toBe(4);
-    expect(world.isSolid(3, 4)).toBe(false);
-    expect(world.groundRow(3)).toBe(12);
-    world.set(3, 4, 0);
+    world.set(3, 5, LEAVES);
     expect(world.skyline[3]).toBe(12);
+    expect(world.groundRow(3)).toBe(12);
+    expect(world.isSolid(3, 4)).toBe(false);
+    expect(world.canopyTop[3]).toBe(4);
+    const pass = TILES[LEAVES]?.sunTransmit ?? 1;
+    expect(world.canopyShade[3]).toBeCloseTo(Math.max(LIGHT.canopyMinSun, pass * pass), 6);
+    world.set(3, 4, 0);
+    world.set(3, 5, 0);
+    expect(world.canopyTop[3]).toBe(16);
+    expect(world.canopyShade[3]).toBe(1);
   });
 
-  it('branches are platforms, neither solid nor blocking the sun', () => {
+  it('a thick canopy never gets darker than the configured minimum', () => {
+    const { world } = setup();
+    world.set(3, 15, SOIL);
+    for (let y = 0; y < 14; y++) world.set(3, y, LEAVES);
+    expect(world.canopyShade[3]).toBeCloseTo(LIGHT.canopyMinSun, 6);
+  });
+
+  it('branches are platforms, neither solid nor shading the ground', () => {
     const { world } = setup();
     world.set(7, 6, BRANCH);
     expect(world.isPlatform(7, 6)).toBe(true);
     expect(world.isSolid(7, 6)).toBe(false);
     expect(world.skyline[7]).toBe(16);
+    expect(world.canopyShade[7]).toBe(1);
   });
 });

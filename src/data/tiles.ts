@@ -27,8 +27,11 @@ export interface TileDef {
   readonly placeholderOre?: RampName;
   /** One-way platform (branches): stand on its top, jump up through it, drop through with Down. */
   readonly platform?: boolean;
-  /** Stops straight-down sunlight like a solid block without being solid (leaf canopies). */
-  readonly blocksSun?: boolean;
+  /**
+   * Leaf canopies: the fraction of straight-down sunlight that passes through each tile of this
+   * kind (dappled shade under trees). Solid tiles stop sunlight; other tiles let it all through.
+   */
+  readonly sunTransmit?: number;
   /** Light lost per tile passing through this tile (0–255 scale); default air or solid falloff. */
   readonly lightFalloff?: number;
   /** Flora/decoration: drawn by the foliage renderer instead of the tilemap. */
@@ -349,7 +352,7 @@ export const TILES: readonly TileDef[] = [
     drop: null,
     mergesWith: [],
     placeholderRamp: 'leaf',
-    blocksSun: true,
+    sunTransmit: 0.72,
     lightFalloff: 28,
   },
   {
@@ -361,7 +364,7 @@ export const TILES: readonly TileDef[] = [
     drop: null,
     mergesWith: [],
     placeholderRamp: 'mint',
-    blocksSun: true,
+    sunTransmit: 0.78,
     lightFalloff: 26,
   },
   {
@@ -373,7 +376,7 @@ export const TILES: readonly TileDef[] = [
     drop: null,
     mergesWith: [],
     placeholderRamp: 'moss',
-    blocksSun: true,
+    sunTransmit: 0.68,
     lightFalloff: 32,
   },
   {
