@@ -166,7 +166,11 @@ export class GameScene extends Phaser.Scene {
     // without data for `?scene=game`: that is a debug world that is never saved.
     const start: GameStart = data.kind ? (data as GameStart) : { kind: 'debug' };
     const startDayFraction = this.params.time ? NAMED_TIMES[this.params.time] : undefined;
-    const runtime = { lightBackend: this.createLightBackend(), startDayFraction };
+    const runtime = {
+      lightBackend: this.createLightBackend(),
+      startDayFraction,
+      spawns: this.params.spawns,
+    };
     if (start.kind === 'new') {
       this.meta = start.meta;
       this.sim = Simulation.fromGenerated(start.world, { ...runtime, seed: start.meta.seed });

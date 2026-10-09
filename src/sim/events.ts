@@ -77,6 +77,34 @@ export interface SimEvents {
   tileRevealed: { readonly x: number; readonly y: number; readonly id: number };
   /** A flare was thrown (x, y = where it starts, pixels). */
   flareThrown: { readonly x: number; readonly y: number };
+  /** A creature appeared (feet x, y in pixels). */
+  enemySpawned: {
+    readonly id: number;
+    readonly type: number;
+    readonly x: number;
+    readonly y: number;
+  };
+  /** The player swung or fired a weapon along (dirX, dirY); a swing lasts `duration` seconds. */
+  attackStarted: {
+    readonly kind: 'melee' | 'ranged' | 'magic';
+    readonly dirX: number;
+    readonly dirY: number;
+    readonly duration: number;
+  };
+  /** A creature took damage (x, y = top centre, pixels). `light`: burned by light. */
+  enemyHit: {
+    readonly id: number;
+    readonly x: number;
+    readonly y: number;
+    readonly amount: number;
+    readonly source: 'melee' | 'arrow' | 'beam' | 'light';
+  };
+  /** A creature died (centre, pixels); drops are already spawned. */
+  enemyDied: { readonly id: number; readonly type: number; readonly x: number; readonly y: number };
+  /** The player took damage (x, y = top centre, pixels). */
+  playerHurt: { readonly amount: number; readonly x: number; readonly y: number };
+  playerDied: Record<string, never>;
+  playerRespawned: Record<string, never>;
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

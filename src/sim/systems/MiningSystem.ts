@@ -132,8 +132,10 @@ export function updateMining(
   events: EventBus<SimEvents>,
   spawnDrop: SpawnDrop,
   dt: number,
+  /** True while the left button does something else (a weapon is selected, or the player is dead). */
+  blocked = false,
 ): void {
-  if (!input.isHeld('useItem')) {
+  if (blocked || !input.isHeld('useItem')) {
     stopMining(state, world, events);
     state.blockedKey = NO_TARGET;
     return;

@@ -504,7 +504,7 @@ export const COMBAT = {
 
 /** Shots (src/sim/entities/Projectile.ts). Pixels and seconds. */
 export const PROJECTILE = {
-  arrow: { speed: 520, gravity: 600, size: 4, life: 3 },
+  arrow: { speed: 520, gravity: 400, size: 4, life: 3 },
   beam: { speed: 700, gravity: 0, size: 6, life: 0.6 },
 } as const;
 

@@ -63,8 +63,16 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frameHeight: 80,
     frames: 3,
   },
-  /** Item icons (frame = `icon` in src/data/items.ts): pickaxes, bars, lenses, flare. */
-  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 12 },
+  /** Item icons (frame = `icon` in src/data/items.ts): pickaxes, bars, lenses, flare, weapons. */
+  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 18 },
+  /** Creatures (src/data/enemies.ts `frame`): two 24×24 frames each. */
+  {
+    id: 'enemies',
+    placeholder: 'sprites/enemies.png',
+    frameWidth: 24,
+    frameHeight: 24,
+    frames: 18,
+  },
   /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote. */
   {
     id: 'particles',

@@ -113,6 +113,75 @@ const FLARE_ICON = [
   '...BB...........',
 ];
 
+/** A sword: blade (0–3) up to the top-right, crossguard and grip in bark. */
+const SWORD = [
+  '.............00.',
+  '............0330',
+  '...........03320',
+  '..........03320.',
+  '.........03320..',
+  '........03320...',
+  '.......03320....',
+  '..B...03320.....',
+  '..BhB03320......',
+  '...BhB320.......',
+  '....BhB0........',
+  '...BhdhB........',
+  '..Bhd.BB........',
+  '.Bhd............',
+  '.BB.............',
+];
+
+/** A bow: a bent wooden limb (bark) with a pale string. */
+const BOW = [
+  '........BBB.....',
+  '..........BhB...',
+  '...........BhB..',
+  '........3...Bh..',
+  '.......3.....Bh.',
+  '......3......Bh.',
+  '.....3.......Bh.',
+  '....3........Bh.',
+  '...3.........Bh.',
+  '..3.........Bh..',
+  '.3.........BhB..',
+  '3.......BBBB....',
+];
+
+/** An arrow: shaft from the bottom-left, a stone head at the top-right, fletching. */
+const ARROW = [
+  '............000.',
+  '...........0330.',
+  '...........0320.',
+  '..........Bh00..',
+  '.........Bh.....',
+  '........Bh......',
+  '.......Bh.......',
+  '......Bh........',
+  '.....Bh.........',
+  '..33Bh..........',
+  '..3Bh...........',
+  '...3............',
+];
+
+/** A staff: a long shaft with a glowing crystal at its head. */
+const STAFF = [
+  '...........00...',
+  '..........0330..',
+  '.........033320.',
+  '.........032220.',
+  '..........0220..',
+  '.........BhB0...',
+  '........Bhd.....',
+  '.......Bhd......',
+  '......Bhd.......',
+  '.....Bhd........',
+  '....Bhd.........',
+  '...Bhd..........',
+  '..Bhd...........',
+  '..BB............',
+];
+
 /** Frame order matches `icon` in src/data/items.ts. */
 const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
   { pattern: PICKAXE, ramp: 'bark' }, // elderwood pickaxe
@@ -127,6 +196,12 @@ const ICONS: readonly { pattern: readonly string[]; ramp: RampName }[] = [
   { pattern: LENS, ramp: 'rose' }, // crimson lens
   { pattern: LENS, ramp: 'leaf' }, // verdant lens
   { pattern: FLARE_ICON, ramp: 'ember' }, // flare
+  { pattern: SWORD, ramp: 'bark' }, // elderwood sword
+  { pattern: SWORD, ramp: 'ember' }, // copper sword
+  { pattern: SWORD, ramp: 'stone' }, // iron sword
+  { pattern: BOW, ramp: 'moonSilver' }, // elderwood bow (string colour)
+  { pattern: ARROW, ramp: 'stone' }, // wooden arrow
+  { pattern: STAFF, ramp: 'cyan' }, // lumen staff
 ];
 
 /** The `items` placeholder sheet: one row of 16×16 icons. */

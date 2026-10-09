@@ -23,6 +23,13 @@ export interface Player {
   health: number;
   /** Seconds since the player last took damage (regeneration waits for HEALTH.regenDelay). */
   sinceDamage: number;
+  /** Seconds of invulnerability left after a hit. */
+  invuln: number;
+  /** Seconds of lost control left after being knocked back. */
+  knockbackTimer: number;
+  /** Out of health: no control until respawning (respawnTimer counts down). */
+  dead: boolean;
+  respawnTimer: number;
 }
 
 /** Spawn is the FEET-CENTER in pixels. */
@@ -44,5 +51,9 @@ export function createPlayer(spawnX: number, spawnY: number): Player {
     lens: 'amber',
     health: HEALTH.max,
     sinceDamage: HEALTH.regenDelay,
+    invuln: 0,
+    knockbackTimer: 0,
+    dead: false,
+    respawnTimer: 0,
   };
 }

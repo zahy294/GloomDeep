@@ -1,7 +1,15 @@
 /** Item registry. Ids are array indices (like tiles); keys are what other data refers to. */
 
 /** Inventory sorting groups, in sort order. */
-export const ITEM_CATEGORIES = ['tool', 'lens', 'station', 'light', 'material', 'block'] as const;
+export const ITEM_CATEGORIES = [
+  'tool',
+  'weapon',
+  'lens',
+  'station',
+  'light',
+  'material',
+  'block',
+] as const;
 export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
 
 /** A pickaxe: mines tiles up to `tier` (src/data/tiles.ts), `power` × faster than power 1. */
@@ -9,6 +17,24 @@ export interface ToolDef {
   readonly kind: 'pickaxe';
   readonly tier: number;
   readonly power: number;
+}
+
+/**
+ * A weapon (M8). Melee swings hit everything in an arc within `reach`; ranged fires `ammo` (each
+ * arrow adds its `ammoDamage`); magic spends `lumenCost` Lumen per shot. `useTime` is seconds
+ * between uses (and a swing's length); knockback multiplies COMBAT.knockbackSpeed.
+ */
+export interface WeaponDef {
+  readonly kind: 'melee' | 'ranged' | 'magic';
+  readonly damage: number;
+  readonly knockback: number;
+  readonly useTime: number;
+  readonly reach?: number;
+  readonly ammo?: string;
+  readonly projectileSpeed?: number;
+  readonly lumenCost?: number;
+  /** Enemies one shot can hit (beams pierce). */
+  readonly pierce?: number;
 }
 
 export interface ItemDef {
@@ -28,6 +54,9 @@ export interface ItemDef {
   readonly lens?: string;
   /** Thrown with the right mouse button instead of placed (flares: FLARE in config). */
   readonly throws?: 'flare';
+  readonly weapon?: WeaponDef;
+  /** Damage this item adds when shot as ammo. */
+  readonly ammoDamage?: number;
 }
 
 const BLOCK_STACK = 999;
@@ -358,6 +387,77 @@ export const ITEMS: readonly ItemDef[] = [
     icon: 11,
     throws: 'flare',
   },
+  // M8 weapons. Selecting one makes the left button attack instead of mine.
+  {
+    id: 38,
+    key: 'elderwood_sword',
+    name: 'Elderwood Sword',
+    maxStack: 1,
+    placesTile: null,
+    category: 'weapon',
+    description: 'A sturdy wooden blade.',
+    icon: 12,
+    weapon: { kind: 'melee', damage: 9, knockback: 4, useTime: 0.38, reach: 30 },
+  },
+  {
+    id: 39,
+    key: 'copper_sword',
+    name: 'Copper Sword',
+    maxStack: 1,
+    placesTile: null,
+    category: 'weapon',
+    icon: 13,
+    weapon: { kind: 'melee', damage: 13, knockback: 4.5, useTime: 0.36, reach: 32 },
+  },
+  {
+    id: 40,
+    key: 'iron_sword',
+    name: 'Iron Sword',
+    maxStack: 1,
+    placesTile: null,
+    category: 'weapon',
+    icon: 14,
+    weapon: { kind: 'melee', damage: 18, knockback: 5, useTime: 0.34, reach: 34 },
+  },
+  {
+    id: 41,
+    key: 'elderwood_bow',
+    name: 'Elderwood Bow',
+    maxStack: 1,
+    placesTile: null,
+    category: 'weapon',
+    description: 'Shoots arrows from your bag.',
+    icon: 15,
+    weapon: { kind: 'ranged', damage: 6, knockback: 2, useTime: 0.5, ammo: 'wooden_arrow' },
+  },
+  {
+    id: 42,
+    key: 'wooden_arrow',
+    name: 'Wooden Arrow',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'weapon',
+    icon: 16,
+    ammoDamage: 4,
+  },
+  {
+    id: 43,
+    key: 'lumen_staff',
+    name: 'Lumen Staff',
+    maxStack: 1,
+    placesTile: null,
+    category: 'weapon',
+    description: 'Fires a beam of stored light. Costs Lumen; shades fear it.',
+    icon: 17,
+    weapon: {
+      kind: 'magic',
+      damage: 14,
+      knockback: 2,
+      useTime: 0.45,
+      lumenCost: 1.5,
+      pierce: 3,
+    },
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {
@@ -397,6 +497,15 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'verdant_lens', count: 1 },
     { item: 'flare', count: 20 },
     { item: 'torch', count: 20 },
+  ],
+  combat: [
+    { item: 'iron_sword', count: 1 },
+    { item: 'elderwood_bow', count: 1 },
+    { item: 'wooden_arrow', count: 99 },
+    { item: 'lumen_staff', count: 1 },
+    { item: 'crimson_lens', count: 1 },
+    { item: 'torch', count: 20 },
+    { item: 'flare', count: 10 },
   ],
   crafting: [
     { item: 'elderwood_pickaxe', count: 1 },

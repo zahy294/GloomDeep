@@ -19,3 +19,21 @@ export function biomeAt(world: World, x: number, y: number): string {
   }
   return DEPTH_LAYERS[layer]?.name ?? '?';
 }
+
+/** How far below the ground a spot still counts as the surface biome for spawning (rows). */
+const SURFACE_SPAWN_DEPTH = 6;
+
+/**
+ * Key of the place at a tile for spawn rules (src/data/enemies.ts `places`): the surface biome on
+ * or just under the surface, otherwise the depth layer.
+ */
+export function placeKeyAt(world: World, x: number, y: number): string {
+  const cx = Math.min(world.width - 1, Math.max(0, x));
+  if (y < world.groundRow(cx) + SURFACE_SPAWN_DEPTH) {
+    return SURFACE_BIOMES[world.surfaceBiome[cx] ?? 0]?.key ?? '';
+  }
+  let layer = 0;
+  for (let i = 1; i < world.layerTops.length; i++)
+    if (y >= (world.layerTops[i] ?? Infinity)) layer = i;
+  return DEPTH_LAYERS[layer]?.key ?? '';
+}

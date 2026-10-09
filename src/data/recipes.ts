@@ -114,6 +114,52 @@ export const RECIPES: readonly RecipeDef[] = [
     ],
     station: 'anvil',
   },
+  // Weapons (M8).
+  {
+    key: 'elderwood_sword',
+    output: { item: 'elderwood_sword', count: 1 },
+    inputs: [{ item: 'elderwood_planks', count: 7 }],
+    station: 'workbench',
+  },
+  {
+    key: 'elderwood_bow',
+    output: { item: 'elderwood_bow', count: 1 },
+    inputs: [
+      { item: 'elderwood_planks', count: 10 },
+      { item: 'moss', count: 2 },
+    ],
+    station: 'workbench',
+  },
+  {
+    key: 'wooden_arrow',
+    output: { item: 'wooden_arrow', count: 10 },
+    inputs: [
+      { item: 'elderwood_planks', count: 1 },
+      { item: 'stone', count: 1 },
+    ],
+    station: 'workbench',
+  },
+  {
+    key: 'copper_sword',
+    output: { item: 'copper_sword', count: 1 },
+    inputs: [{ item: 'copper_bar', count: 7 }],
+    station: 'anvil',
+  },
+  {
+    key: 'iron_sword',
+    output: { item: 'iron_sword', count: 1 },
+    inputs: [{ item: 'iron_bar', count: 8 }],
+    station: 'anvil',
+  },
+  {
+    key: 'lumen_staff',
+    output: { item: 'lumen_staff', count: 1 },
+    inputs: [
+      { item: 'lumen_crystal', count: 5 },
+      { item: 'iron_bar', count: 4 },
+    ],
+    station: 'anvil',
+  },
   // Lenses (plan 1.4: each from a different place) and flares.
   {
     key: 'verdant_lens',

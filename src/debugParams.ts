@@ -39,6 +39,8 @@ export interface DebugParams {
   rain: number | null;
   /** `kit=<key>` adds a debug kit (src/data/items.ts DEBUG_KITS) to new and debug worlds. */
   kit: string | null;
+  /** `spawns=0` turns creature spawning off (repeatable screenshots). */
+  spawns: boolean;
 }
 
 function intParam(params: URLSearchParams, name: string): number | null {
@@ -84,5 +86,6 @@ export function parseDebugParams(search: string): DebugParams {
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
     rain: unitParam(params, 'rain'),
     kit: nameParam(params, 'kit'),
+    spawns: params.get('spawns') !== '0',
   };
 }

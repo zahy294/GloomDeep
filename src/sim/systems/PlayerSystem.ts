@@ -12,10 +12,17 @@ export function updatePlayer(player: Player, input: ActionState, world: World, d
   player.prevX = body.x;
   player.prevY = body.y;
 
+  player.invuln = Math.max(0, player.invuln - dt);
+  player.knockbackTimer = Math.max(0, player.knockbackTimer - dt);
+  // Knocked back (or dead): no steering, and only air friction so the knockback carries.
+  const control = player.knockbackTimer === 0 && !player.dead;
+
   // Horizontal
-  const dir = (input.isHeld('moveRight') ? 1 : 0) - (input.isHeld('moveLeft') ? 1 : 0);
+  const dir = control
+    ? (input.isHeld('moveRight') ? 1 : 0) - (input.isHeld('moveLeft') ? 1 : 0)
+    : 0;
   const accel = player.onGround ? PLAYER.groundAcceleration : PLAYER.airAcceleration;
-  const friction = player.onGround ? PLAYER.groundFriction : PLAYER.airFriction;
+  const friction = player.onGround && control ? PLAYER.groundFriction : PLAYER.airFriction;
   if (dir !== 0) {
     player.facing = dir === 1 ? 1 : -1;
     // Turning around: acceleration plus friction, so reversing is snappy.
@@ -32,9 +39,10 @@ export function updatePlayer(player: Player, input: ActionState, world: World, d
 
   // Coyote time and jump buffer
   player.coyoteTimer = player.onGround ? PLAYER.coyoteTime : Math.max(0, player.coyoteTimer - dt);
-  player.jumpBufferTimer = input.consumePressed('jump')
-    ? PLAYER.jumpBufferTime
-    : Math.max(0, player.jumpBufferTimer - dt);
+  player.jumpBufferTimer =
+    input.consumePressed('jump') && control
+      ? PLAYER.jumpBufferTime
+      : Math.max(0, player.jumpBufferTimer - dt);
 
   if (player.jumpBufferTimer > 0 && player.coyoteTimer > 0) {
     body.vy = -PLAYER.jumpSpeed;

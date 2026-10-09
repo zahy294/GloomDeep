@@ -1,4 +1,16 @@
-import { ITEM_DROP, SIM, TIME, WORLD } from '../config';
+import { COMBAT, HEALTH, ITEM_DROP, SIM, TILE_SIZE, TIME, WORLD } from '../config';
+import { ENEMIES } from '../data/enemies';
+import type { Enemy } from './entities/Enemy';
+import type { Projectile } from './entities/Projectile';
+import { updateEnemyAI } from './systems/EnemyAI';
+import {
+  createCombatState,
+  selectedWeapon,
+  updateCombat,
+  type CombatContext,
+  type CombatState,
+} from './systems/CombatSystem';
+import { SpawnSystem } from './systems/SpawnSystem';
 import { itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
@@ -19,6 +31,7 @@ import { GloamSystem } from './systems/GloamSystem';
 import { createLensState, updateLens, type LensState } from './systems/LensSystem';
 import { createFlareState, updateFlares, type FlareState } from './systems/FlareSystem';
 import { createCone, lanternCone, type Cone } from './systems/lanternCone';
+import type { TileRect } from './systems/GloamSystem';
 import { lanternLit } from './systems/LanternSystem';
 import { lensByKey } from '../data/lenses';
 import type { Flare } from './entities/Flare';
@@ -51,9 +64,13 @@ export interface SimulationOptions {
   lightBackend?: LightBackend;
   /** Day fraction to start at (0 = midnight, 0.5 = noon). */
   startDayFraction?: number;
+  /** Creatures spawn. Off by default (tests); the game turns it on unless `?spawns=0`. */
+  spawns?: boolean;
 }
 
 const NO_PAYLOAD: Record<string, never> = {};
+/** Sunlight (brightest channel, 0–255) at or above which it counts as day for spawning. */
+const DAYLIGHT_SUN = 128;
 
 /** Owns the game state and advances it at a fixed rate. Contains no rendering code. */
 export class Simulation {
@@ -65,6 +82,17 @@ export class Simulation {
   readonly drops: ItemDrop[] = [];
   /** Burning flares (not saved: they burn out). */
   readonly flares: Flare[] = [];
+  /** Creatures and shots (not saved: creatures respawn by the spawn rules). */
+  readonly enemies: Enemy[] = [];
+  readonly projectiles: Projectile[] = [];
+  readonly combat: CombatState = createCombatState();
+  private readonly spawner = new SpawnSystem();
+  private readonly spawnsEnabled: boolean;
+  private nextEnemyId = 1;
+  /** Seconds the game stays frozen after a hit landed (hit-stop, plan 2.8). */
+  private hitStop = 0;
+  private readonly combatContext: CombatContext;
+  private readonly spawnContext;
   readonly gloam: GloamSystem;
   private readonly lensState: LensState = createLensState();
   private readonly flareState: FlareState = createFlareState();
@@ -111,6 +139,30 @@ export class Simulation {
     sampleDayCycle(this.dayFraction, this.day);
     this.decorSupport = new DecorSupport(this.world, this.events);
     this.gloam = new GloamSystem(this.world, this.events);
+    this.spawnsEnabled = options.spawns ?? false;
+    this.combatContext = {
+      player: this.player,
+      input: this.input,
+      inventory: this.inventory,
+      world: this.world,
+      enemies: this.enemies,
+      projectiles: this.projectiles,
+      events: this.events,
+      spawnDrop: (item, count, x, y) => this.spawnDrop(item, count, x, y),
+      random: this.random,
+    };
+    this.spawnContext = {
+      enemies: this.enemies,
+      world: this.world,
+      player: this.player,
+      region: null as TileRect | null,
+      focusX: 0,
+      focusY: 0,
+      day: true,
+      random: this.random,
+      nextId: () => this.nextEnemyId++,
+      events: this.events,
+    };
     this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
       this.world,
@@ -179,7 +231,8 @@ export class Simulation {
     sim.inventory.cursor = cursor ? { itemId: cursor.itemId, count: cursor.count } : null;
     const left = sim.inventory.stowCursor();
     if (left) sim.dropAtPlayer(left.itemId, left.count, false);
-    p.health = save.player.health;
+    // Saved while dead: come back alive.
+    p.health = save.player.health > 0 ? save.player.health : HEALTH.max;
     sim.elapsed = save.elapsed;
     for (const d of save.drops) {
       const drop = createItemDrop(d.itemId, d.count, d.x, d.y, () => 0.5);
@@ -245,8 +298,15 @@ export class Simulation {
     };
   }
 
-  /** Called once per rendered frame with the real elapsed time. Returns the steps run. */
+  /**
+   * Called once per rendered frame with the real elapsed time. Returns the steps run. During
+   * hit-stop the game holds still (the frame time is swallowed, not caught up later).
+   */
   update(frameMs: number): number {
+    if (this.hitStop > 0) {
+      this.hitStop -= frameMs / 1000;
+      return 0;
+    }
     return this.loop.advance(frameMs);
   }
 
@@ -293,16 +353,21 @@ export class Simulation {
     return this.loop.stepMs / 1000;
   }
 
-  /** Entities currently simulated: the player, item drops and flares (enemies arrive in M8). */
+  /** Entities currently simulated: the player, item drops, flares, creatures and shots. */
   get entityCount(): number {
-    return 1 + this.drops.length + this.flares.length;
+    return (
+      1 + this.drops.length + this.flares.length + this.enemies.length + this.projectiles.length
+    );
   }
 
   private step(): void {
     const dt = this.stepSeconds;
     this.stepCount++;
     this.applyCommands();
+    this.updateRespawn(dt);
     updatePlayer(this.player, this.input, this.world, dt);
+    // With a weapon selected the left button attacks instead of mining; the dead do neither.
+    const armed = selectedWeapon(this.inventory) !== null;
     updateMining(
       this.mining,
       this.player,
@@ -312,16 +377,19 @@ export class Simulation {
       this.events,
       this.spawnDrop,
       dt,
+      armed || this.player.dead,
     );
-    updateBuilding(
-      this.building,
-      this.player,
-      this.input,
-      this.inventory,
-      this.world,
-      this.events,
-      dt,
-    );
+    if (!this.player.dead) {
+      updateBuilding(
+        this.building,
+        this.player,
+        this.input,
+        this.inventory,
+        this.world,
+        this.events,
+        dt,
+      );
+    }
     this.decorSupport.update(this.spawnDrop);
     updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
     updateFlares(
@@ -357,8 +425,42 @@ export class Simulation {
         ? lanternCone(this.player, this.input, lens, this.crimsonCone)
         : null;
     this.gloam.update(dt, this.light.current, crimson);
+    for (const enemy of this.enemies) {
+      const def = ENEMIES[enemy.type];
+      if (def) updateEnemyAI(enemy, def, this.player, !this.player.dead, this.world, dt);
+    }
+    updateCombat(this.combat, this.combatContext, dt);
+    if (this.combat.hitLanded) this.hitStop = COMBAT.hitStop;
+    if (this.spawnsEnabled) {
+      const sc = this.spawnContext;
+      const b = this.player.body;
+      sc.region = this.light.current;
+      sc.focusX = (Number.isFinite(this.input.focusX) ? this.input.focusX : b.x) / TILE_SIZE;
+      sc.focusY = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
+      sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= DAYLIGHT_SUN;
+      this.spawner.update(sc, dt);
+    }
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
+  }
+
+  /** Dead: count down, then come back at the spawn with full health (briefly invulnerable). */
+  private updateRespawn(dt: number): void {
+    const p = this.player;
+    if (!p.dead) return;
+    p.respawnTimer -= dt;
+    if (p.respawnTimer > 0) return;
+    p.dead = false;
+    p.health = HEALTH.max;
+    p.invuln = COMBAT.playerInvuln;
+    p.knockbackTimer = 0;
+    p.body.x = this.spawnX - p.body.width / 2;
+    p.body.y = this.spawnY - p.body.height;
+    p.body.vx = 0;
+    p.body.vy = 0;
+    p.prevX = p.body.x;
+    p.prevY = p.body.y;
+    this.events.emit('playerRespawned', NO_PAYLOAD);
   }
 
   private craft(key: string, times: number): void {
