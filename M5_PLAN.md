@@ -44,7 +44,7 @@ Working file for M5; delete it when M5 is committed. Plan sections: 2.0, 2.2, 2.
 - [x] **A3** ✅ Light pulse + touch brighten (sim); tests.
 - [ ] **B1** Giant trees in worldgen (data `trees.ts`); tests (deterministic, spawn clear, canopy blocks sun, branches walkable).
 - [ ] **B2** Flora + rune ruins in worldgen (data `flora.ts`); tests.
-- [ ] **C1** Placeholder art: new tiles, decor sprite sheets, small trees, parallax layers, foreground canopy, light-shaft texture.
+- [x] **C1** ✅ Placeholder art: new tiles, decor sprite sheets, small trees, parallax layers, foreground canopy, light-shaft texture.
 - [ ] **D1** Parallax + back mist (SkyScene).
 - [ ] **D2** FoliageRenderer (SpriteGPULayer, sway with wind, bend near player, falling leaves).
 - [ ] **D3** Light shafts + motes (GlowScene).

@@ -65,6 +65,8 @@ export interface PackInfo {
   tiles: Record<string, 'approved' | 'placeholder'>;
   /** Per sprite asset id (src/data/spriteAssets.ts): approved art or placeholder. */
   sprites: Record<string, 'approved' | 'placeholder'>;
+  /** Ids of standalone sprite assets, written as `<id>.png` next to the atlas instead of packed. */
+  standalone: string[];
 }
 
 /** Frames of every sprite asset inside `assets/packed/sprites.png` (`sprites.json`). */

@@ -3,6 +3,7 @@ import { TILE_SIZE } from '../../config';
 import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
 import type { SpriteAtlasInfo } from '../../data/artManifest';
+import { SPRITE_ASSETS } from '../../data/spriteAssets';
 import { LIQUID_FRAME, LIQUID_FRAME_COUNT } from '../liquidFrames';
 import { registerSpriteFrames } from '../spriteFrames';
 import { DataKey, DEFAULT_PACK_DIR, PackFile, SceneKey, TextureKey } from './keys';
@@ -34,6 +35,10 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet(TextureKey.cracks, PackFile.cracks, frame);
     this.load.image(TextureKey.sprites, PackFile.sprites);
     this.load.json(DataKey.sprites, PackFile.spritesInfo);
+    // Standalone textures (parallax, foreground canopy): one PNG per asset, texture key = asset id.
+    for (const asset of SPRITE_ASSETS) {
+      if (asset.standalone) this.load.image(asset.id, `${asset.id}.png`);
+    }
   }
 
   create(): void {

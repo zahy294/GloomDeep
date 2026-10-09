@@ -268,6 +268,54 @@ describe('packAtlases', () => {
   });
 });
 
+describe('standalone sprite assets', () => {
+  const standalone = SPRITE_ASSETS.filter((s) => s.standalone);
+  const tinted = (def: (typeof SPRITE_ASSETS)[number], rgb: number) =>
+    sheetFor(1, def.frameWidth, def.frameHeight, () => rgb);
+
+  it('writes each as <id>.png, lists them in pack.json and keeps them out of the atlas', async () => {
+    expect(standalone.length).toBeGreaterThan(0);
+    await setup({ version: 1, assets: [] }, false);
+    for (const def of standalone) {
+      await writePng(resolve(placeholderDir, def.placeholder), tinted(def, 0xabcdef));
+    }
+    const result = await run();
+    const pack = JSON.parse(await readFile(resolve(outDir, 'pack.json'), 'utf8')) as PackInfo;
+    expect(pack.standalone).toEqual(standalone.map((s) => s.id));
+    for (const def of standalone) {
+      const img = await readPng(resolve(outDir, `${def.id}.png`));
+      expect([img.width, img.height]).toEqual([def.frameWidth, def.frameHeight]);
+      expect(getRgb(img, 3, 3)).toBe(0xabcdef);
+      expect(result.sprites.frames[def.id]).toBeUndefined();
+      expect(pack.sprites[def.id]).toBe('placeholder');
+    }
+  });
+
+  it('uses an approved image over the placeholder, and writes a blank one with a warning if missing', async () => {
+    const def = standalone[0]!;
+    const other = standalone[1]!;
+    const entry: ArtManifestEntry = {
+      id: def.id,
+      category: 'parallax',
+      raw: `parallax/${def.id}.png`,
+      anchor: 'top-left',
+      source: { kind: 'hand' },
+      status: 'approved',
+      tileable: 'x',
+    };
+    await setup({ version: 1, assets: [entry] }, false);
+    await writePng(resolve(artRoot, 'clean', `${def.id}.png`), tinted(def, 0x123456));
+    const result = await run();
+    expect(result.info.sprites[def.id]).toBe('approved');
+    expect(getRgb(await readPng(resolve(outDir, `${def.id}.png`)), 0, 0)).toBe(0x123456);
+    expect(result.info.sprites[other.id]).toBe('placeholder');
+    expect(result.warnings.join('\n')).toContain(other.id);
+    const blank = await readPng(resolve(outDir, `${other.id}.png`));
+    expect([blank.width, blank.height]).toEqual([other.frameWidth, other.frameHeight]);
+    expect(getAlpha(blank, 0, 0)).toBe(0);
+  });
+});
+
 describe('darkenColor', () => {
   it('steps down the ramp, keeps the darkest, and snaps off-palette colours first', () => {
     expect(darkenColor(PALETTE.stone[2])).toBe(PALETTE.stone[1]);

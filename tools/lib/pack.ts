@@ -146,7 +146,7 @@ export async function packAtlases(options: PackOptions): Promise<PackResult> {
     );
   }
 
-  const info: PackInfo = { tiles: {}, sprites: {} };
+  const info: PackInfo = { tiles: {}, sprites: {}, standalone: [] };
   for (const tile of TILES) if (tile.id !== 0) info.tiles[tile.key] = 'placeholder';
 
   // Terrain: approved + generated autotile set.
@@ -178,6 +178,7 @@ export async function packAtlases(options: PackOptions): Promise<PackResult> {
   // Sprites.
   const sprites: SpriteAtlasInfo = { frames: {} };
   const placed: { id: string; frames: RgbaImage[] }[] = [];
+  const standalone: { id: string; image: RgbaImage }[] = [];
   for (const def of SPRITE_ASSETS) {
     const entry = manifest.assets.find((e) => e.id === def.id && approved(e));
     let sheet: RgbaImage | null = null;
@@ -199,6 +200,17 @@ export async function packAtlases(options: PackOptions): Promise<PackResult> {
       sheet = await readOptional(resolve(placeholderDir, def.placeholder));
       if (!sheet)
         warnings.push(`${def.id}: placeholder ${def.placeholder} missing; using blank frames`);
+    }
+    if (def.standalone) {
+      const image = sheet ?? createImage(def.frameWidth, def.frameHeight);
+      if (image.width !== def.frameWidth || image.height !== def.frameHeight) {
+        warnings.push(
+          `${def.id}: image is ${image.width}x${image.height}, expected ${def.frameWidth}x${def.frameHeight}`,
+        );
+      }
+      standalone.push({ id: def.id, image });
+      info.standalone.push(def.id);
+      continue;
     }
     const frames = sheet
       ? slice(sheet, def.frameWidth, def.frameHeight, def.frames)
@@ -270,6 +282,7 @@ export async function packAtlases(options: PackOptions): Promise<PackResult> {
   await writePng(resolve(outDir, 'walls.png'), walls);
   await writePng(resolve(outDir, 'cracks.png'), cracks);
   await writePng(resolve(outDir, 'sprites.png'), atlas);
+  for (const { id, image } of standalone) await writePng(resolve(outDir, `${id}.png`), image);
   const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
   await writeFile(resolve(outDir, 'sprites.json'), json(sprites));
   await writeFile(resolve(outDir, 'pack.json'), json(info));

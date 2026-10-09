@@ -1,7 +1,7 @@
 /**
  * Generates placeholder art from the master palette so the game always runs without real art.
  * Output in assets/placeholder/: tiles.png (foreground blob atlas), walls.png (background walls),
- * cracks.png (4 mining stages), sprites/player-parts.png and tiles.json (layout metadata).
+ * cracks.png (4 mining stages), sprites/*.png (player, flora, saplings, particles, parallax, canopy) and tiles.json (layout metadata).
  *
  *   npm run art:placeholder
  */
@@ -20,6 +20,10 @@ import {
 } from './lib/placeholderAtlas';
 import { writePng as writeImage } from './lib/image';
 import { buildPlayerParts } from './lib/placeholderSprites';
+import { buildFlora, buildParticles, buildSaplings } from './lib/placeholderFlora';
+import { buildForegroundCanopy, buildParallaxLayer } from './lib/placeholderParallax';
+import { FG_CANOPY_ID, PARALLAX_LAYERS, parallaxAssetId } from '../src/data/spriteAssets';
+import { SURFACE_BIOMES } from '../src/data/biomes';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(root, 'assets/placeholder');
@@ -42,6 +46,16 @@ await writePng('tiles.png', tiles);
 await writePng('walls.png', walls);
 await writePng('cracks.png', cracks);
 await writeImage(resolve(outDir, 'sprites/player-parts.png'), buildPlayerParts());
+await writeImage(resolve(outDir, 'sprites/flora.png'), buildFlora());
+await writeImage(resolve(outDir, 'sprites/saplings.png'), buildSaplings());
+await writeImage(resolve(outDir, 'sprites/particles.png'), buildParticles());
+for (const biome of SURFACE_BIOMES) {
+  for (let layer = 0; layer < PARALLAX_LAYERS; layer++) {
+    const id = parallaxAssetId(biome.key, layer);
+    await writeImage(resolve(outDir, `sprites/${id}.png`), buildParallaxLayer(biome.key, layer));
+  }
+}
+await writeImage(resolve(outDir, `sprites/${FG_CANOPY_ID}.png`), buildForegroundCanopy());
 
 const meta = {
   tileSize: TILE_SIZE,

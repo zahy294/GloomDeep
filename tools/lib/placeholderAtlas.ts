@@ -150,6 +150,57 @@ function drawTorch(data: Uint8Array, width: number, ox: number, oy: number): voi
   }
 }
 
+/** Rows of a branch tile (from the top) and where its knots sit; the rest is transparent. */
+const BRANCH_ROWS = 6;
+const BRANCH_KNOTS: readonly (readonly [number, number])[] = [
+  [4, 2],
+  [11, 3],
+];
+
+/** A horizontal branch across the top of the tile: bark ramp, dark outline, a couple of knots. */
+function drawBranch(data: Uint8Array, width: number, ox: number, oy: number): void {
+  const bark = PALETTE.bark;
+  for (let y = 0; y < BRANCH_ROWS; y++) {
+    for (let x = 0; x < 16; x++) {
+      const edge = y === 0 || y === BRANCH_ROWS - 1;
+      // Light from the top-left: lit upper band, mid body, shaded lower band.
+      const colour = edge ? bark[0] : y === 1 ? bark[3] : y >= BRANCH_ROWS - 2 ? bark[1] : bark[2];
+      put(data, width, ox + x, oy + y, colour);
+    }
+  }
+  // Bark grain: short dark dashes so it reads as wood rather than a flat bar.
+  for (const x of [1, 7, 13]) put(data, width, ox + x, oy + 3, bark[1]);
+  for (const [x, y] of BRANCH_KNOTS) {
+    put(data, width, ox + x, oy + y, bark[0]);
+    put(data, width, ox + x + 1, oy + y, bark[1]);
+  }
+}
+
+/** Out of 256: chance an exposed leaf edge pixel is missing, and an inner pixel is a bright leaf. */
+const LEAF_EDGE_GAP = 90;
+const LEAF_SPARKLE = 40;
+
+/**
+ * Leaves are not solid ground: outline pixels drop out at random (ragged edge) and the body is
+ * speckled with light and dark leaf pixels. Returns null for a gap.
+ */
+function leafPixel(
+  c: Colors,
+  color: number,
+  px: number,
+  py: number,
+  tileId: number,
+  variation: number,
+  opts: AtlasOptions,
+): number | null {
+  const h = hash3(px, py, tileId * 16 + variation + 99, opts.seed);
+  if (color === c.outline) return (h & 0xff) < LEAF_EDGE_GAP ? null : c.outline;
+  const roll = (h >>> 8) & 0xff;
+  if (roll < LEAF_SPARKLE) return c.highlight;
+  if (roll > 255 - LEAF_SPARKLE) return c.dark;
+  return color;
+}
+
 function atlasSize(frames: number, opts: AtlasOptions) {
   const rows = Math.max(1, Math.ceil(frames / opts.columns));
   return { width: opts.columns * opts.tileSize, height: rows * opts.tileSize };
@@ -192,9 +243,18 @@ export function buildPlaceholderAtlas(
           if (kind === 'tiles') drawTorch(data, width, ox, oy);
           continue;
         }
+        if (tile.placeholderShape === 'platform') {
+          if (kind === 'tiles') drawBranch(data, width, ox, oy);
+          continue;
+        }
         for (let py = 0; py < tileSize; py++) {
           for (let px = 0; px < tileSize; px++) {
             const color = framePixel(colors, mask, px, py, tile.id, variation, opts, ore);
+            if (tile.sunTransmit !== undefined && kind === 'tiles') {
+              const leaf = leafPixel(colors, color, px, py, tile.id, variation, opts);
+              if (leaf !== null) put(data, width, ox + px, oy + py, leaf);
+              continue;
+            }
             put(data, width, ox + px, oy + py, color);
           }
         }
