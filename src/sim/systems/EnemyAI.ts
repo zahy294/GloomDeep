@@ -153,12 +153,11 @@ function fly(
 ): void {
   const b = enemy.body;
   const light = lightAtPx(world, b.x + b.width / 2, b.y + b.height / 2);
+  const stillFleeing = enemy.state === 'flee' && enemy.stateTime < ENEMY_AI.fleeSeconds;
   if (def.fleesLight && light >= ENEMY_AI.fleeLight) setState(enemy, 'flee');
-  else if (enemy.state === 'flee' && enemy.stateTime < ENEMY_AI.fleeSeconds) {
-    // keep fleeing for a moment
-  } else setState(enemy, aggro ? 'chase' : 'idle');
+  else if (!stillFleeing) setState(enemy, aggro ? 'chase' : 'idle');
 
-  let tx = 0;
+  let tx: number;
   let ty = 0;
   if (enemy.state === 'chase' && dist > 0) {
     tx = (dx / dist) * def.speed;
