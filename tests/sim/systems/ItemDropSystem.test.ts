@@ -32,6 +32,30 @@ function dist(d: ItemDrop, p: Player): number {
 }
 
 describe('updateItemDrops', () => {
+  it('a pulled drop heads straight in and is collected, never orbiting (playtest bug)', () => {
+    const { world, events, inventory, picked } = setup();
+    const player = createPlayer(20 * T, 15 * T);
+    // Within magnet range, flying sideways past the player at top speed (the orbit case).
+    const drop = createItemDrop(0, 1, 20 * T + 40, 13 * T, mulberry32(1));
+    drop.age = ITEM_DROP.pickupDelay;
+    drop.body.vx = 0;
+    drop.body.vy = -ITEM_DROP.magnetMaxSpeed;
+    const drops = [drop];
+    let steps = 0;
+    let previous = dist(drop, player);
+    while (drops.length > 0 && steps < 120) {
+      updateItemDrops(drops, player, inventory, world, events, DT);
+      if (drops.length > 0) {
+        const now = dist(drop, player);
+        expect(now).toBeLessThanOrEqual(previous + 1e-6); // only ever closer
+        previous = now;
+      }
+      steps++;
+    }
+    expect(picked).toHaveLength(1);
+    expect(steps).toBeLessThan(30); // half a second at most
+  });
+
   it('falls, lands on the floor and stops', () => {
     const { world, events, inventory } = setup();
     const player = createPlayer(30 * T, 10 * T);

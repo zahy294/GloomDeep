@@ -47,24 +47,30 @@ export function updateItemDrops(
       drop.age >= drop.pickupAfter && distSq <= magnetSq && inventory.canAccept(drop.itemId);
 
     if (drop.magnetized) {
+      // Fly straight at the player, speeding up to the cap. Steering the whole velocity (not
+      // just adding a pull) means a drop can't overshoot and orbit the player.
       const dist = Math.sqrt(distSq);
-      if (dist > 0) {
-        const a = ITEM_DROP.magnetAcceleration * dt;
-        b.vx += (dx / dist) * a;
-        b.vy += (dy / dist) * a;
+      const speed = Math.min(
+        ITEM_DROP.magnetMaxSpeed,
+        Math.hypot(b.vx, b.vy) + ITEM_DROP.magnetAcceleration * dt,
+      );
+      if (dist <= speed * dt || dist === 0) {
+        // Arrives this step.
+        b.x += dx;
+        b.y += dy;
+        b.vx = 0;
+        b.vy = 0;
+        distSq = 0;
+      } else {
+        b.vx = (dx / dist) * speed;
+        b.vy = (dy / dist) * speed;
+        // Flies through tiles on purpose: it is on its way to the player.
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        dx = px - (b.x + b.width / 2);
+        dy = py - (b.y + b.height / 2);
+        distSq = dx * dx + dy * dy;
       }
-      const speedSq = b.vx * b.vx + b.vy * b.vy;
-      if (speedSq > ITEM_DROP.magnetMaxSpeed * ITEM_DROP.magnetMaxSpeed) {
-        const k = ITEM_DROP.magnetMaxSpeed / Math.sqrt(speedSq);
-        b.vx *= k;
-        b.vy *= k;
-      }
-      // Flies through tiles on purpose: it is on its way to the player.
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-      dx = px - (b.x + b.width / 2);
-      dy = py - (b.y + b.height / 2);
-      distSq = dx * dx + dy * dy;
     } else {
       b.vy = Math.min(b.vy + ITEM_DROP.gravity * dt, ITEM_DROP.maxFallSpeed);
       moveAndCollide(world, b, dt, collision);
