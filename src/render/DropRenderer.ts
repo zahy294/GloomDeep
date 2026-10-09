@@ -35,7 +35,7 @@ export class DropRenderer {
       const { body, prevX, prevY } = drop;
       const x = prevX + (body.x - prevX) * alpha + body.width / 2;
       const y = prevY + (body.y - prevY) * alpha + body.height / 2;
-      if (image.texture.key !== icon.texture || image.frame.name !== String(icon.frame)) {
+      if (image.texture.key !== icon.texture || String(image.frame.name) !== String(icon.frame)) {
         image.setTexture(icon.texture, icon.frame);
       }
       image

@@ -142,6 +142,8 @@ export class GameScene extends Phaser.Scene {
   /** Station keys last published to the UI, joined (re-published when they change). */
   private stationsKey = '';
   private noticeId = 0;
+  /** The current mouse press threw a held stack (see POINTER_DOWN in create). */
+  private throwPress = false;
 
   constructor(
     private readonly bridge: UiBridge,
@@ -183,6 +185,7 @@ export class GameScene extends Phaser.Scene {
     this.saveOnStart = start.kind === 'new';
     this.inventoryOpen = false;
     this.stationsKey = '';
+    this.throwPress = false;
     this.debugOpen = this.params.debugOverlay;
     this.debugAccumulator = 0;
   }
@@ -241,10 +244,12 @@ export class GameScene extends Phaser.Scene {
     this.playerView = new PlayerRenderer(this, player, TextureKey.sprites);
     this.cursor = new TileCursor(this, sim.events, sim.input, player, TextureKey.cracks);
     this.dropView = new DropRenderer(this, sim.drops);
-    // A click in the world while holding a stack from the inventory throws it.
+    // A click in the world while holding a stack from the inventory throws it. That press must
+    // not go on to mine or place once the stack is gone: the mouse stays blocked until released.
     this.input.on(Phaser.Input.Events.POINTER_DOWN, () => {
       if (this.inventoryOpen && sim.inventory.cursor && this.inputMapper.pointerEnabled) {
         sim.enqueue({ type: 'dropCursor' });
+        this.throwPress = true;
       }
     });
     this.fx = new ParticleFX(
@@ -503,7 +508,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // While the inventory holds a stack on the cursor, world clicks throw it instead of mining.
-    this.inputMapper.mouseBlocked = this.inventoryOpen && this.sim.inventory.cursor !== null;
+    if (this.throwPress && !this.input.activePointer.isDown) this.throwPress = false;
+    this.inputMapper.mouseBlocked =
+      this.throwPress || (this.inventoryOpen && this.sim.inventory.cursor !== null);
     this.inputMapper.update();
     this.sim.update(delta);
 

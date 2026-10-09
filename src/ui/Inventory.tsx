@@ -94,7 +94,7 @@ function Tooltip({ itemId, x, y }: { itemId: number; x: number; y: number }) {
  * The inventory screen (E): the 40-slot grid and the crafting panel. Drag and drop: pressing a
  * slot picks its stack up onto the cursor (right button: half), releasing over another slot puts
  * it down (merge, swap); click-and-click works the same way. Shift-click moves a stack between
- * hotbar and bag. Releasing the held stack outside the panels throws it into the world.
+ * hotbar and bag. With a stack held, a click in the world throws it.
  */
 export function InventoryScreen({
   bridge,
@@ -114,7 +114,9 @@ export function InventoryScreen({
   const button = (e: MouseEvent): SlotButton => (e.button === 2 ? 'secondary' : 'primary');
   const down = (i: number) => (e: TargetedMouseEvent<HTMLElement>) => {
     if (e.button !== 0 && e.button !== 2) return;
-    setDownSlot(i);
+    // Only a press that picks a whole stack up starts a drag (the view is from before this click).
+    const picksUp = e.button === 0 && !e.shiftKey && view.cursor === null && view.slots[i] !== null;
+    setDownSlot(picksUp ? i : null);
     bridge.commands.emit('slotClick', { slot: i, button: button(e), quick: e.shiftKey });
   };
   const up = (i: number) => (e: TargetedMouseEvent<HTMLElement>) => {

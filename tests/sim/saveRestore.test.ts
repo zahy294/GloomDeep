@@ -19,6 +19,19 @@ const meta = (w: number, h: number): WorldMeta => ({
 });
 
 describe('save → load restores the world exactly', () => {
+  it('puts a stack held on the inventory cursor back into the bag on load', () => {
+    const sim = Simulation.fromGenerated(generateWorld(200, 120, 5));
+    sim.inventory.add(itemId('iron_pickaxe'), 1);
+    const slot = sim.inventory.slots.findIndex((s) => s?.itemId === itemId('iron_pickaxe'));
+    sim.inventory.click(slot, 'primary');
+    expect(sim.inventory.cursor).not.toBeNull();
+    const restored = Simulation.fromSave(
+      decodeSave(encodeSave(sim.toSaveState(meta(200, 120), SAVE_VERSION))),
+    );
+    expect(restored.inventory.cursor).toBeNull();
+    expect(restored.inventory.count(itemId('iron_pickaxe'))).toBe(1);
+  });
+
   it('round-trips tiles, player, inventory, time and drops through the binary format', () => {
     const generated = generateWorld(400, 240, 5);
     const sim = Simulation.fromGenerated(generated);

@@ -171,7 +171,10 @@ export class PlayerRenderer {
     const tool = activity.use === 'mine' ? activity.tool : null;
     this.tool.setVisible(tool !== null);
     if (tool) {
-      if (this.tool.texture.key !== tool.texture || this.tool.frame.name !== String(tool.frame)) {
+      if (
+        this.tool.texture.key !== tool.texture ||
+        String(this.tool.frame.name) !== String(tool.frame)
+      ) {
         this.tool.setTexture(tool.texture, tool.frame);
       }
       this.tool

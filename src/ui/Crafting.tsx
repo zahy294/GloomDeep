@@ -54,7 +54,6 @@ export function Crafting({
         value={query}
         onInput={(e) => setQuery(e.currentTarget.value)}
         onKeyDown={keepKeys}
-        onKeyUp={(e) => e.stopPropagation()}
         aria-label="Search recipes"
       />
       <div class="crafting-stations">Near: {stations || 'nothing (hand crafting)'}</div>

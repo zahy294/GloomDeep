@@ -4,6 +4,88 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M6 — Items, crafting and UI ✅ (2026-10-09)
+
+### Built
+
+- **Data:**
+  - Items have categories, tooltip text and icons. New items: four pickaxes (elderwood → copper → iron → moonsilver, with tier and power), copper/iron/moonsilver bars, and three stations.
+  - Recipes live in `src/data/recipes.ts`: wood and the workbench by hand; pickaxe, furnace and anvil at the workbench; bars at the furnace; metal pickaxes at the anvil.
+  - Tiles gain `tier` (lowest pickaxe that mines them), `station`, `needsGround` and `choppable`. New tiles 50–52 are the workbench (also a platform), the furnace (gives light) and the anvil.
+  - New worlds start with 10 torches and nothing else. `?kit=build|crafting` adds a debug kit.
+- **Mining:**
+  - Uses the best pickaxe anywhere in the inventory. Bare hands mine tier-0 tiles (soil, plants, wood) at power 0.6.
+  - Tiles above your tier don't crack, and a notice names the pickaxe you need.
+  - Tree-trunk walls are chopped with a plain click when nothing is in front, so wood is the first thing you can get.
+  - The block under a station can't be mined while the station stands.
+- **Crafting system:** checks for stations within 5 tiles. It crafts one, or as many as the materials allow (capped at 99). Inputs are taken from the bag before the hotbar, and output that doesn't fit drops at the player.
+- **Inventory model** (sim, driven by commands):
+  - A stack held on the cursor; left click picks up or puts down (merge, swap); right click takes half or puts down one.
+  - Shift-click moves between hotbar and bag; Sort merges and orders the bag by category.
+  - With a stack held, a click in the world throws it (it can't be picked up for 2 s). Closing the screen puts the stack back.
+- **Health:** 100 HP with slow regeneration. Damage sources come in M8.
+- **Save format v2:** player health, the cursor stack (put back into the bag on load) and a per-drop pickup delay. Version-1 saves migrate.
+- **UI:**
+  - The inventory screen (E) has the 40-slot grid with drag and drop and tooltips, and a crafting panel with search, the stations in reach, have/need counts per input and an "All" toggle that shows recipes for stations you're not near.
+  - HUD: a health bar, a lantern-shaped Lumen gauge whose glass fills with light, a lens gem and the clock.
+  - Notices above the hotbar ("Needs an Elderwood Pickaxe", "Crafted 4 × Elderwood Planks").
+  - The swung pickaxe shows in the player's hand.
+- **Art:** placeholder icons for pickaxes and bars (new `items` sprite sheet) and placeholder station tiles. Nano Banana prompts are in `art/prompts/batches/m6-items.md`, with manifest entries `items` and `stations` (status raw).
+- **Tests:** 431 in total, including:
+  - a scripted run from bare hands to an iron pickaxe using only mining and craft commands;
+  - inventory drag and drop, splitting, quick-move, sorting and stowing;
+  - crafting, plus data checks that every pickaxe tier is craftable from materials the tier below can mine;
+  - mining tiers, chopping and station support;
+  - the v1→v2 migration and restoring the cursor stack;
+  - the UI helpers;
+  - a check that a generated world has trunk wood, copper and iron near the spawn.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| You can progress from wood tools to iron tools purely by mining and crafting | ✅ `tests/sim/progression.test.ts`: from bare hands, chop 7 trunk logs → planks → workbench → elderwood pickaxe → mine stone and copper → furnace → copper bars → anvil → copper pickaxe → mine iron → iron bars → iron pickaxe. Real worlds have the resources: within 150 columns of spawn there are 100+ trunk tiles, 500+ copper ore in the top 80 rows and 90+ iron ore in the top 120 rows (tested; the reviewer checked 8 seeds). In the browser, `game-inventory-crafting` crafts with real clicks, and `game-needs-pickaxe` shows ore holding against bare hands. |
+
+### Decisions and deviations
+
+- **Mining uses the best pickaxe carried, not the selected slot.** Left click always mines and right click places (the M2 scheme), so the hotbar stays free for blocks. Weapons in M8 may make the selected item matter for left click.
+- **Stations are single tiles** (like the torch), not multi-tile furniture. This is the simplest version that keeps furniture possible later. They must stand on ground, and protect the block they stand on.
+- **Shallow iron in the Glowcap Grottos** (density 0.012). Rootdeep starts about 260 rows down, which made the copper → iron step a very long dig.
+- **Tree trunks are background walls in worldgen**, so they're "choppable" without wall mode. Other walls still need Shift.
+- **Two bars from two ore.** Totals for the climb: 7 logs, 20 stone, 28 copper ore, 20 iron ore.
+- **Item icons come from either atlas.** Blocks and stations use the tile atlas; tools and bars use the sprite atlas. GameScene publishes CSS rectangles for the DOM UI.
+- **The packer only places approved terrain into the tile atlas.** Approved art for one-tile objects (torch, branch, stations) has no pack path yet, so they keep their placeholders. The `stations` manifest entry is ready for when that path is added.
+
+### Reviewer pass
+
+No blockers. Fixed:
+- After throwing a held stack with a click in the world, the same press went on to mine or place. The mouse now stays blocked until it's released.
+- A press that picked nothing up followed by a release on another slot picked that slot's stack up. Only a press that picks up a stack now starts a drag.
+- A stack held on the cursor at save time came back hidden after loading. It's now put back into the bag.
+- Drops re-set their texture every frame (numeric frame names).
+- The search box swallowed key releases, which could leave the player walking.
+- A wrong comment.
+
+Not fixed: `sinceDamage` isn't saved. It doesn't matter until damage exists in M8.
+
+### Checks
+
+- `typecheck`, `lint`, `test` (431) and `build` pass.
+- `npm run shot` passes. The four demo-pack shots failed once because the reviewer's `build` emptied `dist/` mid-run; they pass when rerun.
+
+### Known issues
+
+- All M6 art is placeholder. The station art needs a pack path for one-tile objects first (see above).
+- No sound effects for crafting or blocked mining yet (the plan lists sound effects for every action; they come with the audio pass).
+- Health has no damage sources until M8.
+- Recipes are a first pass: no lenses, light sources beyond the torch, or furniture yet (M7, M10 and M11).
+
+### Next step
+
+**M7 — The Lantern and the Gloam:** the four lenses and their effects, `GloamSystem` spreading in darkness and cleansing in light, Gloam tile variants, the light-ring effect and flares.
+
+---
+
 ## M5 — The mystical forest look ✅ (2026-10-09)
 
 ### Built
@@ -94,7 +176,7 @@ No blockers. Fixed from the review:
 - Mire pools are shallow (1–3 rows), so reflections are small. The reflections show no sky, since the sky is another scene.
 - Lava doesn't emit light yet (M9). Waterfalls don't fill pools (M9).
 - Placing a block on a flower destroys the flower without a drop (no decoration has a drop yet). A plant in front of a wall is mined before the wall.
-- The audio has only been verified to run without errors; nobody has listened to it yet.
+- The audio has been listened to (2026-10-09): the user liked the music.
 
 ### Next step
 

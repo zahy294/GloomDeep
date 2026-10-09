@@ -159,8 +159,12 @@ export class Simulation {
       sim.inventory.slots[i] = slot ? { itemId: slot.itemId, count: slot.count } : null;
     });
     sim.inventory.select(save.inventory.selected);
+    // A stack held on the cursor at save time goes back into the bag (the inventory screen starts
+    // closed, and a hidden cursor stack would not count for crafting or mining).
     const cursor = save.inventory.cursor;
     sim.inventory.cursor = cursor ? { itemId: cursor.itemId, count: cursor.count } : null;
+    const left = sim.inventory.stowCursor();
+    if (left) sim.dropAtPlayer(left.itemId, left.count, false);
     p.health = save.player.health;
     sim.elapsed = save.elapsed;
     for (const d of save.drops) {
