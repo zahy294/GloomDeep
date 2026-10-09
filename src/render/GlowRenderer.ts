@@ -6,7 +6,7 @@ import { TILES } from '../data/tiles';
 import type { Player } from '../sim/entities/Player';
 import { lanternLit } from '../sim/systems/LanternSystem';
 import type { World } from '../sim/world/World';
-import { flickerFactor } from '../workers/lighting/computeLight';
+import { emissiveFactor } from '../workers/lighting/computeLight';
 import { Depth } from './depth';
 
 /** Light of each tile id (emissive tiles only). */
@@ -48,11 +48,14 @@ export class GlowRenderer {
       const ty0 = Math.max(0, Math.floor(view.y / TILE_SIZE) - 1);
       const tx1 = Math.min(world.width - 1, Math.ceil((view.x + view.width) / TILE_SIZE) + 1);
       const ty1 = Math.min(world.height - 1, Math.ceil((view.y + view.height) / TILE_SIZE) + 1);
+      const body = this.player.body;
+      const focusX = (body.x + body.width / 2) / TILE_SIZE;
+      const focusY = (body.y + body.height / 2) / TILE_SIZE;
       for (let y = ty0; y <= ty1; y++) {
         for (let x = tx0; x <= tx1; x++) {
           const light = TILE_LIGHT[world.fg[y * world.width + x] ?? 0];
           if (!light) continue;
-          const alpha = GLOW.tileAlpha * flickerFactor(light.flicker, time, x, y);
+          const alpha = GLOW.tileAlpha * emissiveFactor(light, time, x, y, focusX, focusY);
           this.halo((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE, light, rgb(light.color), alpha);
         }
       }

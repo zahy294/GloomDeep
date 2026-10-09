@@ -46,6 +46,9 @@ export interface LightJob {
   cone: LightCone | null;
   /** Seconds; drives the deterministic flicker of flickering sources. */
   time: number;
+  /** Player centre in tiles, for lights that wake up as the player approaches (runes). */
+  focusX: number;
+  focusY: number;
   /**
    * Output buffers to fill (length ≥ width × height); recycled between jobs to avoid allocating.
    * The worker transfers them back in the result.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LIGHT, LUMEN, TILE_SIZE } from '../../src/config';
 import { DAY_KEYFRAMES, NAMED_TIMES } from '../../src/data/dayCycle';
 import { itemId } from '../../src/data/items';
+import { lightByKey } from '../../src/data/lights';
 import { tileId } from '../../src/data/tiles';
 import { sampleDayCycle } from '../../src/sim/dayCycle';
 import { createPlayer } from '../../src/sim/entities/Player';
@@ -11,6 +12,7 @@ import { Inventory } from '../../src/sim/inventory/Inventory';
 import { lanternLit, updateLantern } from '../../src/sim/systems/LanternSystem';
 import { Simulation } from '../../src/sim/Simulation';
 import type { World } from '../../src/sim/world/World';
+import { proximityFactor, pulseFactor } from '../../src/workers/lighting/computeLight';
 
 const STONE = tileId('stone');
 const TORCH = tileId('torch');
@@ -141,5 +143,68 @@ describe('LightSystem resilience', () => {
     expect(submitted).toHaveLength(1);
     for (let i = 0; i < 45; i++) sim.update(1000 / 60); // past LIGHT.jobTimeoutSeconds
     expect(submitted.length).toBeGreaterThan(1);
+  });
+});
+
+describe('bioluminescence and runes', () => {
+  const MOONPETAL = lightByKey('moonpetal');
+  const RUNE = lightByKey('rune');
+
+  it('a pulsing light breathes between 1 - depth and 1, each tile at its own phase', () => {
+    const depth = MOONPETAL.pulse?.depth ?? 0;
+    let min = 1;
+    let max = 0;
+    for (let t = 0; t < 10; t += 0.05) {
+      const f = pulseFactor(MOONPETAL, t, 3, 4);
+      min = Math.min(min, f);
+      max = Math.max(max, f);
+    }
+    expect(min).toBeGreaterThanOrEqual(1 - depth - 1e-9);
+    expect(min).toBeLessThan(1 - depth + 0.02);
+    expect(max).toBeGreaterThan(0.98);
+    expect(pulseFactor(MOONPETAL, 1, 3, 4)).not.toBeCloseTo(pulseFactor(MOONPETAL, 1, 9, 4), 3);
+    expect(pulseFactor(lightByKey('torch'), 1, 3, 4)).toBe(1);
+  });
+
+  it('runes wake as the player approaches', () => {
+    const p = RUNE.proximity;
+    if (!p) throw new Error('rune light needs proximity');
+    expect(proximityFactor(RUNE, 10, 10, 10.5, 10.5)).toBe(1);
+    expect(proximityFactor(RUNE, 10, 10, 10.5 + p.far + 1, 10.5)).toBeCloseTo(p.min, 6);
+    const mid = proximityFactor(RUNE, 10, 10, 10.5 + (p.near + p.far) / 2, 10.5);
+    expect(mid).toBeGreaterThan(p.min);
+    expect(mid).toBeLessThan(1);
+  });
+
+  it('touching a glowing plant makes it brighter for a while', () => {
+    const BLOOM = tileId('moonpetal_bloom');
+    const sim = new Simulation({
+      size: { width: 80, height: 60, chunkSize: 20 },
+      startDayFraction: NAMED_TIMES.midnight,
+      generate: (world: World) => {
+        // Solid stone with a sealed cave (rows 30–39), so no sky light reaches it.
+        for (let y = 0; y < 60; y++) {
+          for (let x = 0; x < 80; x++) {
+            const cave = y >= 30 && y < 40 && x >= 10 && x < 75;
+            world.fg[y * 80 + x] = cave ? 0 : STONE;
+          }
+        }
+        world.fg[39 * 80 + 60] = BLOOM;
+        world.touchAll();
+        return { spawnX: 20 * TILE_SIZE, spawnY: 40 * TILE_SIZE };
+      },
+    });
+    sim.player.lanternOn = false;
+    sim.input.setFocus(50 * TILE_SIZE, 35 * TILE_SIZE);
+    const at = (x: number, y: number) => sim.world.lightB[y * 80 + x] ?? 0;
+    sim.update(1000 / 60);
+    const untouched = at(66, 39); // 6 tiles from the bloom: beyond its normal reach
+    expect(untouched).toBe(0);
+    // Walk the player onto the bloom.
+    sim.player.body.x = 60 * TILE_SIZE + 2;
+    sim.player.prevX = sim.player.body.x;
+    sim.update(1000 / LIGHT.updateHz + 1);
+    sim.update(1000 / LIGHT.updateHz + 1);
+    expect(at(66, 39)).toBeGreaterThan(untouched);
   });
 });

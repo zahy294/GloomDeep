@@ -293,6 +293,10 @@ export const LIGHT = {
   updateHz: 30,
   /** A job not answered within this many seconds is abandoned and re-submitted. */
   jobTimeoutSeconds: 1,
+  /** Touching a glowing plant brightens it for this long (plan 2.0 bioluminescence)... */
+  touchSeconds: 4,
+  /** ...with its light radius multiplied by up to this much, fading back over that time. */
+  touchRadiusBoost: 1.8,
 } as const;
 
 /** Day–night cycle (plan 2.4). Day fraction: 0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk. */

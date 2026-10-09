@@ -44,6 +44,8 @@ export interface SimEvents {
     readonly x: number;
     readonly y: number;
   };
+  /** Lightning struck (storms, src/data/weather.ts): flash now, thunder after a delay. */
+  lightning: { readonly flash: number };
   /** The light grid was rewritten in this rectangle (tiles, absolute). */
   lightUpdated: {
     readonly x0: number;

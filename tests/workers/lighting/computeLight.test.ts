@@ -27,6 +27,8 @@ function makeJob(width: number, height: number, over: Partial<LightJob> = {}): L
     points: new Float32Array(0),
     cone: null,
     time: 0,
+    focusX: 0,
+    focusY: 0,
     outR: new Uint8Array(n),
     outG: new Uint8Array(n),
     outB: new Uint8Array(n),

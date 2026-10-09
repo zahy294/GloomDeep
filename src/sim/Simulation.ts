@@ -11,6 +11,7 @@ import { FixedStepLoop } from './FixedStepLoop';
 import { ActionState } from './input';
 import { Inventory } from './inventory/Inventory';
 import { Mulberry32 } from './random';
+import { Weather } from './weather';
 import { DecorSupport } from './world/decor';
 import { createBuildingState, updateBuilding, type BuildingState } from './systems/BuildingSystem';
 import { updateItemDrops } from './systems/ItemDropSystem';
@@ -60,6 +61,10 @@ export class Simulation {
   readonly spawnY: number;
   readonly light: LightSystem;
   private readonly decorSupport: DecorSupport;
+  /** Wind, rain, morning mist and lightning (deterministic from seed + time; nothing saved). */
+  readonly weather: Weather;
+  /** Sunlight after weather, fed to the light grid. Reused every step. */
+  private readonly sunNow = { sunR: 0, sunG: 0, sunB: 0 };
   /** Time of day, 0..1 (0 = midnight, 0.5 = noon), and the cycle sampled at it. */
   dayFraction: number;
   readonly day: DaySample = sampleDayCycle(0);
@@ -87,6 +92,7 @@ export class Simulation {
     this.dayFraction = options.startDayFraction ?? TIME.startDayFraction;
     sampleDayCycle(this.dayFraction, this.day);
     this.decorSupport = new DecorSupport(this.world, this.events);
+    this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
       this.world,
       this.events,
@@ -268,7 +274,9 @@ export class Simulation {
     updateLantern(this.player, this.input, this.inventory, this.events, dt);
     this.elapsed += dt;
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
-    this.light.update(dt, this.elapsed, this.day, this.player, this.input);
+    this.weather.update(this.elapsed, this.dayFraction, this.events);
+    this.weather.applyToSun(this.day, this.sunNow);
+    this.light.update(dt, this.elapsed, this.sunNow, this.player, this.input);
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
   }

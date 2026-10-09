@@ -1,6 +1,7 @@
 import { LIGHT, TILE_SIZE } from '../../config';
 import { lensByKey } from '../../data/lenses';
-import { lightByKey } from '../../data/lights';
+import { lightByKey, type LightDef } from '../../data/lights';
+import { TILES } from '../../data/tiles';
 import type { LightBackend, LightJob, LightResult } from '../../workers/lighting/lightJob';
 import type { DaySample } from '../dayCycle';
 import type { Player } from '../entities/Player';
@@ -13,6 +14,14 @@ import { lanternLit } from './LanternSystem';
 export const LANTERN_HAND = { x: 4, y: -18 } as const;
 const LANTERN_GLOW = lightByKey('lantern_glow');
 const PLAYER_AURA = lightByKey('player_aura');
+/** Per tile id: the light of a glowing decoration (brightens when touched), else null. */
+const TOUCH_LIGHT: readonly (LightDef | null)[] = TILES.map((t) =>
+  t.decor && t.light ? lightByKey(t.light) : null,
+);
+const POINT_FLOATS = 6;
+
+/** Sunlight colour and strength, 0–255 per channel. */
+export type SunLight = Pick<DaySample, 'sunR' | 'sunG' | 'sunB'>;
 
 interface Rect {
   x0: number;
@@ -47,6 +56,8 @@ export class LightSystem {
   /** Result buffers come back from the backend and are reused for the next job. */
   private spare: { r: Uint8Array; g: Uint8Array; b: Uint8Array } | null = null;
   private readonly updatedPayload = { x0: 0, y0: 0, width: 0, height: 0 };
+  /** Glowing decorations the player touched recently: tile index → seconds of boost left. */
+  private readonly touched = new Map<number, number>();
 
   constructor(
     private readonly world: World,
@@ -54,7 +65,9 @@ export class LightSystem {
     private readonly backend: LightBackend,
   ) {}
 
-  update(dt: number, time: number, day: DaySample, player: Player, input: ActionState): void {
+  /** `day`: the sunlight to use (the day cycle after weather: overcast rain, lightning). */
+  update(dt: number, time: number, day: SunLight, player: Player, input: ActionState): void {
+    this.updateTouched(dt, player);
     this.timer += dt;
     if (this.inFlight) {
       this.waited += dt;
@@ -67,7 +80,7 @@ export class LightSystem {
     this.submit(time, day, player, input);
   }
 
-  private submit(time: number, day: DaySample, player: Player, input: ActionState): void {
+  private submit(time: number, day: SunLight, player: Player, input: ActionState): void {
     const { world } = this;
     const body = player.body;
     const feetX = body.x + body.width / 2;
@@ -105,18 +118,26 @@ export class LightSystem {
     const lit = lanternLit(player);
     const handX = feetX + LANTERN_HAND.x * player.facing;
     const handY = feetY + LANTERN_HAND.y;
-    const points = new Float32Array(lit ? 12 : 6);
-    points.set([
+    const points = new Float32Array((2 + this.touched.size) * POINT_FLOATS);
+    let p = 0;
+    const addPoint = (x: number, y: number, color: readonly number[], radius: number) => {
+      points.set([x, y, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, radius], p);
+      p += POINT_FLOATS;
+    };
+    addPoint(
       feetX / TILE_SIZE,
       (feetY - body.height / 2) / TILE_SIZE,
-      ...PLAYER_AURA.color,
+      PLAYER_AURA.color,
       PLAYER_AURA.radius,
-    ]);
-    if (lit) {
-      points.set(
-        [handX / TILE_SIZE, handY / TILE_SIZE, ...LANTERN_GLOW.color, LANTERN_GLOW.radius],
-        6,
-      );
+    );
+    if (lit)
+      addPoint(handX / TILE_SIZE, handY / TILE_SIZE, LANTERN_GLOW.color, LANTERN_GLOW.radius);
+    for (const [index, left] of this.touched) {
+      const light = TOUCH_LIGHT[world.fg[index] ?? 0];
+      if (!light) continue;
+      const boost = 1 + (LIGHT.touchRadiusBoost - 1) * (left / LIGHT.touchSeconds);
+      const x = index % world.width;
+      addPoint(x + 0.5, (index - x) / world.width + 0.5, light.color, light.radius * boost);
     }
     const lens = lensByKey(player.lens);
     const dx = input.aimX - handX;
@@ -137,7 +158,7 @@ export class LightSystem {
       sunR: day.sunR,
       sunG: day.sunG,
       sunB: day.sunB,
-      points,
+      points: points.subarray(0, p),
       cone: lit
         ? {
             x: handX / TILE_SIZE,
@@ -152,6 +173,8 @@ export class LightSystem {
           }
         : null,
       time,
+      focusX: feetX / TILE_SIZE,
+      focusY: (feetY - body.height / 2) / TILE_SIZE,
       outR: out.r,
       outG: out.g,
       outB: out.b,
@@ -160,6 +183,25 @@ export class LightSystem {
     this.inFlight = true;
     this.waited = 0;
     this.backend.submit(job, (result) => this.receive(result));
+  }
+
+  /** Glowing plants the player's body overlaps brighten, then fade back over LIGHT.touchSeconds. */
+  private updateTouched(dt: number, player: Player): void {
+    for (const [index, left] of this.touched) {
+      if (left <= dt) this.touched.delete(index);
+      else this.touched.set(index, left - dt);
+    }
+    const { world } = this;
+    const b = player.body;
+    const tx1 = Math.floor((b.x + b.width - 1e-4) / TILE_SIZE);
+    const ty1 = Math.floor((b.y + b.height - 1e-4) / TILE_SIZE);
+    for (let ty = Math.floor(b.y / TILE_SIZE); ty <= ty1; ty++) {
+      for (let tx = Math.floor(b.x / TILE_SIZE); tx <= tx1; tx++) {
+        if (!world.inBounds(tx, ty)) continue;
+        const index = ty * world.width + tx;
+        if (TOUCH_LIGHT[world.fg[index] ?? 0]) this.touched.set(index, LIGHT.touchSeconds);
+      }
+    }
   }
 
   private receive(result: LightResult): void {

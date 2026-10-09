@@ -1,5 +1,5 @@
 import { LIGHT } from '../../config';
-import { LIGHTS, lightByKey } from '../../data/lights';
+import { LIGHTS, lightByKey, type LightDef } from '../../data/lights';
 import { TILES } from '../../data/tiles';
 import { hash2 } from '../../sim/random';
 import type { LightJob, LightResult } from './lightJob';
@@ -17,6 +17,7 @@ const RAY_STEP = 0.5;
 const MAX_VALUE = 255;
 const TILE_ID_COUNT = 65536;
 const FLICKER_SEED = 0;
+const PULSE_SEED = 0x9e37;
 
 // Per-channel falloff tables. Water (M9) will dim red/green more than blue by changing only these
 // three assignments.
@@ -83,6 +84,48 @@ export function flickerFactor(flicker: number, time: number, x: number, y: numbe
   return 1 - flicker * (0.5 + 0.5 * wave);
 }
 
+/** Bioluminescent breathing in [1 - depth, 1], each tile at its own phase. */
+export function pulseFactor(def: LightDef, time: number, x: number, y: number): number {
+  if (!def.pulse) return 1;
+  const phase = hash2(x, y, PULSE_SEED) * TWO_PI;
+  const wave = Math.sin((time / def.pulse.period) * TWO_PI + phase);
+  return 1 - def.pulse.depth * (0.5 + 0.5 * wave);
+}
+
+/** Full strength within `near` tiles of the player, fading to `min` at `far` (runes). */
+export function proximityFactor(
+  def: LightDef,
+  x: number,
+  y: number,
+  focusX: number,
+  focusY: number,
+): number {
+  const p = def.proximity;
+  if (!p) return 1;
+  const d = Math.hypot(x + 0.5 - focusX, y + 0.5 - focusY);
+  const t = d <= p.near ? 1 : d >= p.far ? 0 : (p.far - d) / (p.far - p.near);
+  return p.min + (1 - p.min) * t;
+}
+
+/**
+ * Brightness of an emissive tile right now (flicker × pulse × proximity). Shared with the glow
+ * pass so halos breathe, flicker and wake in step with the light they belong to.
+ */
+export function emissiveFactor(
+  def: LightDef,
+  time: number,
+  x: number,
+  y: number,
+  focusX: number,
+  focusY: number,
+): number {
+  return (
+    flickerFactor(def.flicker, time, x, y) *
+    pulseFactor(def, time, x, y) *
+    proximityFactor(def, x, y, focusX, focusY)
+  );
+}
+
 function seedSun(job: LightJob): void {
   const { width, height, y0, skyline } = job;
   if (job.sunR <= 0 && job.sunG <= 0 && job.sunB <= 0) return;
@@ -103,7 +146,7 @@ function seedTiles(job: LightJob): void {
     const cy = (i - cx) / width;
     const strength =
       Math.min(MAX_VALUE, def.radius * LIGHT.airFalloff) *
-      flickerFactor(def.flicker, job.time, x0 + cx, y0 + cy);
+      emissiveFactor(def, job.time, x0 + cx, y0 + cy, job.focusX, job.focusY);
     seed(
       job,
       i,

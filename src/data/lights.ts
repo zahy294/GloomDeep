@@ -10,19 +10,51 @@ export interface LightDef {
   readonly radius: number;
   /** 0 = steady; otherwise the fraction the intensity wavers by (fire). */
   readonly flicker: number;
+  /** Bioluminescent breathing: a slow sine, each tile at its own phase (plan 2.0). */
+  readonly pulse?: { readonly period: number; readonly depth: number };
+  /**
+   * Wakes up as the player approaches (runes): full strength within `near` tiles, fading to
+   * `min` of full strength at `far` tiles and beyond.
+   */
+  readonly proximity?: { readonly near: number; readonly far: number; readonly min: number };
 }
 
 export const LIGHTS: readonly LightDef[] = [
   { key: 'torch', color: [255, 178, 96], radius: 12, flicker: 0.12 },
   { key: 'lumen_crystal', color: [96, 220, 214], radius: 6, flicker: 0 },
   { key: 'moonstone_crystal', color: [150, 165, 200], radius: 4, flicker: 0 },
-  { key: 'glowcap', color: [210, 110, 150], radius: 5, flicker: 0 },
+  {
+    key: 'glowcap',
+    color: [210, 110, 150],
+    radius: 5,
+    flicker: 0,
+    pulse: { period: 3.6, depth: 0.3 },
+  },
   { key: 'emberite', color: [255, 120, 60], radius: 4, flicker: 0.08 },
-  { key: 'moonpetal', color: [190, 170, 230], radius: 4, flicker: 0 },
-  { key: 'glowmoss', color: [110, 220, 170], radius: 3, flicker: 0 },
+  {
+    key: 'moonpetal',
+    color: [190, 170, 230],
+    radius: 4,
+    flicker: 0,
+    pulse: { period: 4.2, depth: 0.35 },
+  },
+  {
+    key: 'glowmoss',
+    color: [110, 220, 170],
+    radius: 3,
+    flicker: 0,
+    pulse: { period: 5.1, depth: 0.4 },
+  },
   { key: 'ember_bloom', color: [255, 140, 70], radius: 3, flicker: 0.06 },
-  /** Carved runes (ruins): wake up as the player approaches (A3 proximity). */
-  { key: 'rune', color: [110, 220, 230], radius: 5, flicker: 0 },
+  /** Carved runes (ruins): wake up as the player approaches. */
+  {
+    key: 'rune',
+    color: [110, 220, 230],
+    radius: 5,
+    flicker: 0,
+    pulse: { period: 2.8, depth: 0.15 },
+    proximity: { near: 3, far: 10, min: 0.06 },
+  },
   /**
    * Always on, very dim: plan 2.1 — "in full darkness the player ... still glow faintly", so the
    * player is never invisible even with the lantern out.
