@@ -49,7 +49,7 @@ export function updateBuckets(
   const ty = tileAt(input.aimY);
   if (!inReach(player.body, tx, ty, BUILDING.reachTiles)) return;
 
-  let gives = -1;
+  let gives: number;
   if (kind === 'empty') {
     const world = liquids.world;
     if (!world.inBounds(tx, ty)) return;
