@@ -167,16 +167,16 @@ export class GameScene extends Phaser.Scene {
     // a transparent background, so the multiply light map only darkens what the world draws.
     this.cameras.main.setForceComposite(true);
     // Sky is registered before Game in main.ts, so it renders first (underneath).
-    this.visual = new VisualState();
+    const quality = loadSettings(
+      this.params.quality ? { quality: this.params.quality } : {},
+    ).quality;
+    this.visual = new VisualState(qualityFeatures(quality));
     this.visual.update(this.sim, this.cameras.main, 0, 0, 0);
     this.scene.launch(SceneKey.Sky, { source: this.sim, visual: this.visual });
     this.scene.launch(SceneKey.Glow, { visual: this.visual });
     this.glowScene = this.scene.get(SceneKey.Glow) as GlowScene;
     this.scene.launch(SceneKey.Front, { visual: this.visual });
     this.frontScene = this.scene.get(SceneKey.Front) as FrontScene;
-    const quality = loadSettings(
-      this.params.quality ? { quality: this.params.quality } : {},
-    ).quality;
 
     const sim = this.sim;
     this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));

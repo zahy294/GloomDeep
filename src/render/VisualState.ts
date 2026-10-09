@@ -1,6 +1,7 @@
 import { BIOME_BLEND, TILE_SIZE } from '../config';
 import { LIQUID } from '../data/biomes';
 import type { DaySample } from '../sim/dayCycle';
+import type { QualityFeatures } from '../settings';
 import type { Simulation } from '../sim/Simulation';
 import { approachWeights, biomeWeights, SURFACE_COUNT, VISUALS } from './biomeBlend';
 
@@ -43,6 +44,9 @@ export class VisualState {
 
   private readonly target = new Float32Array(VISUALS.length);
   private first = true;
+
+  /** What the current quality setting allows (plan 2.10). */
+  constructor(readonly features: QualityFeatures) {}
 
   /** Call once per frame after the camera has moved. */
   update(

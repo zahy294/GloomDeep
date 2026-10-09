@@ -30,9 +30,28 @@ export function saveSettings(settings: Settings): void {
 }
 
 /** What each quality level switches (plan 2.10). */
-export function qualityFeatures(quality: Quality) {
+export function qualityFeatures(quality: Quality): QualityFeatures {
   return {
-    /** Additive glow/bloom pass around emissive things (plan 2.3: "On Low quality, skip this"). */
     glow: quality !== 'low',
+    parallaxLayers: quality === 'low' ? 2 : quality === 'medium' ? 3 : 4,
+    particleDensity: quality === 'low' ? 0.35 : quality === 'medium' ? 0.7 : 1,
+    mist: quality !== 'low',
+    cameraFilters: quality !== 'low',
+    reflections: quality === 'high',
   };
+}
+
+export interface QualityFeatures {
+  /** Additive glow/bloom pass around emissive things (plan 2.3: "On Low quality, skip this"). */
+  glow: boolean;
+  /** Parallax tree layers drawn per biome (back layers dropped first). */
+  parallaxLayers: number;
+  /** Multiplier on ambient and weather particle counts. */
+  particleDensity: number;
+  /** Noise mist layers (back and front). */
+  mist: boolean;
+  /** Camera filters: colour grade, vignette, underwater and heat haze. */
+  cameraFilters: boolean;
+  /** Reflective still pools. */
+  reflections: boolean;
 }
