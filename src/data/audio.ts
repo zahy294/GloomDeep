@@ -70,6 +70,27 @@ export const SOUND_DESIGN = {
     /** Delay before a freshly created music voice plays its first beat (s). */
     firstBeatDelay: 0.1,
   },
+  /**
+   * Combat sound effects (M8): an optional filtered noise burst and an optional pitch-swept tone.
+   * Hz, seconds, gains 0..1.
+   */
+  sfxAttack: 0.004,
+  sfx: {
+    swing: { noise: { type: 'bandpass', hz: 1400, decay: 0.12, gain: 0.12 } },
+    shoot: { noise: { type: 'highpass', hz: 2600, decay: 0.08, gain: 0.1 } },
+    beam: { tone: { type: 'sine', from: 900, to: 1500, decay: 0.18, gain: 0.08 } },
+    hit: {
+      noise: { type: 'lowpass', hz: 900, decay: 0.09, gain: 0.2 },
+      tone: { type: 'square', from: 220, to: 90, decay: 0.1, gain: 0.05 },
+    },
+    hurt: { tone: { type: 'sawtooth', from: 330, to: 110, decay: 0.25, gain: 0.08 } },
+    kill: {
+      noise: { type: 'lowpass', hz: 600, decay: 0.25, gain: 0.18 },
+      tone: { type: 'triangle', from: 520, to: 70, decay: 0.32, gain: 0.08 },
+    },
+    dissolve: { tone: { type: 'sine', from: 1200, to: 180, decay: 0.6, gain: 0.07 } },
+    respawn: { tone: { type: 'triangle', from: 440, to: 880, decay: 0.5, gain: 0.07 } },
+  },
   /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
   envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },
   /** Random stereo position spread: pan is drawn from -half..+half. */
@@ -84,3 +105,4 @@ export const SOUND_DESIGN = {
 } as const;
 
 export type Timbre = keyof typeof SOUND_DESIGN.timbres;
+export type SfxKind = keyof typeof SOUND_DESIGN.sfx;

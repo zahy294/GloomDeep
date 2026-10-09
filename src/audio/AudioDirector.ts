@@ -1,5 +1,22 @@
 import { AUDIO } from '../config';
-import { SOUND_DESIGN, type Timbre } from '../data/audio';
+import { SOUND_DESIGN, type SfxKind, type Timbre } from '../data/audio';
+
+/** One combat sound: an optional filtered noise burst and an optional pitch-swept tone. */
+interface SfxDef {
+  readonly noise?: {
+    readonly type: BiquadFilterType;
+    readonly hz: number;
+    readonly decay: number;
+    readonly gain: number;
+  };
+  readonly tone?: {
+    readonly type: OscillatorType;
+    readonly from: number;
+    readonly to: number;
+    readonly decay: number;
+    readonly gain: number;
+  };
+}
 import type { BiomeVisual } from '../data/biomeVisuals';
 import { WEATHER } from '../data/weather';
 import {
@@ -124,6 +141,22 @@ export class AudioDirector {
     const d = SOUND_DESIGN.thunder;
     this.noiseBurst(t, 'lowpass', d.filter, d.decay, d.gain);
     this.noiseBurst(t, 'bandpass', d.crackFilter, d.decay * d.crackDecayFactor, d.crackGain);
+  }
+
+  /** A short combat sound (src/data/audio.ts SOUND_DESIGN.sfx). */
+  effect(kind: SfxKind): void {
+    if (this.paused || this.ctx.state !== 'running') return;
+    const d: SfxDef = SOUND_DESIGN.sfx[kind];
+    const t = this.ctx.currentTime;
+    if (d.noise)
+      this.noiseBurst(t, d.noise.type, d.noise.hz, d.noise.decay, d.noise.gain, this.master);
+    if (d.tone) {
+      const osc = this.ctx.createOscillator();
+      osc.type = d.tone.type;
+      osc.frequency.setValueAtTime(d.tone.from, t);
+      osc.frequency.exponentialRampToValueAtTime(d.tone.to, t + d.tone.decay);
+      this.envelope(osc, t, SOUND_DESIGN.sfxAttack, d.tone.decay, d.tone.gain, this.master);
+    }
   }
 
   setPaused(paused: boolean): void {
@@ -363,6 +396,7 @@ export class AudioDirector {
     hz: number,
     decay: number,
     peak: number,
+    out: AudioNode = this.ambienceBus,
   ): void {
     const src = this.ctx.createBufferSource();
     src.buffer = this.noise;
@@ -371,7 +405,7 @@ export class AudioDirector {
     filter.type = type;
     filter.frequency.value = hz;
     src.connect(filter);
-    this.envelope(filter, t, SOUND_DESIGN.thunder.attack, decay, peak, this.ambienceBus, src);
+    this.envelope(filter, t, SOUND_DESIGN.thunder.attack, decay, peak, out, src);
   }
 
   private panned(out: AudioNode): AudioNode {

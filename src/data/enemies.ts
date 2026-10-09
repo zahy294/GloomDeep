@@ -202,7 +202,8 @@ export const ENEMIES: readonly EnemyDef[] = [
     width: 14,
     height: 22,
     speed: 70,
-    aggroRange: 22,
+    // Shades hunt: they sense the player from beyond the view they spawn outside of.
+    aggroRange: 40,
     knockbackTaken: 1.2,
     frame: 16,
     ramp: 'gloam',

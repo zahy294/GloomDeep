@@ -36,6 +36,7 @@ export interface SpawnContext {
 export class SpawnSystem {
   private timer = 0;
   private readonly weights: number[] = new Array<number>(ENEMIES.length).fill(0);
+  private readonly alive: number[] = new Array<number>(ENEMIES.length).fill(0);
 
   update(ctx: SpawnContext, dt: number): void {
     const { enemies, player } = ctx;
@@ -57,14 +58,14 @@ export class SpawnSystem {
     if (this.timer < SPAWN.interval) return;
     this.timer = 0;
     if (!ctx.region || enemies.length >= SPAWN.maxEnemies) return;
-    let shades = 0;
-    for (const e of enemies) if (ENEMIES[e.type]?.ai === 'shade') shades++;
+    this.alive.fill(0);
+    for (const e of enemies) this.alive[e.type] = (this.alive[e.type] ?? 0) + 1;
     for (let a = 0; a < SPAWN.attemptsPerTick; a++) {
-      if (this.tryOnce(ctx, shades >= SPAWN.maxShades)) return; // at most one per tick
+      if (this.tryOnce(ctx)) return; // at most one per tick
     }
   }
 
-  private tryOnce(ctx: SpawnContext, shadesFull: boolean): boolean {
+  private tryOnce(ctx: SpawnContext): boolean {
     const { world, region, random } = ctx;
     if (!region) return false;
     const x = region.x0 + Math.floor(random() * region.width);
@@ -82,7 +83,8 @@ export class SpawnSystem {
     for (let t = 0; t < ENEMIES.length; t++) {
       const def = ENEMIES[t];
       this.weights[t] = 0;
-      if (!def || !eligible(def, place, ctx.day, light, shadesFull)) continue;
+      const cap = def?.ai === 'shade' ? SPAWN.maxShades : SPAWN.maxPerType;
+      if (!def || (this.alive[t] ?? 0) >= cap || !eligible(def, place, ctx.day, light)) continue;
       const w =
         def.ai === 'shade'
           ? def.spawn.weight * (1 + gloam * SPAWN.gloamShadeBoost)
@@ -115,18 +117,11 @@ export class SpawnSystem {
   }
 }
 
-function eligible(
-  def: EnemyDef,
-  place: string,
-  day: boolean,
-  light: number,
-  shadesFull: boolean,
-): boolean {
+function eligible(def: EnemyDef, place: string, day: boolean, light: number): boolean {
   const s = def.spawn;
   if (!s.places.includes('any') && !s.places.includes(place)) return false;
   if ((s.time === 'day' && !day) || (s.time === 'night' && day)) return false;
   if (s.dark && light > SPAWN.darkLight) return false;
-  if (def.ai === 'shade' && shadesFull) return false;
   return true;
 }
 
@@ -148,7 +143,13 @@ function findFeet(
     return true;
   };
   if (def.ai === 'burrower') {
-    return world.isSolid(x, y) ? { x: (x + 0.5) * TILE_SIZE, y: (y + 1) * TILE_SIZE } : null;
+    // In rock, but next to a cave (within a few tiles above), so it can reach someone.
+    if (!world.isSolid(x, y)) return null;
+    let nearAir = false;
+    for (let dy = 1; dy <= SPAWN.burrowerAirSearch && !nearAir; dy++) {
+      nearAir = world.inBounds(x, y - dy) && !world.isSolid(x, y - dy);
+    }
+    return nearAir ? { x: (x + 0.5) * TILE_SIZE, y: (y + 1) * TILE_SIZE } : null;
   }
   if (!GROUND_AI.has(def.ai)) {
     return open(x, y) ? { x: (x + w / 2) * TILE_SIZE, y: (y + 1) * TILE_SIZE } : null;

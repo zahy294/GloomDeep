@@ -693,3 +693,27 @@ body {
   height: 100%;
   background: var(--gold);
 }
+
+/* Death (M8): the screen darkens while the player waits to respawn. */
+.death-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--px) * 4);
+  background: rgb(5 8 10 / 0.55);
+  text-align: center;
+}
+
+.death-title {
+  font-size: calc(var(--px) * 16);
+  color: var(--rose-light);
+  text-shadow: 0 0 calc(var(--px) * 6) var(--rose);
+}
+
+.death-sub {
+  font-size: calc(var(--px) * 8);
+  color: var(--ink-dim);
+}

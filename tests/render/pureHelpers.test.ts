@@ -55,6 +55,7 @@ describe('parseDebugParams', () => {
     rain: null,
     kit: null,
     spawns: true,
+    enemy: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -79,6 +80,7 @@ describe('parseDebugParams', () => {
       rain: null,
       kit: null,
       spawns: true,
+      enemy: null,
     });
   });
 

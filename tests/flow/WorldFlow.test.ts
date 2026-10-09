@@ -16,6 +16,7 @@ const initial: UiState = {
   hud: null,
   icons: [],
   notice: null,
+  respawnIn: null,
   packDir: 'packed',
   worlds: [],
   generation: null,

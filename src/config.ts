@@ -502,6 +502,50 @@ export const COMBAT = {
   beamShadeMultiplier: 2,
 } as const;
 
+/** Combat on screen (src/render/CombatRenderer.ts). Pixels and seconds. */
+export const COMBAT_VIEW = {
+  /** Two-frame animation rates (frames per second) and a per-creature phase offset. */
+  walkRate: 5,
+  flapRate: 10,
+  animPhase: 0.37,
+  /** Hoppers: vertical scale on the ground (inverse in the air). */
+  squash: 0.8,
+  flashSeconds: 0.1,
+  shadeAlpha: 0.88,
+  /** Eye glow: size, height on the body (fraction from the feet), strength. */
+  eyeGlowPx: 10,
+  eyeHeight: 0.75,
+  eyeAlpha: 0.25,
+  /** Shades: a larger cold glow around their eyes, so the darkness has a face. */
+  shadeGlowPx: 26,
+  shadeEyeAlpha: 0.75,
+  arrowPx: 12,
+  beamLength: 26,
+  beamWidth: 8,
+  /** Damage numbers: font size, rise speed, life, colours (hit, light burn, player hurt). */
+  numberFontPx: 8,
+  numberRise: 24,
+  numberSeconds: 0.8,
+  hitColor: '#f2cc5a',
+  burnColor: '#d6e0f0',
+  hurtColor: '#ff8a7a',
+  /** Death wisps: count (shades dissolve into more), size, life, spread and rise speeds. */
+  deathWisps: 6,
+  shadeWisps: 14,
+  wispPx: 8,
+  wispSeconds: 1.1,
+  wispLifeJitter: 0.35,
+  wispSpread: 30,
+  wispRise: 40,
+  wispDrag: 2,
+  /** Camera shake when the player is hurt (amplitude px, seconds). */
+  hurtShake: 3,
+  hurtShakeSeconds: 0.15,
+  /** The player blinks while invulnerable (blinks per second, alpha of the dim phase). */
+  blinkRate: 12,
+  blinkAlpha: 0.35,
+} as const;
+
 /** Shots (src/sim/entities/Projectile.ts). Pixels and seconds. */
 export const PROJECTILE = {
   arrow: { speed: 520, gravity: 400, size: 4, life: 3 },
@@ -551,6 +595,10 @@ export const SPAWN = {
   attemptsPerTick: 10,
   maxEnemies: 10,
   maxShades: 6,
+  /** At most this many of any one other creature at once. */
+  maxPerType: 3,
+  /** Burrowers spawn in rock with open air at most this many tiles above. */
+  burrowerAirSearch: 3,
   /** Spawns happen outside this half-size of the view around its centre (60×34 tiles visible). */
   viewHalfWidth: 31,
   viewHalfHeight: 18,
@@ -608,6 +656,8 @@ export const DEBUG = {
   overlayRefreshHz: 4,
   /** World seed for `?scene=game` starts without `seed=`. */
   defaultSeed: 1,
+  /** `?enemy=`: how many tiles right of the player the creature stands. */
+  enemyOffsetTiles: 4,
 } as const;
 
 /** Blob autotiling (plan 2.6). */

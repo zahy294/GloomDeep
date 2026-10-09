@@ -41,6 +41,8 @@ export interface DebugParams {
   kit: string | null;
   /** `spawns=0` turns creature spawning off (repeatable screenshots). */
   spawns: boolean;
+  /** `enemy=<key>` puts one creature (src/data/enemies.ts) a few tiles right of a debug start. */
+  enemy: string | null;
 }
 
 function intParam(params: URLSearchParams, name: string): number | null {
@@ -87,5 +89,6 @@ export function parseDebugParams(search: string): DebugParams {
     rain: unitParam(params, 'rain'),
     kit: nameParam(params, 'kit'),
     spawns: params.get('spawns') !== '0',
+    enemy: nameParam(params, 'enemy'),
   };
 }

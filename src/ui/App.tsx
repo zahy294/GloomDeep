@@ -44,6 +44,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
     hud,
     icons,
     notice,
+    respawnIn,
     worlds,
     generation,
     paused,
@@ -71,6 +72,12 @@ export function App({ bridge }: { bridge: UiBridge }) {
           {inventory && <Hotbar bridge={bridge} view={inventory} icons={icons} />}
           {inventory && inventoryOpen && (
             <InventoryScreen bridge={bridge} view={inventory} icons={icons} />
+          )}
+          {respawnIn !== null && (
+            <div class="death-overlay">
+              <div class="death-title">The light left you</div>
+              <div class="death-sub">Rekindling in {respawnIn}…</div>
+            </div>
           )}
           {paused && <PauseMenu bridge={bridge} error={error} />}
         </>

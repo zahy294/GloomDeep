@@ -34,6 +34,14 @@ interface Shot {
   viewport?: { width: number; height: number };
   /** Screenshot only this region (viewport pixels). */
   clip?: { x: number; y: number; width: number; height: number };
+  /** Let creatures spawn (off by default: random creatures would make shots unrepeatable). */
+  spawns?: true;
+}
+
+/** Adds `spawns=0` to the query unless the shot wants creatures. */
+function shotQuery(shot: Shot): string {
+  if (shot.spawns) return shot.query;
+  return shot.query ? `${shot.query}&spawns=0` : '?spawns=0';
 }
 
 async function waitForScreen(page: Page, screen: string): Promise<void> {
@@ -464,12 +472,64 @@ const GLOAM_SHOTS: Shot[] = [
   },
 ];
 
+/** M8: combat, creatures and shades. */
+const COMBAT_SHOTS: Shot[] = [
+  {
+    // A sword swing at a creature: hit flash, knockback, damage numbers.
+    name: 'combat-sword',
+    query: '?scene=game&time=noon&kit=combat&enemy=gloam_hound',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await selectItem(page, itemId('iron_sword'));
+      const p = (await probe(page)) as GameProbe;
+      const start = p.enemies[0];
+      check(start !== undefined, 'the ?enemy= creature is missing');
+      const ex = Math.floor((start?.x ?? 0) / TILE_SIZE);
+      const ey = Math.floor((start?.y ?? 0) / TILE_SIZE) - 1;
+      await pointAtTile(page, ex, ey);
+      await page.mouse.down();
+      await page.waitForTimeout(250);
+      const hit = (await probe(page)) as GameProbe;
+      await page.mouse.up();
+      const hp = hit.enemies[0]?.health ?? 0;
+      check(hp < (start?.health ?? 0), `the swing did no damage (${start?.health} → ${hp})`);
+      report.push(`sword: gloam hound ${start?.health} → ${hp}`);
+    },
+  },
+  {
+    // Shades come out of the dark: a Rootdeep cave with the lantern off.
+    name: 'shades-in-the-dark',
+    query: '?scene=game&time=noon&kit=combat&biome=rootdeep&spot=cave',
+    spawns: true,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF');
+      const deadline = Date.now() + 40_000;
+      let shades = 0;
+      let seen = '';
+      while (Date.now() < deadline) {
+        const p = (await probe(page)) as GameProbe;
+        seen = p.enemies.map((e) => e.key).join(',');
+        const near = p.enemies.filter(
+          (e) => e.key === 'shade' && Math.hypot(e.x - p.playerX, e.y - p.playerY) < 14 * TILE_SIZE,
+        );
+        shades = p.enemies.filter((e) => e.key === 'shade').length;
+        if (near.length > 0) break;
+        await page.waitForTimeout(500);
+      }
+      check(shades > 0, `no shades appeared in a dark cave in 40 s (creatures: ${seen || 'none'})`);
+      report.push(`shades in the dark: ${shades} shade(s) after the lantern went out`);
+    },
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
   ...FOREST_SHOTS,
   ...BIOME_SHOTS,
   ...LIQUID_SHOTS,
   ...GLOAM_SHOTS,
+  ...COMBAT_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
     // M4: the title leads to the world list (with an empty IndexedDB: no worlds yet).
@@ -1067,7 +1127,7 @@ try {
       if (msg.type() === 'error') errors.push(`[${shot.name}] console: ${msg.text()}`);
     });
     try {
-      await page.goto(new URL(shot.query, baseUrl).href);
+      await page.goto(new URL(shotQuery(shot), baseUrl).href);
       await shot.prepare(page);
       await page.screenshot({ path: resolve(outDir, `${shot.name}.png`), clip: shot.clip });
       console.log(`saved screenshots/${shot.name}.png`);

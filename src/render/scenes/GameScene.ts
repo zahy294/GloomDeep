@@ -11,7 +11,10 @@ import {
   CAMERA,
   HEALTH,
   GLOAM,
+  COMBAT_VIEW,
 } from '../../config';
+import { ENEMIES } from '../../data/enemies';
+import { createEnemy } from '../../sim/entities/Enemy';
 import { NAMED_TIMES } from '../../data/dayCycle';
 import { DEBUG_KITS, itemById } from '../../data/items';
 import { lensByKey } from '../../data/lenses';
@@ -62,6 +65,8 @@ import type { GlowScene } from './GlowScene';
 import { ATLAS_PIXEL_SIZE, framePixelOffset, itemIcon } from '../itemIcons';
 import { gloamCoverage, gloamFrame } from '../gloamFrames';
 import { LightEffects } from '../LightEffects';
+import { CombatRenderer } from '../CombatRenderer';
+import { selectedWeapon } from '../../sim/systems/CombatSystem';
 import { ownedLenses } from '../../sim/systems/LensSystem';
 import { PackFile, SceneKey, TextureKey } from './keys';
 import { ITEMS } from '../../data/items';
@@ -134,7 +139,16 @@ export class GameScene extends Phaser.Scene {
   private readonly view = { x: 0, y: 0, width: 0, height: 0 };
   private readonly preloadBudget: PreloadBudget = { remaining: 0 };
   private readonly foliageBudget: PreloadBudget = { remaining: 0 };
-  private readonly activity: PlayerActivity = { use: 'none', aimX: 0, aimY: 0, tool: null };
+  private readonly activity: PlayerActivity = {
+    use: 'none',
+    swing: 0,
+    invulnerable: false,
+    dead: false,
+    aimX: 0,
+    aimY: 0,
+    tool: null,
+  };
+  private combatView!: CombatRenderer;
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
   private paused = false;
@@ -308,6 +322,16 @@ export class GameScene extends Phaser.Scene {
     this.visual.jumpNext(); // the camera is now where the game starts
     this.lightMap = new LightMapRenderer(this, world, sim.events);
     this.lightEffects = new LightEffects(this, this.glowScene, sim.events, sim.flares);
+    this.combatView = new CombatRenderer(
+      this,
+      this.glowScene,
+      sim.events,
+      sim.enemies,
+      sim.projectiles,
+    );
+    sim.events.on('playerHurt', () =>
+      this.cameraDirector.shake(COMBAT_VIEW.hurtShake, COMBAT_VIEW.hurtShakeSeconds),
+    );
     this.glow = new GlowRenderer(
       this.glowScene,
       world,
@@ -375,6 +399,7 @@ export class GameScene extends Phaser.Scene {
       this.liquids.destroy();
       this.gloamOverlay.destroy();
       this.lightEffects.destroy();
+      this.combatView.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
       this.waterfalls.destroy();
@@ -394,6 +419,7 @@ export class GameScene extends Phaser.Scene {
         inventoryOpen: false,
         hud: null,
         notice: null,
+        respawnIn: null,
         paused: false,
       });
     });
@@ -467,7 +493,19 @@ export class GameScene extends Phaser.Scene {
     const sound = this.sound;
     if (!(sound instanceof Phaser.Sound.WebAudioSoundManager)) return null;
     const audio = new AudioDirector(sound.context, sound.masterVolumeNode, VISUALS);
-    this.sim.events.on('lightning', () => audio.thunder());
+    const events = this.sim.events;
+    events.on('lightning', () => audio.thunder());
+    events.on('attackStarted', ({ kind }) =>
+      audio.effect(kind === 'melee' ? 'swing' : kind === 'ranged' ? 'shoot' : 'beam'),
+    );
+    events.on('enemyHit', ({ source }) => {
+      if (source !== 'light') audio.effect('hit');
+    });
+    events.on('enemyDied', ({ type }) =>
+      audio.effect(ENEMIES[type]?.ai === 'shade' ? 'dissolve' : 'kill'),
+    );
+    events.on('playerHurt', () => audio.effect('hurt'));
+    events.on('playerRespawned', () => audio.effect('respawn'));
     return audio;
   }
 
@@ -541,12 +579,24 @@ export class GameScene extends Phaser.Scene {
     const alpha = this.sim.alpha;
     const body = this.sim.player.body;
     const input = this.sim.input;
-    this.activity.use = this.sim.mining.active
-      ? 'mine'
-      : input.isHeld('useAlt') && this.inputMapper.pointerEnabled
-        ? 'place'
-        : 'none';
-    const toolItem = this.sim.mining.toolItem;
+    const { combat, player } = this.sim;
+    const weapon = selectedWeapon(this.sim.inventory);
+    const swinging = combat.swingDuration > 0;
+    const aiming = weapon !== null && weapon.kind !== 'melee' && input.isHeld('useItem');
+    this.activity.use = swinging
+      ? 'attack'
+      : aiming
+        ? 'aim'
+        : this.sim.mining.active
+          ? 'mine'
+          : input.isHeld('useAlt') && this.inputMapper.pointerEnabled
+            ? 'place'
+            : 'none';
+    this.activity.swing = swinging ? combat.swingTime / combat.swingDuration : 0;
+    this.activity.invulnerable = player.invuln > 0;
+    this.activity.dead = player.dead;
+    const selected = this.sim.inventory.selectedStack;
+    const toolItem = weapon && selected ? selected.itemId : this.sim.mining.toolItem;
     this.activity.tool = toolItem >= 0 ? itemIcon(toolItem) : null;
     this.activity.aimX = input.aimX;
     this.activity.aimY = input.aimY;
@@ -596,6 +646,7 @@ export class GameScene extends Phaser.Scene {
     this.cursor.update();
     this.dropView.update(alpha);
     this.lightEffects.update(alpha, delta / 1000, this.sim.time);
+    this.combatView.update(alpha, delta / 1000, this.sim.time);
     this.fx.update(delta / 1000);
     // The light grid is computed around what the camera shows.
     input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
@@ -639,6 +690,14 @@ export class GameScene extends Phaser.Scene {
       lightAvgMs: this.sim.light.stats.avgMs,
       lightUpdates: this.sim.light.stats.updates,
       lumen: player.lumen,
+      health: player.health,
+      dead: player.dead,
+      enemies: this.sim.enemies.map((e) => ({
+        key: ENEMIES[e.type]?.key ?? '?',
+        x: e.body.x + e.body.width / 2,
+        y: e.body.y + e.body.height,
+        health: e.health,
+      })),
     };
   }
 
@@ -705,6 +764,8 @@ export class GameScene extends Phaser.Scene {
     const hud = this.bridge.state.hud;
     const lumen = Math.round(player.lumen);
     const health = Math.round(player.health);
+    const respawn = player.dead ? Math.ceil(player.respawnTimer) : null;
+    if (this.bridge.state.respawnIn !== respawn) this.bridge.set({ respawnIn: respawn });
     const lensKey = ownedLenses(this.sim.inventory)
       .map((l) => l.key)
       .join(',');
@@ -771,6 +832,14 @@ export class GameScene extends Phaser.Scene {
       p.body.y = feet.y * TILE_SIZE - p.body.height;
       p.prevX = p.body.x;
       p.prevY = p.body.y;
+    }
+    const type = ENEMIES.findIndex((e) => e.key === this.params.enemy);
+    if (type >= 0) {
+      // `?enemy=` for screenshots: one creature standing a few tiles to the player's right.
+      const p = sim.player.body;
+      const tx = Math.floor((p.x + p.width / 2) / TILE_SIZE) + DEBUG.enemyOffsetTiles;
+      const ty = findOpenFeetRow(sim.world, tx, Math.floor((p.y + p.height) / TILE_SIZE), 2);
+      sim.enemies.push(createEnemy(0, type, (tx + 0.5) * TILE_SIZE, ty * TILE_SIZE));
     }
     return sim;
   }

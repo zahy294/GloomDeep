@@ -25,6 +25,10 @@ export interface GameProbe {
   lightAvgMs: number;
   lightUpdates: number;
   lumen: number;
+  health: number;
+  dead: boolean;
+  /** Live creatures: key, feet-centre (pixels), health. */
+  enemies: { key: string; x: number; y: number; health: number }[];
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */

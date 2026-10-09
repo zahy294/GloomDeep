@@ -98,6 +98,8 @@ export interface UiState {
   /** Icon per item id (null = no icon); set once the game scene has loaded the pack. */
   icons: readonly (IconRect | null)[];
   notice: Notice | null;
+  /** Seconds until the player respawns, or null while alive. */
+  respawnIn: number | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
   packDir: string;
   worlds: WorldListEntry[];

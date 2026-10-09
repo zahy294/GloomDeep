@@ -1,5 +1,5 @@
 import type * as Phaser from 'phaser';
-import { PLAYER_ANIM, PLAYER_VIEW } from '../config';
+import { COMBAT_VIEW, PLAYER_ANIM, PLAYER_VIEW } from '../config';
 import { ARM_LENGTH, PART_FRAME, PART_RIG, type PartPlacement } from '../data/playerParts';
 import type { Player } from '../sim/entities/Player';
 import { approach, clampAbs } from './cameraMath';
@@ -20,11 +20,17 @@ const FRAME_SIZE = spriteAsset(ASSET)?.frameWidth ?? 16;
 
 /** What the player is doing with their hands this frame (decided by the scene from sim state). */
 export interface PlayerActivity {
-  use: ArmUse;
+  /** `attack`: a melee swing (see `swing`); `aim`: holding a bow or staff towards the cursor. */
+  use: ArmUse | 'attack' | 'aim';
+  /** Melee swing progress 0..1 while `use` is 'attack'. */
+  swing: number;
+  /** Invulnerable after a hit: the player blinks. Dead: hidden until respawning. */
+  invulnerable: boolean;
+  dead: boolean;
   /** Cursor in world pixels. */
   aimX: number;
   aimY: number;
-  /** Icon of the pickaxe being swung (shown in the front hand while mining), or null. */
+  /** Icon of the pickaxe or weapon in the front hand (mining, attacking, aiming), or null. */
   tool: ItemIconRef | null;
 }
 
@@ -137,7 +143,7 @@ export class PlayerRenderer {
     input.onGround = player.onGround;
     input.walkDistance = this.walkDistance;
     input.time = this.time;
-    input.use = activity.use;
+    input.use = activity.use === 'attack' || activity.use === 'aim' ? 'none' : activity.use;
     input.aimAngle = armAngleTowards(
       shoulderX,
       shoulderY,
@@ -146,6 +152,15 @@ export class PlayerRenderer {
       this.facing,
     );
     const pose = computePose(input, this.pose);
+    if (activity.use === 'aim') pose.frontArmAngle = input.aimAngle;
+    if (activity.use === 'attack') {
+      // One swing from raised-back, through the aim, to past it (eased in like the mining hack).
+      const t = activity.swing * activity.swing;
+      pose.frontArmAngle =
+        input.aimAngle +
+        PLAYER_ANIM.swingBack -
+        t * (PLAYER_ANIM.swingBack + PLAYER_ANIM.swingForward);
+    }
 
     const trailTarget = -clampAbs(
       Math.abs(player.body.vx) * PLAYER_ANIM.hoodTrailPerSpeed,
@@ -154,7 +169,12 @@ export class PlayerRenderer {
     this.hoodTrail = approach(this.hoodTrail, trailTarget, PLAYER_ANIM.hoodTrailRate, dt);
 
     const bob = pose.bodyOffsetY;
-    this.root.setPosition(x, y).setScale(this.facing, 1);
+    const blink = activity.invulnerable && Math.floor(this.time * COMBAT_VIEW.blinkRate) % 2 === 0;
+    this.root
+      .setPosition(x, y)
+      .setScale(this.facing, 1)
+      .setVisible(!activity.dead)
+      .setAlpha(blink ? COMBAT_VIEW.blinkAlpha : 1);
     this.legs.setFrame(spriteFrame(ASSET, pose.legsFrame));
     this.body.setY(PART_RIG.body.y + bob);
     this.head.setY(PART_RIG.head.y + bob);
@@ -168,7 +188,8 @@ export class PlayerRenderer {
       Math.round(PART_RIG.backArm.x + Math.sin(pose.backArmAngle) * ARM_LENGTH),
       Math.round(PART_RIG.backArm.y + bob + Math.cos(pose.backArmAngle) * ARM_LENGTH),
     );
-    const tool = activity.use === 'mine' ? activity.tool : null;
+    const holding = activity.use === 'mine' || activity.use === 'attack' || activity.use === 'aim';
+    const tool = holding ? activity.tool : null;
     this.tool.setVisible(tool !== null);
     if (tool) {
       if (
