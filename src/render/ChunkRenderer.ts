@@ -44,7 +44,10 @@ export interface PreloadBudget {
 }
 
 export interface ChunkLayerOptions {
-  layer: TileLayer;
+  /** The world layer drawn; its `tileChanged` events refresh frames. Null = no edit refresh. */
+  layer: TileLayer | null;
+  /** Atlas frame for a tile (default: blob autotiling of `layer`). -1 = empty. */
+  frameAt?: (x: number, y: number) => number;
   textureKey: string;
   depth: number;
   poolSize?: number;
@@ -73,7 +76,8 @@ export class ChunkRenderer {
   private readonly slots: Slot[] = [];
   private readonly loaded = new Map<number, Slot>();
   private readonly chunkPx: number;
-  private readonly tileLayer: TileLayer;
+  private readonly tileLayer: TileLayer | null;
+  private readonly frameAt: (x: number, y: number) => number;
   private readonly needed: ChunkRange = { cx0: 0, cy0: 0, cx1: 0, cy1: 0 };
   private readonly visible: ChunkRange = { cx0: 0, cy0: 0, cx1: 0, cy1: 0 };
   /** The first update loads the initial view synchronously; that is not a late load. */
@@ -89,6 +93,8 @@ export class ChunkRenderer {
     const size = world.chunkSize;
     this.chunkPx = size * TILE_SIZE;
     this.tileLayer = options.layer;
+    const layer = options.layer ?? 'fg';
+    this.frameAt = options.frameAt ?? ((x, y) => tileFrame(world, layer, x, y));
     const blank = Array.from({ length: size }, () => new Array<number>(size).fill(EMPTY));
 
     for (let i = 0; i < (options.poolSize ?? CHUNK_RENDER.poolSize); i++) {
@@ -118,7 +124,7 @@ export class ChunkRenderer {
     }
 
     this.unsubscribe = events.on('tileChanged', (e) => {
-      if (e.layer === this.tileLayer) this.refreshAround(e.x, e.y);
+      if (this.tileLayer !== null && e.layer === this.tileLayer) this.refreshAround(e.x, e.y);
     });
   }
 
@@ -212,7 +218,7 @@ export class ChunkRenderer {
       if (!row) continue;
       for (let x = 0; x < size; x++) {
         const tile = row[x];
-        if (tile) tile.index = tileFrame(this.world, this.tileLayer, x0 + x, y0 + y);
+        if (tile) tile.index = this.frameAt(x0 + x, y0 + y);
       }
     }
     slot.layer.generateLayerDataTexture();
@@ -232,7 +238,7 @@ export class ChunkRenderer {
         const slot = this.loaded.get(cy * this.world.chunksX + cx);
         const tile = slot?.tiles[ty - cy * size]?.[tx - cx * size];
         if (!slot || !tile) continue;
-        const frame = tileFrame(this.world, this.tileLayer, tx, ty);
+        const frame = this.frameAt(tx, ty);
         if (tile.index === frame) continue;
         tile.index = frame;
         slot.dirty = true;

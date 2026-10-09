@@ -75,6 +75,9 @@ function put(data: Uint8Array, width: number, x: number, y: number, color: numbe
  * that); an inner corner (both edges joined, diagonal missing) gets a 2x2 dark notch; a light bevel
  * runs just inside an exposed top or left edge (light from the top-left).
  */
+/** Out of 256: chance a 2×2 block of an ore tile is ore rather than host rock. */
+const ORE_CLUSTER_CHANCE = 70;
+
 function framePixel(
   c: Colors,
   mask: number,
@@ -83,6 +86,7 @@ function framePixel(
   tileId: number,
   variation: number,
   opts: AtlasOptions,
+  ore: readonly [number, number, number, number] | null = null,
 ): number {
   const last = opts.tileSize - 1;
   const exN = (mask & N) === 0;
@@ -105,6 +109,11 @@ function framePixel(
 
   if ((exN && py === 1) || (exW && px === 1)) return c.light;
 
+  if (ore) {
+    // Ore: 2×2 nuggets of the ore's colours scattered through the host rock.
+    const cluster = hash3(px >> 1, py >> 1, tileId * 16 + variation + 7, opts.seed);
+    if ((cluster & 0xff) < ORE_CLUSTER_CHANCE) return (px + py) % 3 === 0 ? ore[3] : ore[2];
+  }
   const h = hash3(px, py, tileId * 16 + variation, opts.seed);
   if ((h & 0xff) < opts.speckleChance) return (h >>> 8) & 1 ? c.highlight : c.dark;
   return c.base;
@@ -170,6 +179,8 @@ export function buildPlaceholderAtlas(
   for (const tile of tiles) {
     if (tile.id === 0) continue;
     const colors = colorsFor(tile, kind);
+    // Walls keep plain rock: ore nuggets only show on the foreground block.
+    const ore = tile.placeholderOre && kind === 'tiles' ? PALETTE[tile.placeholderOre] : null;
     if (!colors) continue;
     for (let shape = 0; shape < BLOB_MASKS.length; shape++) {
       const mask = BLOB_MASKS[shape] ?? 0;
@@ -183,7 +194,7 @@ export function buildPlaceholderAtlas(
         }
         for (let py = 0; py < tileSize; py++) {
           for (let px = 0; px < tileSize; px++) {
-            const color = framePixel(colors, mask, px, py, tile.id, variation, opts);
+            const color = framePixel(colors, mask, px, py, tile.id, variation, opts, ore);
             put(data, width, ox + px, oy + py, color);
           }
         }

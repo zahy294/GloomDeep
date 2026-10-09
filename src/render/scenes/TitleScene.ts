@@ -15,13 +15,12 @@ export class TitleScene extends Phaser.Scene {
     super(SceneKey.Title);
   }
 
-  create(): void {
+  create(data?: { screen?: 'title' | 'worlds' }): void {
     this.cameras.main.setBackgroundColor(PALETTE.tealShadow[0]);
     this.drawGroundStrip();
 
-    const unsubscribe = this.bridge.commands.on('startGame', () => this.scene.start(SceneKey.Game));
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
-    this.bridge.set({ screen: 'title' });
+    // The overlay shows the title or the world list on top of this backdrop (src/flow/WorldFlow.ts).
+    this.bridge.set({ screen: data?.screen ?? 'title' });
   }
 
   /** A strip of every placeholder tile along the bottom, so the generated atlas is visible. */

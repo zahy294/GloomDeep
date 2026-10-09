@@ -22,6 +22,8 @@ export const TextureKey = {
   moon: 'moon',
   /** Soft white radial falloff for the additive glow pass (linear filtering). */
   glow: 'glow',
+  /** Liquid tiles drawn at boot (src/render/liquidFrames.ts layout). */
+  liquids: 'liquids',
 } as const;
 
 export const DataKey = {

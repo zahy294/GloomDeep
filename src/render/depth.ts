@@ -6,6 +6,8 @@ export const Depth = {
   /** Crack overlay and the tile cursor sit just above the tiles they mark. */
   tileOverlay: 9,
   entities: 10,
+  /** Water and lava, in front of entities so a swimmer is tinted by it (plan 2.2 layer 11). */
+  liquids: 11,
   particles: 12,
   /** Multiplied over everything below it (plan 2.2 layer 13). */
   lightMap: 13,

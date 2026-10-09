@@ -40,6 +40,9 @@ describe('parseDebugParams', () => {
     time: null,
     quality: null,
     pack: null,
+    biome: null,
+    spot: null,
+    size: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -58,6 +61,22 @@ describe('parseDebugParams', () => {
       time: null,
       quality: null,
       pack: null,
+      biome: null,
+      spot: null,
+      size: null,
+    });
+  });
+
+  it('reads the debug biome, cave spot and world size', () => {
+    expect(parseDebugParams('?biome=weeping_mire&spot=cave&size=small')).toMatchObject({
+      biome: 'weeping_mire',
+      spot: 'cave',
+      size: 'small',
+    });
+    expect(parseDebugParams('?biome=a/b&spot=sky&size=huge')).toMatchObject({
+      biome: null,
+      spot: null,
+      size: null,
     });
   });
 

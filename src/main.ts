@@ -11,7 +11,10 @@ import { DEFAULT_PACK_DIR, SceneKey } from './render/scenes/keys';
 import { GlowScene } from './render/scenes/GlowScene';
 import { SkyScene } from './render/scenes/SkyScene';
 import { TitleScene } from './render/scenes/TitleScene';
+import { WorldFlow, type SceneControl } from './flow/WorldFlow';
+import { SaveStore } from './persistence/SaveStore';
 import { App } from './ui/App';
+import { generateWorldAsync } from './workers/worldgen/worldgenClient';
 import { UiBridge } from './ui/bridge';
 
 const debug = parseDebugParams(window.location.search);
@@ -23,6 +26,33 @@ const bridge = new UiBridge({
   inventoryOpen: false,
   hud: null,
   packDir: debug.pack ?? DEFAULT_PACK_DIR,
+  worlds: [],
+  generation: null,
+  paused: false,
+  error: null,
+});
+
+// Scene switching for the world flow; set once the game exists (below).
+let scenes: Phaser.Scenes.SceneManager | null = null;
+const sceneControl: SceneControl = {
+  startGame: (start) => {
+    scenes?.stop(SceneKey.Title);
+    scenes?.start(SceneKey.Game, start);
+  },
+  showMenu: (screen) => {
+    if (scenes?.isActive(SceneKey.Title)) {
+      bridge.set({ screen });
+      return;
+    }
+    scenes?.stop(SceneKey.Game);
+    scenes?.start(SceneKey.Title, { screen });
+  },
+};
+const flow = new WorldFlow({
+  bridge,
+  store: new SaveStore(),
+  scenes: sceneControl,
+  generate: generateWorldAsync,
 });
 
 const gameParent = document.getElementById('game');
@@ -49,12 +79,13 @@ const game = new Phaser.Game({
     new BootScene(debug),
     new TitleScene(bridge),
     new SkyScene(),
-    new GameScene(bridge, debug),
+    new GameScene(bridge, debug, flow),
     new GlowScene(),
     new ArtTestScene(bridge, debug),
   ],
 });
 
+scenes = game.scene;
 keepIntegerScale(game, uiRoot);
 render(h(App, { bridge }), uiRoot);
 

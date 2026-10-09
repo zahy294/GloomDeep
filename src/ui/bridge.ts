@@ -1,7 +1,22 @@
 import { EventBus } from '../sim/events';
+import type { WorldSizeKey } from '../sim/world/worldData';
+
+export type { WorldSizeKey };
 
 /** Which top-level screen is showing. Scenes set this; the overlay renders to match. */
-export type Screen = 'boot' | 'title' | 'game' | 'art-test';
+export type Screen = 'boot' | 'title' | 'worlds' | 'generating' | 'game' | 'art-test';
+
+/** One saved world as listed on the world-select screen. */
+export interface WorldListEntry {
+  id: string;
+  name: string;
+  seed: number;
+  sizeKey: WorldSizeKey;
+  /** Epoch ms. */
+  lastPlayed: number;
+  /** Seconds played. */
+  playTime: number;
+}
 
 /** F3 overlay contents (plan 7). Fields for later systems read "—" until those systems exist. */
 export interface DebugInfo {
@@ -52,15 +67,28 @@ export interface UiState {
   hud: HudView | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
   packDir: string;
+  worlds: WorldListEntry[];
+  /** Non-null while a world is being generated; progress is 0..1. */
+  generation: { stage: string; progress: number } | null;
+  /** The pause menu is open (game screen). */
+  paused: boolean;
+  /** A message to show on the world-select screen, or null. */
+  error: string | null;
 }
 
 /** Commands the UI sends. The UI never changes game state directly (CLAUDE.md rule 3). */
 export interface UiCommands {
-  startGame: Record<string, never>;
   selectSlot: { slot: number };
   swapSlots: { a: number; b: number };
   /** The mouse is over an interactive panel, so clicks must not mine/place in the world. */
   pointerOverUi: { over: boolean };
+  openWorlds: Record<string, never>;
+  createWorld: { name: string; seed: number | null; size: WorldSizeKey };
+  playWorld: { id: string };
+  deleteWorld: { id: string };
+  backToTitle: Record<string, never>;
+  resume: Record<string, never>;
+  saveAndQuit: Record<string, never>;
 }
 
 type Listener = (state: UiState) => void;

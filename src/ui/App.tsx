@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
 import { DebugOverlay } from './DebugOverlay';
 import { Hud } from './Hud';
+import { Generating } from './Generating';
 import { Hotbar, InventoryPanel } from './Inventory';
+import { PauseMenu } from './PauseMenu';
+import { WorldSelect } from './WorldSelect';
 
 function useUiState(bridge: UiBridge): UiState {
   const [state, setState] = useState(bridge.state);
@@ -11,7 +14,7 @@ function useUiState(bridge: UiBridge): UiState {
 }
 
 function TitleScreen({ bridge }: { bridge: UiBridge }) {
-  const start = () => bridge.commands.emit('startGame', {});
+  const start = () => bridge.commands.emit('openWorlds', {});
   const root = useRef<HTMLDivElement>(null);
   // Focus so Enter/Space start the game without having to Tab in first.
   useEffect(() => root.current?.focus(), []);
@@ -32,12 +35,27 @@ function TitleScreen({ bridge }: { bridge: UiBridge }) {
 }
 
 export function App({ bridge }: { bridge: UiBridge }) {
-  const { screen, showUi, debug, inventory, inventoryOpen, hud } = useUiState(bridge);
+  const {
+    screen,
+    showUi,
+    debug,
+    inventory,
+    inventoryOpen,
+    hud,
+    worlds,
+    generation,
+    paused,
+    error,
+  } = useUiState(bridge);
   if (!showUi) return null;
 
   switch (screen) {
     case 'title':
       return <TitleScreen bridge={bridge} />;
+    case 'worlds':
+      return <WorldSelect bridge={bridge} worlds={worlds} error={error} />;
+    case 'generating':
+      return <Generating stage={generation?.stage ?? ''} progress={generation?.progress ?? 0} />;
     case 'game':
       return (
         <>
@@ -49,6 +67,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
           {hud && <Hud hud={hud} />}
           {inventory && <Hotbar bridge={bridge} view={inventory} />}
           {inventory && inventoryOpen && <InventoryPanel bridge={bridge} view={inventory} />}
+          {paused && <PauseMenu bridge={bridge} error={error} />}
         </>
       );
     default:

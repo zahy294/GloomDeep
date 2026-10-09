@@ -8,10 +8,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { preview } from 'vite';
-import { CHUNK_RENDER, DISPLAY, TILE_SIZE, WORLD } from '../src/config';
+import { CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../src/config';
+import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
 import { tileId } from '../src/data/tiles';
 import { integerZoom } from '../src/render/integerScale';
+import { Simulation } from '../src/sim/Simulation';
+import { generateWorld } from '../src/workers/worldgen/generateWorld';
 import type { GameProbe } from '../src/types/window';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -138,8 +141,8 @@ const PLAYER_CLOSEUP = {
   height: 160,
 };
 
-/** A cave pocket in the default world (seed 1), found with tools in M1. */
-const CAVE = 'x=2374&y=453';
+/** An open cave pocket in the debug world (src/sim/world/debugSpawn.ts). */
+const CAVE = 'spot=cave';
 const TORCH = tileId('torch');
 
 const lightAt = async (page: Page, x: number, y: number): Promise<[number, number, number]> =>
@@ -155,21 +158,223 @@ async function waitForLight(page: Page): Promise<void> {
   });
 }
 
+/**
+ * The first of `offsets` (relative to x, y) where a tile can be placed on `layer`: empty there,
+ * and touching a block or wall (BuildingSystem's support rule). Generated worlds vary, so shots
+ * pick a valid spot instead of assuming fixed terrain.
+ */
+async function placeableNear(
+  page: Page,
+  x: number,
+  y: number,
+  layer: 'fg' | 'bg',
+  offsets: readonly (readonly [number, number])[],
+): Promise<[number, number]> {
+  for (const [dx, dy] of offsets) {
+    const tx = x + dx;
+    const ty = y + dy;
+    if ((await tileAt(page, tx, ty, layer)) !== 0) continue;
+    if (layer === 'fg' && (await tileAt(page, tx, ty, 'bg')) > 0) return [tx, ty];
+    for (const [nx, ny] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      if ((await tileAt(page, tx + nx, ty + ny)) > 0) return [tx, ty];
+      if ((await tileAt(page, tx + nx, ty + ny, 'bg')) > 0) return [tx, ty];
+    }
+  }
+  throw new Error(`nowhere to place a ${layer} tile near ${x},${y}`);
+}
+
+/** Title → world list. */
+async function openWorldList(page: Page): Promise<void> {
+  await waitForScreen(page, 'title');
+  await page.mouse.click(VIEWPORT.width / 2, VIEWPORT.height / 2);
+  await waitForScreen(page, 'worlds');
+}
+
+async function createWorld(page: Page, name: string, seed: number, size: string): Promise<void> {
+  await page.fill('.new-world label:has-text("Name") input', name);
+  await page.fill('.new-world label:has-text("Seed") input', String(seed));
+  await page.click(`.new-world .sizes label:has-text("${size}")`);
+  await page.click('.new-world button[type=submit]');
+}
+
+/** Foreground and wall ids in a 41×21 box around a tile, as one string to compare. */
+const sampleTiles = (page: Page, cx: number, cy: number) =>
+  page.evaluate(
+    ([x0, y0]) => {
+      const out: number[] = [];
+      for (let y = y0 - 10; y <= y0 + 10; y++) {
+        for (let x = x0 - 20; x <= x0 + 20; x++) {
+          out.push(
+            window.gloamdeep?.tile(x, y, 'fg') ?? -1,
+            window.gloamdeep?.tile(x, y, 'bg') ?? -1,
+          );
+        }
+      }
+      return out.join(',');
+    },
+    [cx, cy] as const,
+  );
+
+/** One shot per surface biome (noon, on the surface) and per depth layer (in a cave there). */
+const BIOME_SHOTS: Shot[] = [...SURFACE_BIOMES, ...DEPTH_LAYERS].map(({ key }) => ({
+  name: `biome-${key}`,
+  query: `?scene=game&ui=0&time=noon&biome=${key}`,
+  prepare: waitForLight,
+}));
+
+/**
+ * The shallowest open surface cell of each liquid in the debug world (`?scene=game` without a seed),
+ * found by generating the same world here, so the liquid shots don't hard-code coordinates.
+ */
+function liquidSpots(): Record<'water' | 'lava', string> {
+  const size = WORLD_SIZES.medium;
+  const { world } = Simulation.fromGenerated(
+    generateWorld(size.width, size.height, DEBUG.defaultSeed),
+  );
+  const find = (type: number): string => {
+    let best: { x: number; y: number; depth: number } | null = null;
+    for (let y = 1; y < world.height; y++) {
+      for (let x = 0; x < world.width; x++) {
+        const i = y * world.width + x;
+        if (world.liquidType[i] !== type || world.liquidType[i - world.width] !== 0) continue;
+        // Room for the player above the pool (the x/y override pushes the feet up until clear).
+        if ([1, 2, 3].some((dy) => world.isSolid(x, y - dy))) continue;
+        const depth = y - (world.skyline[x] ?? 0);
+        if (!best || depth < best.depth) best = { x, y, depth };
+      }
+    }
+    if (!best) throw new Error(`no liquid of type ${type} in the debug world`);
+    return `x=${best.x}&y=${best.y}`;
+  };
+  return { water: find(LIQUID.water), lava: find(LIQUID.lava) };
+}
+
+const LIQUID_SPOTS = liquidSpots();
+
+const LIQUID_SHOTS: Shot[] = (['water', 'lava'] as const).map((liquid) => ({
+  name: `liquid-${liquid}`,
+  query: `?scene=game&ui=0&time=noon&${LIQUID_SPOTS[liquid]}`,
+  prepare: async (page) => {
+    await waitForLight(page);
+    await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height * 0.6); // lantern at the pool
+    await page.waitForTimeout(400);
+  },
+}));
+
 const GRASS = tileId('elderglade_grass');
 const PLANKS = tileId('elderwood_planks');
 const SOIL_ITEM = itemId('forest_soil');
 const PLANKS_ITEM = itemId('elderwood_planks');
 
 const SHOTS: Shot[] = [
+  ...BIOME_SHOTS,
+  ...LIQUID_SHOTS,
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
-    name: 'title-click-to-game',
+    // M4: the title leads to the world list (with an empty IndexedDB: no worlds yet).
+    name: 'worlds-empty',
     query: '',
     prepare: async (page) => {
       await waitForScreen(page, 'title');
       await page.mouse.click(VIEWPORT.width / 2, VIEWPORT.height / 2);
+      await waitForScreen(page, 'worlds');
+      await page.waitForSelector('.new-world', { timeout: TIMEOUT_MS });
+    },
+  },
+  {
+    // M4 "Done when": creating a world shows progress and finishes in under 15 s (large world).
+    name: 'worlds-created-large',
+    query: '',
+    prepare: async (page) => {
+      await openWorldList(page);
+      const started = Date.now();
+      await createWorld(page, 'Shot world', 7, 'Large');
+      await page.waitForFunction(
+        () => (window.gloamdeep?.bridge.state.generation?.progress ?? 0) > 0.15,
+        undefined,
+        { timeout: TIMEOUT_MS },
+      );
+      await page.screenshot({ path: resolve(outDir, 'worlds-generating.png') });
+      await waitForScreen(page, 'game');
+      const seconds = (Date.now() - started) / 1000;
+      check(seconds < 15, `creating a large world took ${seconds.toFixed(1)} s (limit 15 s)`);
+      report.push(`create large world (6400×1800) → game: ${seconds.toFixed(1)} s`);
+      await waitForPlayerReady(page);
+    },
+  },
+  {
+    // M4 "Done when": quitting and reloading restores the world exactly (in the real browser,
+    // through IndexedDB and the gzip save format).
+    name: 'save-reload-restored',
+    query: '?ui=1',
+    prepare: async (page) => {
+      await openWorldList(page);
+      await createWorld(page, 'Save test', 42, 'Small');
       await waitForScreen(page, 'game');
       await waitForPlayerReady(page);
+
+      // Change the world: walk right, dig a tile beside the player, place a plank wall.
+      await holdKey(page, 'KeyD', 400);
+      await page.waitForFunction(() => window.gloamdeep?.probe()?.onGround, undefined, {
+        timeout: TIMEOUT_MS,
+      });
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const ground = Math.round(p.playerY / TILE_SIZE);
+      await holdOnTile(page, px + 2, ground, 'left', async () => {
+        return (await tileAt(page, px + 2, ground)) === 0;
+      });
+      await page.keyboard.press('Digit1');
+      await page.keyboard.down('Shift');
+      const [wx, wy] = await placeableNear(page, px, ground, 'bg', [
+        [-2, -1],
+        [-3, -1],
+        [-2, -2],
+        [2, -1],
+        [3, -1],
+        [-1, 1],
+      ]);
+      await holdOnTile(page, wx, wy, 'right', async () => {
+        return (await tileAt(page, wx, wy, 'bg')) === PLANKS;
+      });
+      await page.keyboard.up('Shift');
+      await page.waitForTimeout(300);
+
+      await page.keyboard.press('Escape');
+      await page.waitForSelector('text=Save & quit', { timeout: TIMEOUT_MS });
+      const before = (await probe(page)) as GameProbe;
+      const tilesBefore = await sampleTiles(page, px, ground);
+      await page.click('text=Save & quit');
+      await waitForScreen(page, 'worlds');
+
+      await page.reload();
+      await openWorldList(page);
+      await page.waitForSelector('.world-row', { timeout: TIMEOUT_MS });
+      await page.click('.world-row button:text-is("Play")');
+      await waitForScreen(page, 'game');
+      await waitForPlayerReady(page);
+      const after = (await probe(page)) as GameProbe;
+      const tilesAfter = await sampleTiles(page, px, ground);
+
+      check(
+        after.playerX === before.playerX && after.playerY === before.playerY,
+        `player moved across save/reload: ${before.playerX},${before.playerY} → ${after.playerX},${after.playerY}`,
+      );
+      check(tilesAfter === tilesBefore, 'tiles around the player differ after reload');
+      check(
+        JSON.stringify(after.inventory) === JSON.stringify(before.inventory),
+        'inventory differs after reload',
+      );
+      check((await tileAt(page, px + 2, ground)) === 0, 'dug tile came back after reload');
+      report.push(
+        `save → reload: player at ${after.playerX},${after.playerY} (unchanged), ` +
+          `41×21 tiles and walls around it and the inventory identical`,
+      );
     },
   },
   {
@@ -369,18 +574,19 @@ const SHOTS: Shot[] = [
       const p = (await probe(page)) as GameProbe;
       const px = Math.floor(p.playerX / TILE_SIZE);
       const row = Math.round(p.playerY / TILE_SIZE) - 1;
-      for (const dx of [-4, 4]) {
-        await holdOnTile(
-          page,
-          px + dx,
-          row,
-          'right',
-          async () => (await tileAt(page, px + dx, row)) === TORCH,
-        );
+      // Two torches, one each side if the cave allows (else both on one side), 2–6 tiles out.
+      const side = (dir: number) =>
+        [4, 3, 5, 2, 6].flatMap((d) => [0, -1, 1, -2, -3].map((dy) => [dir * d, dy] as const));
+      const torches: [number, number][] = [];
+      for (const offsets of [side(-1), [...side(1), ...side(-1)]]) {
+        const [tx, ty] = await placeableNear(page, px, row, 'fg', offsets);
+        await holdOnTile(page, tx, ty, 'right', async () => (await tileAt(page, tx, ty)) === TORCH);
+        torches.push([tx, ty]);
       }
       await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
       await page.waitForTimeout(500);
-      const lit = await lightAt(page, px + 4, row);
+      const [litX, litY] = torches[1] ?? [px, row];
+      const lit = await lightAt(page, litX, litY);
       check(lit[1] > 100, `a torch should light the cave, got rgb ${lit.join(',')}`);
       const end = (await probe(page)) as GameProbe;
       check(
@@ -415,7 +621,7 @@ const SHOTS: Shot[] = [
   },
   {
     name: 'game-cave',
-    query: '?scene=game&ui=0&x=2374&y=453',
+    query: `?scene=game&ui=0&${CAVE}`,
     prepare: waitForPlayerReady,
   },
   {
@@ -495,7 +701,9 @@ let failed = false;
 
 try {
   await mkdir(outDir, { recursive: true });
-  for (const shot of SHOTS) {
+  // `SHOT_ONLY=name1,name2 npm run shot` reruns just those shots.
+  const only = process.env.SHOT_ONLY?.split(',');
+  for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
     const page = await browser.newPage({ viewport: VIEWPORT });
     page.on('pageerror', (err) => errors.push(`[${shot.name}] ${err.message}`));
     page.on('console', (msg) => {

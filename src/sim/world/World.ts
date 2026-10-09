@@ -1,5 +1,7 @@
 import { TILES } from '../../data/tiles';
+import { DEPTH_LAYERS } from '../../data/biomes';
 import type { EventBus, SimEvents, TileLayer } from '../events';
+import type { WorldArrays } from './worldData';
 import { Chunk } from './Chunk';
 
 export interface WorldSize {
@@ -39,6 +41,10 @@ export class World {
    * `height` when the column is open all the way down. Kept current on every foreground write.
    */
   readonly skyline: Int32Array;
+  /** Surface biome index per column (src/data/biomes.ts SURFACE_BIOMES). */
+  readonly surfaceBiome: Uint8Array;
+  /** First row of each depth layer (src/data/biomes.ts DEPTH_LAYERS). */
+  readonly layerTops: Int32Array;
   /** Mining progress, only for tiles currently being mined. */
   readonly damage = new Map<number, number>();
   readonly chunks: readonly Chunk[];
@@ -77,6 +83,8 @@ export class World {
     }
     this.chunks = chunks;
     this.skyline = new Int32Array(size.width).fill(size.height);
+    this.surfaceBiome = new Uint8Array(size.width);
+    this.layerTops = new Int32Array(DEPTH_LAYERS.length);
   }
 
   inBounds(x: number, y: number): boolean {
@@ -124,6 +132,51 @@ export class World {
   chunkAt(cx: number, cy: number): Chunk | undefined {
     if (cx < 0 || cy < 0 || cx >= this.chunksX || cy >= this.chunksY) return undefined;
     return this.chunks[cy * this.chunksX + cx];
+  }
+
+  /**
+   * Replaces the world's contents with generated or saved arrays (same size), then rebuilds
+   * derived data. Light is not part of the data: it is recomputed.
+   */
+  loadArrays(arrays: WorldArrays): void {
+    const n = this.width * this.height;
+    for (const [name, data] of [
+      ['fg', arrays.fg],
+      ['bg', arrays.bg],
+      ['liquid', arrays.liquid],
+      ['liquidType', arrays.liquidType],
+      ['gloam', arrays.gloam],
+    ] as const) {
+      if (data.length !== n) throw new Error(`${name} has ${data.length} cells, expected ${n}`);
+    }
+    // A save from before a depth layer was added must be migrated, not half-loaded.
+    if (arrays.layerTops.length !== this.layerTops.length) {
+      throw new Error(
+        `layerTops has ${arrays.layerTops.length} layers, expected ${this.layerTops.length}`,
+      );
+    }
+    this.fg.set(arrays.fg);
+    this.bg.set(arrays.bg);
+    this.liquid.set(arrays.liquid);
+    this.liquidType.set(arrays.liquidType);
+    this.gloam.set(arrays.gloam);
+    this.surfaceBiome.set(arrays.surfaceBiome.subarray(0, this.width));
+    this.layerTops.set(arrays.layerTops);
+    this.damage.clear();
+    this.touchAll();
+  }
+
+  /** The persistent arrays (views onto the live data — copy before keeping them). */
+  arrays(): WorldArrays {
+    return {
+      fg: this.fg,
+      bg: this.bg,
+      liquid: this.liquid,
+      liquidType: this.liquidType,
+      gloam: this.gloam,
+      surfaceBiome: this.surfaceBiome,
+      layerTops: this.layerTops,
+    };
   }
 
   /** Marks every chunk changed and rebuilds derived data (after bulk generation). */

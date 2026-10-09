@@ -4,6 +4,55 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M4 — World generation, biomes and saving ✅ (2026-10-09)
+
+### Built
+
+- **World generation in a Web Worker** (`src/workers/worldgen/`): the 12 steps of plan 3.2 in order (terrain height, biomes, soil/stone, caves, ores and Lumen, liquids, structures, background walls, decorations, initial Gloam, settle, validation), each with its own seeded stream, so the same seed always gives the same arrays. Falls back to the main thread if the worker fails (including unreadable messages). Medium (4200×1200) generates in ~0.6 s in Node; a large world (6400×1800) is created through the UI in ~2 s.
+- **Biomes as data** (`src/data/biomes.ts`): three surface biomes (Elderglade in the middle, Moonpetal Vale and Weeping Mire on the sides), each with its own grass and pool chance; five depth layers (Glowcap Grottos, Rootdeep, Moonstone Hollows, Ember Roots, Gloam Heart), each with its own rock, ores, cave density, liquid, signature feature and Gloam strength. 16 new tiles with items and lights (glowcaps, emberite).
+- **Ores and Lumen crystals by depth:** random-walk veins per layer from data densities (copper high up, emberite deep).
+- **Liquids:** surface pools in dips (the Mire is wet) and underground lakes (water above, lava in Ember Roots), resting on floors. **Drawn** by a third chunk renderer (`liquidFrames.ts`, a canvas sheet made in BootScene): translucent water and near-opaque lava, with a lighter top on surface cells.
+- **Saving** (`src/persistence/`): a binary `GLDP` format (JSON header + aligned typed arrays), gzip via `CompressionStream`, IndexedDB via `idb`, 3 rotating backups per world, falling back to an older backup if one is corrupt. Migrations receive the header *and* arrays, so later versions can add or convert arrays. Saved: tiles, walls, liquids, Gloam, biomes, layer tops, player (incl. jump/coyote state), inventory, time of day, drops (position, velocity, age), the gameplay random state, spawn.
+- **World flow** (`src/flow/WorldFlow.ts`): title → world list (play / delete with confirmation / create with name, seed, size) → "Growing the forest…" progress screen → game. Esc pauses (Resume, Save & quit). Autosave every 2 min, save when the tab is hidden, first save right after creation; saves never overlap.
+- **Debug starts** on a real generated world: `?scene=game` (seed `DEBUG.defaultSeed`), `seed=`, `size=small|medium|large`, `biome=<surface biome or depth layer>`, `spot=cave`, plus `x=&y=` as before. The F3 overlay shows the biome/layer at the player.
+- **Shots:** each biome and layer, water and lava, the empty world list, the generating screen, a large world created through the UI (timed), and a **browser save → quit → reload → play** check. `SHOT_ONLY=a,b npm run shot` reruns selected shots.
+- **Tests:** 276 (determinism of every array, step order and progress, spawn safety, biome/layer placement, ores by depth, liquids resting on something, surface pools, generation time; save format round trip, corruption, migrations incl. adding an array; IndexedDB store with backups and backup spacing; save → restore → identical simulation and random sequence; WorldFlow with fakes; debug spawns; seed parsing).
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Creating a world with a seed shows progress and finishes in under 15 s | ✅ large world via the UI in ~2 s with the progress screen (`worlds-generating.png`, `worlds-created-large.png`); medium ~0.6 s |
+| The same seed gives the same world (tested) | ✅ `tests/workers/worldgen/generateWorld.test.ts` hashes every array for two runs |
+| Quitting and reloading restores the world exactly | ✅ in the browser: save & quit → page reload → play gives the same player position, 41×21 tiles + walls and inventory (`save-reload-restored.png`); in Vitest the restored simulation keeps stepping identically |
+
+### Decisions and deviations
+
+- **Liquids are static until M9** (flow, swimming, lava light). Placing a block into a liquid cell leaves the liquid drawn over it until then; lava does not emit light yet, so unlit lava looks dark.
+- **Settle is one bottom-up compaction pass per column**, which is exact for a world at rest; the real falling/liquid simulations come in M9.
+- **`TEST_WORLD` and the hand-made test world are gone**: every start, including `?scene=game`, uses the real generator. Screenshot positions (cave, biomes, liquids, torch spots) are found at runtime instead of hard-coded coordinates.
+- **Structures (step 7) only clear the starting glade** for now; trees, ruins and towns plug in from M5 on.
+- **Surface pools are shallow and fairly rare**: the hills are gentle, so dips are 1–3 tiles deep.
+- **Backups are spaced:** the latest save becomes a backup only when it is at least `SAVE.backupSpacingSeconds` (2 min) newer than the previous backup, so tab-switch saves can't push out all the older ones.
+- **Mining damage is not saved**: it is cleared whenever you stop mining a tile anyway.
+- **Save version stays 1**: nothing was released before the format settled.
+
+### Reviewer pass
+
+No blockers. Fixed from the review: surface pools never generated (the rim search walked the wrong way); unnamed numbers in worldgen moved to `WORLDGEN`; migrations can now change arrays, and a save with the wrong number of depth layers is rejected instead of half-loaded; the scene manager no longer keeps a second copy of the world (tens of MB) for the session; drops keep their age/velocity and the random generator resumes its sequence; the header layout fixpoint is checked; a worker message error falls back to the main thread; seeds above 32 bits are hashed instead of wrapping onto another seed; hot-loop allocations in decorations removed.
+
+### Known issues
+
+- `toSaveState` returns live views of the world arrays; it is correct because `SaveStore.save` encodes synchronously before its first `await`. Keep it that way (commented in `Simulation.toSaveState`).
+- Worm tunnels use `Math.sin/cos`, whose last bits may differ between JS engines; saves store the arrays, so only sharing a seed across browsers could give a slightly different world.
+- Still open from M0: windowed 1080p falls back to ×1 zoom (your call: accept, or crop rows to keep ×2).
+
+### Next step
+
+**M5 — The mystical forest look (visual milestone):** giant ancient trees in world generation, canopy light shafts and mist, parallax tree layers per biome, per-biome colour grading, weather, swaying foliage, bioluminescence, reflective pools and waterfalls, ambient particles.
+
+---
+
 ## M3 — Lighting ✅ (2026-10-09)
 
 ### Built

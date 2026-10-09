@@ -16,6 +16,8 @@ export const LIGHTS: readonly LightDef[] = [
   { key: 'torch', color: [255, 178, 96], radius: 12, flicker: 0.12 },
   { key: 'lumen_crystal', color: [96, 220, 214], radius: 6, flicker: 0 },
   { key: 'moonstone_crystal', color: [150, 165, 200], radius: 4, flicker: 0 },
+  { key: 'glowcap', color: [210, 110, 150], radius: 5, flicker: 0 },
+  { key: 'emberite', color: [255, 120, 60], radius: 4, flicker: 0.08 },
   /**
    * Always on, very dim: plan 2.1 — "in full darkness the player ... still glow faintly", so the
    * player is never invisible even with the lantern out.

@@ -23,45 +23,97 @@ export const SIM = {
 } as const;
 
 export const WORLD = {
-  /** World size in tiles (plan 3.1: a medium Terraria-sized world). */
+  /** Default world size in tiles (plan 3.1: a medium Terraria-sized world). */
   width: 4200,
   height: 1200,
   /** Chunk edge in tiles. Rendering loads/unloads and re-uploads whole chunks. */
   chunkSize: 128,
 } as const;
 
-/** Parameters for the M1 test world (flat ground + hills + caves). Replaced by real worldgen in M4. */
-export const TEST_WORLD = {
-  defaultSeed: 1,
+/** World sizes offered when creating a world (plan 5: "world select and create (name, seed, size)"). */
+export const WORLD_SIZES = {
+  small: { width: 2800, height: 900 },
+  medium: { width: WORLD.width, height: WORLD.height },
+  large: { width: 6400, height: 1800 },
+} as const;
+
+/** Saving (plan 3.5). */
+export const SAVE = {
+  /** Seconds between autosaves while playing. */
+  autosaveSeconds: 120,
+  /** Rotating backups kept per world (newest first). */
+  backups: 3,
+  /**
+   * The newest save becomes a backup only once it is this much newer than the previous backup;
+   * otherwise it is overwritten. Keeps tab-switch saves from pushing out all the older backups.
+   */
+  backupSpacingSeconds: 120,
+} as const;
+
+/** World generation (plan 3.2). Distances in tiles unless noted. */
+export const WORLDGEN = {
   /** Surface height as a fraction of world height, before hills. */
-  surfaceLevel: 0.3,
-  /** Hills: sum of smooth 1D noise octaves, amplitude in tiles, wavelength in tiles. */
+  surfaceLevel: 0.26,
   hillOctaves: [
-    { amplitude: 28, wavelength: 420 },
-    { amplitude: 9, wavelength: 96 },
+    { amplitude: 30, wavelength: 420 },
+    { amplitude: 10, wavelength: 96 },
     { amplitude: 3, wavelength: 24 },
   ],
-  /** Half-width (tiles) of the flat clearing around the spawn point, and the blend into hills. */
-  flatSpawnHalfWidth: 40,
-  flatSpawnBlendWidth: 30,
-  /** Soil thickness below the grass, in tiles (min..max, varies with 1D noise). */
+  /** Flat, cave-free clearing around the spawn (the starting glade), and its blend into hills. */
+  spawnHalfWidth: 40,
+  spawnBlendWidth: 30,
+  /** Elderglade covers this fraction of the width in the middle; the sides go to the other two. */
+  centreBiomeFraction: 0.42,
+  /** Biome borders wiggle by up to this much and blend terrain over this width. */
+  biomeBorderWiggle: 40,
+  biomeBlendWidth: 50,
   soilDepthMin: 6,
   soilDepthMax: 18,
   soilWavelength: 40,
-  /** 2D noise caves: a tile is carved when the blended noise > threshold. */
+  subsoilDepth: 5,
+  /** Depth-layer boundaries wiggle by up to this many rows. */
+  layerWiggle: 10,
+  layerWiggleWavelength: 70,
+  /** Noise wavelength of the secondary rock blended into each layer. */
+  altRockWavelength: 18,
+  /** Noise caves (as in M1) + worms + caverns. */
   caveWavelength: 48,
-  /** Second, finer noise octave: wavelength = caveWavelength / ratio, blended in by weight. */
   caveDetailRatio: 3,
   caveDetailWeight: 0.35,
-  caveThreshold: 0.66,
-  /** Caves never come closer than this to the surface, so the spawn area is solid ground. */
   caveMinDepth: 20,
-  /** Moss patches and lumen crystal veins in the stone (2D noise above threshold). */
-  mossWavelength: 20,
-  mossNoiseThreshold: 0.76,
-  crystalWavelength: 6,
-  crystalNoiseThreshold: 0.86,
-  crystalMinDepth: 120,
+  wormsPerThousandColumns: 6,
+  wormLengthMin: 150,
+  wormLengthMax: 500,
+  wormRadiusMin: 1.5,
+  wormRadiusMax: 3,
+  /** Worms start this far from the world's sides, at most this fraction of the height down. */
+  wormEdgeMargin: 20,
+  wormStartDepthFraction: 0.6,
+  /** Max turn per step (radians, ± half) and vertical squash: mostly horizontal tunnels. */
+  wormTurn: 0.6,
+  wormVerticalScale: 0.6,
+  /** Large open caverns (low-frequency noise). */
+  cavernWavelength: 140,
+  cavernThreshold: 0.78,
+  /** Surface pools fill dips up to this wide. */
+  poolMaxWidth: 16,
+  /** Underground lakes: cave air where this noise is high fills with the layer liquid. */
+  lakeWavelength: 60,
+  lakeThreshold: 0.7,
+  /** Ore veins: average cells per vein (random-walk blobs). */
+  veinCells: 9,
+  /** Vein length = ore.size² × this × a random factor in [veinSizeRandomMin, +1). */
+  veinSizeScale: 0.4,
+  veinSizeRandomMin: 0.5,
+  /** Secondary rock: noise above 1 − altRockAmount × this becomes the alt rock. */
+  altRockSpread: 2.2,
+  /** Feature clumps (glowcaps, roots, crystals) placed on cave surfaces: max size in tiles. */
+  featureClumpMax: 4,
+  /** Chance per exposed cave cell of a clump = layer featureAmount × this. */
+  featureChanceScale: 0.25,
+  /** Initial Gloam noise: wavelength, and strength × (gloamNoiseBase + noise). */
+  gloamWavelength: 30,
+  gloamNoiseBase: 0.5,
 } as const;
 
 /** Player feel parameters (plan 3.3). Pixels and seconds. */
@@ -270,6 +322,8 @@ export const GLOW = {
 export const DEBUG = {
   /** How often the F3 overlay text refreshes (Hz). */
   overlayRefreshHz: 4,
+  /** World seed for `?scene=game` starts without `seed=`. */
+  defaultSeed: 1,
 } as const;
 
 /** Blob autotiling (plan 2.6). */

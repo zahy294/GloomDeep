@@ -3,6 +3,7 @@ import { TILE_SIZE } from '../../config';
 import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
 import type { SpriteAtlasInfo } from '../../data/artManifest';
+import { LIQUID_FRAME, LIQUID_FRAME_COUNT } from '../liquidFrames';
 import { registerSpriteFrames } from '../spriteFrames';
 import { DataKey, DEFAULT_PACK_DIR, PackFile, SceneKey, TextureKey } from './keys';
 
@@ -11,6 +12,12 @@ const SUN_RADIUS = 11;
 const MOON_RADIUS = 8;
 /** Glow sprite size; drawn smooth (linear filtering) and scaled to each light's radius. */
 const GLOW_PX = 64;
+/** Liquid opacity: water lets the cave behind it show through, lava barely does. */
+const WATER_ALPHA = 0.55;
+const LAVA_ALPHA = 0.92;
+/** Height of the lighter band on a surface frame. */
+const LIQUID_SURFACE_PX = 2;
+const LIQUID_SURFACE_ALPHA = 0.85;
 
 /** Loads what every other scene needs, then hands over to the title (or a debug start scene). */
 export class BootScene extends Phaser.Scene {
@@ -43,6 +50,7 @@ export class BootScene extends Phaser.Scene {
       .destroy();
     this.makeSkyBodies();
     this.makeGlow();
+    this.makeLiquids();
     const next = { title: SceneKey.Title, game: SceneKey.Game, 'art-test': SceneKey.ArtTest }[
       this.params.scene
     ];
@@ -89,5 +97,36 @@ export class BootScene extends Phaser.Scene {
     ctx.fillRect(0, 0, GLOW_PX, GLOW_PX);
     texture.refresh();
     texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  }
+
+  /**
+   * Static liquid tiles (frame layout in liquidFrames.ts): flat translucent bodies, with a lighter
+   * band on top for surface cells. Real liquid art and waves come with flowing liquids.
+   */
+  private makeLiquids(): void {
+    const texture = this.textures.createCanvas(
+      TextureKey.liquids,
+      LIQUID_FRAME_COUNT * TILE_SIZE,
+      TILE_SIZE,
+    );
+    if (!texture) return;
+    const ctx = texture.context;
+    const css = (rgb: number, alpha: number): string =>
+      `rgba(${(rgb >> 16) & 0xff},${(rgb >> 8) & 0xff},${rgb & 0xff},${alpha})`;
+    const draw = (frame: number, body: number, top: number | null, alpha: number): void => {
+      const x = frame * TILE_SIZE;
+      ctx.fillStyle = css(body, alpha);
+      ctx.fillRect(x, 0, TILE_SIZE, TILE_SIZE);
+      if (top === null) return;
+      ctx.clearRect(x, 0, TILE_SIZE, LIQUID_SURFACE_PX);
+      ctx.fillStyle = css(top, Math.max(alpha, LIQUID_SURFACE_ALPHA));
+      ctx.fillRect(x, 0, TILE_SIZE, LIQUID_SURFACE_PX);
+    };
+    // Frame 0 stays transparent: the GPU layer samples it for empty cells.
+    draw(LIQUID_FRAME.waterBody, PALETTE.cyan[1], null, WATER_ALPHA);
+    draw(LIQUID_FRAME.waterSurface, PALETTE.cyan[1], PALETTE.cyan[3], WATER_ALPHA);
+    draw(LIQUID_FRAME.lavaBody, PALETTE.ember[2], null, LAVA_ALPHA);
+    draw(LIQUID_FRAME.lavaSurface, PALETTE.ember[2], PALETTE.honey[3], LAVA_ALPHA);
+    texture.refresh();
   }
 }

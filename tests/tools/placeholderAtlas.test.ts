@@ -73,14 +73,17 @@ describe('placeholder blob atlas', () => {
 
   it('only uses opaque master-palette colours, in tiles and walls', () => {
     const palette = new Set(PALETTE_COLORS);
+    // Count violations and assert once: an expect() per pixel is far too slow for a big atlas.
+    const bad: string[] = [];
     for (const atlas of [tiles, walls]) {
       for (let i = 0; i < atlas.data.length; i += 4) {
         if (atlas.data[i + 3] === 0) continue;
-        expect(atlas.data[i + 3]).toBe(255);
         const rgb = (atlas.data[i]! << 16) | (atlas.data[i + 1]! << 8) | atlas.data[i + 2]!;
-        expect(palette.has(rgb)).toBe(true);
+        if (atlas.data[i + 3] !== 255 || !palette.has(rgb))
+          bad.push(`#${rgb.toString(16)}@${i / 4}`);
       }
     }
+    expect(bad.slice(0, 5)).toEqual([]);
   });
 
   it('outlines all four sides of an isolated tile', () => {
