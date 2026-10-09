@@ -62,7 +62,7 @@ export class Waterfalls {
         speed: { min: FX.spraySpeedMin, max: FX.spraySpeedMax },
         angle: SPRAY_ANGLE,
         gravityY: FX.sprayGravity,
-        alpha: { start: 0.9, end: 0 },
+        alpha: { start: FX.sprayAlpha, end: 0 },
         tint: SPRAY_TINT,
         maxParticles: FX.maxParticles,
       })
@@ -71,9 +71,9 @@ export class Waterfalls {
       .particles(0, 0, mistKey, {
         emitting: false,
         lifespan: FX.mistLifespanMs,
-        speedX: { min: -6, max: 6 },
-        speedY: { min: -18, max: -8 },
-        scale: { start: FX.mistScale, end: FX.mistScale * 2 },
+        speedX: { min: -FX.mistSpeedX, max: FX.mistSpeedX },
+        speedY: { min: -FX.mistRiseMax, max: -FX.mistRiseMin },
+        scale: { start: FX.mistScale, end: FX.mistScale * FX.mistGrowth },
         alpha: { start: FX.mistAlpha, end: 0 },
         tint: MIST_TINT,
         maxParticles: FX.maxParticles,
@@ -132,11 +132,15 @@ export class Waterfalls {
     const x = (column + 0.5) * TILE_SIZE;
     const sprayN = this.take(this.sprayCarry, slot, FX.sprayPerSecond * density * dt);
     for (let n = 0; n < sprayN; n++) {
-      this.spray.emitParticleAt(x + (Math.random() * 2 - 1) * SPRAY_SPREAD_PX, y - 1, 1);
+      this.spray.emitParticleAt(
+        x + (Math.random() * 2 - 1) * SPRAY_SPREAD_PX,
+        y - FX.sprayLiftPx,
+        1,
+      );
     }
     const mistN = this.take(this.mistCarry, slot, FX.mistPerSecond * density * dt);
     for (let n = 0; n < mistN; n++) {
-      this.mist.emitParticleAt(x + (Math.random() * 2 - 1) * SPRAY_SPREAD_PX, y - 3, 1);
+      this.mist.emitParticleAt(x + (Math.random() * 2 - 1) * SPRAY_SPREAD_PX, y - FX.mistLiftPx, 1);
     }
   }
 

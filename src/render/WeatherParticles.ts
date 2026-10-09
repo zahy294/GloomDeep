@@ -139,7 +139,7 @@ export class WeatherParticles {
       if (i < 0) return;
       const speed = 1 + (Math.random() * 2 - 1) * cfg.fallSpeedJitter;
       this.x[i] = x;
-      this.y[i] = top + Math.random() * 4;
+      this.y[i] = top + Math.random() * cfg.spawnJitterPx;
       this.vx[i] = drift * speed;
       this.vy[i] = cfg.fallSpeed * speed;
       this.seed[i] = seed;
@@ -172,7 +172,7 @@ export class WeatherParticles {
       if (!this.pickCanopyUnderside(visual, 0)) continue;
       const i = this.claim(Kind.drip);
       if (i < 0) return;
-      this.x[i] = (this.cell.x + 0.2 + Math.random() * 0.6) * TILE_SIZE;
+      this.x[i] = (this.cell.x + cfg.xMin + Math.random() * cfg.xSpan) * TILE_SIZE;
       this.y[i] = (this.cell.y + 1) * TILE_SIZE;
       this.vx[i] = 0;
       this.vy[i] = 0;
@@ -202,7 +202,10 @@ export class WeatherParticles {
     if ((this.liveCount[kind] ?? 0) >= target) return;
     // Steady trickle once full; a bigger deficit (arriving somewhere new) refills faster.
     const deficit = target - (this.liveCount[kind] ?? 0);
-    const rate = Math.max(target / (cfg.lifeSeconds * 0.5), deficit / WEATHER_FX.fillSeconds);
+    const rate = Math.max(
+      target / (cfg.lifeSeconds * WEATHER_FX.steadyLifeFraction),
+      deficit / WEATHER_FX.fillSeconds,
+    );
     this.carry[kind] = (this.carry[kind] ?? 0) + rate * dt;
     const { view } = visual;
     while ((this.carry[kind] ?? 0) >= 1) {
@@ -217,12 +220,15 @@ export class WeatherParticles {
         } else {
           // No canopy on screen: leaves still drift down from one high above (a giant tree).
           x = view.x + Math.random() * view.width;
-          y = view.y - Math.random() * WEATHER_FX.leaf.marginPx * 0.5;
+          y = view.y - Math.random() * WEATHER_FX.leaf.marginPx * WEATHER_FX.leaf.highSpawnFraction;
           if (!this.canopyOverhead(x, view.y)) continue;
         }
       } else {
         x = view.x + Math.random() * view.width;
-        y = view.y - 8 + Math.random() * view.height * 0.6;
+        y =
+          view.y -
+          WEATHER_FX.petal.spawnAbovePx +
+          Math.random() * view.height * WEATHER_FX.petal.spawnBandFraction;
       }
       const i = this.claim(kind);
       if (i < 0) return;
@@ -231,7 +237,8 @@ export class WeatherParticles {
       this.vx[i] = 0;
       this.vy[i] = cfg.fallSpeed * (1 + (Math.random() * 2 - 1) * cfg.fallSpeedJitter);
       this.seed[i] = Math.random();
-      this.life[i] = cfg.lifeSeconds * (0.6 + Math.random() * 0.4);
+      this.life[i] =
+        cfg.lifeSeconds * (WEATHER_FX.lifeScale.min + Math.random() * WEATHER_FX.lifeScale.spread);
       this.images[i]?.setScale(1, 1);
     }
   }
@@ -322,6 +329,7 @@ export class WeatherParticles {
     let x = this.x[i] ?? 0;
     let y = this.y[i] ?? 0;
     const image = this.images[i];
+    const far = WEATHER_FX.farMarginFactor;
     const margin =
       kind === Kind.leaf || kind === Kind.petal
         ? WEATHER_FX.leaf.marginPx
@@ -343,15 +351,15 @@ export class WeatherParticles {
           if (solid || leaf) {
             // Splash on top surfaces only; a drop clipping a wall's side just disappears.
             const above = world.isSolid(tx, ty - 1) || CANOPY[world.get(tx, ty - 1)] === 1;
-            if (!above) this.splash(x, ty * TILE_SIZE - 1);
+            if (!above) this.splash(x, ty * TILE_SIZE - WEATHER_FX.splash.surfaceLiftPx);
             this.kill(i, kind);
             return;
           }
         }
         if (
           y > view.y + view.height + margin ||
-          x < view.x - margin * 2 ||
-          x > view.x + view.width + margin * 2
+          x < view.x - margin * far ||
+          x > view.x + view.width + margin * far
         ) {
           this.kill(i, kind);
           return;
@@ -384,7 +392,7 @@ export class WeatherParticles {
           age >= life ||
           world.isSolid(tx, ty) ||
           y > view.y + view.height + margin ||
-          y < view.y - margin * 2 ||
+          y < view.y - margin * far ||
           x < view.x - margin ||
           x > view.x + view.width + margin
         ) {
@@ -417,7 +425,8 @@ export class WeatherParticles {
       this.x[i] = x;
       this.y[i] = y;
       this.vx[i] = (Math.random() * 2 - 1) * cfg.speedX;
-      this.vy[i] = -cfg.speedUp * (0.6 + Math.random() * 0.4);
+      this.vy[i] =
+        -cfg.speedUp * (WEATHER_FX.lifeScale.min + Math.random() * WEATHER_FX.lifeScale.spread);
       this.life[i] = cfg.lifeSeconds;
       const image = this.images[i];
       if (image) {

@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { GRADE } from '../config';
+import { ATMOSPHERE, GRADE } from '../config';
 import type { BiomeVisual } from '../data/biomeVisuals';
 import { mixColor } from './atmosphereMath';
 import { blendColor, blendNumber } from './biomeBlend';
@@ -123,7 +123,7 @@ export class CameraGrade {
     const enabled = visual.features.cameraFilters;
     const dt = Number.isNaN(this.lastTime)
       ? 0
-      : Math.min(0.1, Math.max(0, visual.realTime - this.lastTime));
+      : Math.min(ATMOSPHERE.maxFrameSeconds, Math.max(0, visual.realTime - this.lastTime));
     this.lastTime = visual.realTime;
     this.updateGrade(enabled, dt);
     this.updateDisplacement(enabled);
@@ -173,7 +173,7 @@ export class CameraGrade {
     const hz = wobble >= haze ? GRADE.underwater.wobbleHz : GRADE.heatHaze.hz;
     const angle = visual.realTime * hz * TAU;
     filter.x = amount * Math.sin(angle);
-    filter.y = amount * Math.cos(angle * 0.8);
+    filter.y = amount * Math.cos(angle * GRADE.displacementYRate);
   }
 
   private updateVignette(enabled: boolean): void {

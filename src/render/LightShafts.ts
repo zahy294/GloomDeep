@@ -39,7 +39,7 @@ export function makeShaftTexture(textures: Phaser.Textures.TextureManager): void
     // stays near-constant and only the very ends fade.
     const fadeIn = Math.min(1, t / SHAFTS.fadeInFraction);
     const fadeOut = Math.min(1, (1 - t) / SHAFTS.fadeOutFraction);
-    const alpha = fadeIn * fadeOut * (0.7 + 0.3 * (1 - t));
+    const alpha = fadeIn * fadeOut * (SHAFTS.profileBase + SHAFTS.profileSpan * (1 - t));
     const gradient = ctx.createLinearGradient(w / 2 - half, 0, w / 2 + half, 0);
     gradient.addColorStop(0, 'rgba(255,255,255,0)');
     gradient.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
@@ -115,7 +115,7 @@ export class LightShafts {
     if (!world) return this.hideFrom(0);
     const lean = beamLean(visual.dayFraction);
     const alpha = beamAlpha(visual.daylight, visual.dayFraction, visual.rain, visual.outdoors);
-    if (alpha <= 0.002) return this.hideFrom(0);
+    if (alpha <= SHAFTS.minAlpha) return this.hideFrom(0);
 
     const view = visual.view;
     const viewFrom = Math.floor(view.x / TILE_SIZE);
@@ -143,9 +143,12 @@ export class LightShafts {
       const tFrom = Math.min(1, Math.max(0, (view.y - topY) / lengthPx));
       const tTo = Math.min(1, Math.max(0, (view.y + view.height - topY) / lengthPx));
       if (tTo <= tFrom) continue;
-      const phase = shaft.x * 1.7;
+      const phase = shaft.x * SHAFTS.phaseSpread;
       const breath = Math.sin(time * SHAFTS.swaySpeed + phase);
-      const sway = Math.sin(time * SHAFTS.swaySpeed * 0.7 + phase * 0.6) * SHAFTS.swayAngle;
+      const sway =
+        Math.sin(
+          time * SHAFTS.swaySpeed * SHAFTS.angleSpeedFactor + phase * SHAFTS.anglePhaseFactor,
+        ) * SHAFTS.swayAngle;
       const beamLeanNow = lean + sway;
       const widthTiles = Math.min(
         SHAFTS.maxWidthTiles,

@@ -1,3 +1,4 @@
+import { QUALITY } from './config';
 import type { Quality } from './debugParams';
 
 /**
@@ -33,8 +34,8 @@ export function saveSettings(settings: Settings): void {
 export function qualityFeatures(quality: Quality): QualityFeatures {
   return {
     glow: quality !== 'low',
-    parallaxLayers: quality === 'low' ? 2 : quality === 'medium' ? 3 : 4,
-    particleDensity: quality === 'low' ? 0.35 : quality === 'medium' ? 0.7 : 1,
+    parallaxLayers: QUALITY[quality].parallaxLayers,
+    particleDensity: QUALITY[quality].particleDensity,
     mist: quality !== 'low',
     cameraFilters: quality !== 'low',
     reflections: quality === 'high',

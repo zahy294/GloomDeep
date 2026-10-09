@@ -3,7 +3,13 @@ import { ATMOSPHERE, DISPLAY } from '../../config';
 import { PALETTE } from '../../data/palette';
 import { mulberry32 } from '../../sim/random';
 import type { DaySample } from '../../sim/dayCycle';
-import { blendColor, blendNumber } from '../biomeBlend';
+import {
+  blendColor,
+  blendNumber,
+  pickMistAlpha,
+  pickMistColor,
+  pickMistDawnBoost,
+} from '../biomeBlend';
 import { mistAlpha, weatherSky } from '../atmosphereMath';
 import { BackMist, makeBackMistTexture } from '../BackMist';
 import { CameraGrade } from '../CameraGrade';
@@ -25,10 +31,6 @@ export interface SkySource {
  * window, see integerScale.ts), radius as a fraction of the width.
  */
 const ARC = { centreBelow: 1.05, radiusX: DISPLAY.width * 0.45, radiusY: 420 };
-const STAR_COUNT = 90;
-const STAR_SEED = 0x5ca7;
-/** Stars only appear in the top part of the sky. */
-const STAR_BAND = 0.7;
 
 const PARALLAX_STRIDE = 10;
 const parallaxDepth = (layer: number) => ATMOSPHERE.parallax.depthBase + layer * PARALLAX_STRIDE;
@@ -77,16 +79,17 @@ export class SkyScene extends Phaser.Scene {
     );
 
     this.stars = this.add.graphics();
-    const random = mulberry32(STAR_SEED);
-    for (let i = 0; i < STAR_COUNT; i++) {
-      const bright = random() < 0.2;
+    const star = ATMOSPHERE.sky.stars;
+    const random = mulberry32(star.seed);
+    for (let i = 0; i < star.count; i++) {
+      const bright = random() < star.brightChance;
       this.stars
         .fillStyle(bright ? PALETTE.moonSilver[3] : PALETTE.moonSilver[2], 1)
         .fillRect(
           Math.floor(random() * DISPLAY.width),
-          Math.floor(random() * DISPLAY.height * STAR_BAND),
-          bright ? 2 : 1,
-          bright ? 2 : 1,
+          Math.floor(random() * DISPLAY.height * star.band),
+          bright ? star.brightSize : star.dimSize,
+          bright ? star.brightSize : star.dimSize,
         );
     }
     this.moon = this.add.image(0, 0, TextureKey.moon);
@@ -108,7 +111,7 @@ export class SkyScene extends Phaser.Scene {
     const { dayFraction } = this.source;
     const visual = this.visual;
     const day = visual.day;
-    const dt = Math.min(0.1, Math.max(0, visual.realTime - this.lastTime));
+    const dt = Math.min(ATMOSPHERE.maxFrameSeconds, Math.max(0, visual.realTime - this.lastTime));
     this.lastTime = visual.realTime;
 
     const top = weatherSky(day.skyTop, visual.rain, visual.flash);
@@ -136,9 +139,9 @@ export class SkyScene extends Phaser.Scene {
   private updateBackMist(visual: VisualState, dt: number): void {
     const { mist } = ATMOSPHERE;
     const enabled = visual.features.mist;
-    const colour = blendColor(visual.weights, (v) => v.mist.color);
-    const base = blendNumber(visual.weights, (v) => v.mist.alpha);
-    const dawn = blendNumber(visual.weights, (v) => v.mist.dawnBoost);
+    const colour = blendColor(visual.weights, pickMistColor);
+    const base = blendNumber(visual.weights, pickMistAlpha);
+    const dawn = blendNumber(visual.weights, pickMistDawnBoost);
     const height = this.scale.height;
     const cameraDx = Number.isNaN(this.lastCameraX) ? 0 : visual.view.x - this.lastCameraX;
     this.lastCameraX = visual.view.x;

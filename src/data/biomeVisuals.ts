@@ -142,7 +142,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'rootdeep',
     grade: { tint: 0xd6e6c0, saturation: 0.85, contrast: 1.06, brightness: 0.92 },
-    mist: { color: 0x4c7a34, alpha: 0.45, dawnBoost: 0 },
+    mist: { color: 0x7a8f2c, alpha: 0.55, dawnBoost: 0 },
     motes: { color: 0xa6f0c4, count: 22 },
     particles: [{ kind: 'spore', count: 12, when: 'always' }],
     parallax: null,
@@ -154,7 +154,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'moonstone_hollows',
     grade: { tint: 0xd0f4ff, saturation: 0.9, contrast: 1.1, brightness: 1.04 },
-    mist: { color: 0x9cc4dc, alpha: 0.6, dawnBoost: 0 },
+    mist: { color: 0xc4d4f4, alpha: 0.7, dawnBoost: 0 },
     motes: { color: 0x76e6e0, count: 44 },
     particles: [],
     parallax: null,
@@ -178,7 +178,7 @@ export const BIOME_VISUALS: readonly BiomeVisual[] = [
   {
     key: 'gloam_heart',
     grade: { tint: 0xe6dcf0, saturation: 0.25, contrast: 1.15, brightness: 0.9 },
-    mist: { color: 0x45365a, alpha: 0.6, dawnBoost: 0 },
+    mist: { color: 0x7a4aa0, alpha: 0.8, dawnBoost: 0 },
     motes: { color: 0x45365a, count: 14 },
     particles: [],
     parallax: null,

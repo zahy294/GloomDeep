@@ -48,7 +48,15 @@ export class GlowScene extends Phaser.Scene {
       TextureKey.sprites,
       TextureKey.particle,
     );
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.shafts?.destroy());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.shafts?.destroy();
+      // The next game calls attachWorld before this scene's create: with these cleared it only
+      // records the world, instead of subscribing the destroyed shafts to the new sim's events.
+      this.shafts = null;
+      this.particles = null;
+      this.world = null;
+      this.events_ = null;
+    });
     if (this.world && this.events_) this.attachWorld(this.world, this.events_);
   }
 

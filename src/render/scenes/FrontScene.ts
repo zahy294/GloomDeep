@@ -1,7 +1,13 @@
 import * as Phaser from 'phaser';
 import { ATMOSPHERE, DISPLAY } from '../../config';
 import { mistAlpha } from '../atmosphereMath';
-import { blendColor, blendNumber } from '../biomeBlend';
+import {
+  blendColor,
+  blendNumber,
+  pickMistAlpha,
+  pickMistColor,
+  pickMistDawnBoost,
+} from '../biomeBlend';
 import { CameraGrade } from '../CameraGrade';
 import { ForegroundCanopy } from '../ForegroundCanopy';
 import { MistLayer } from '../MistLayer';
@@ -47,12 +53,12 @@ export class FrontScene extends Phaser.Scene {
   override update(): void {
     const visual = this.visual;
     const { mist } = ATMOSPHERE;
-    const dt = Math.min(0.1, Math.max(0, visual.realTime - this.lastTime));
+    const dt = Math.min(ATMOSPHERE.maxFrameSeconds, Math.max(0, visual.realTime - this.lastTime));
     this.lastTime = visual.realTime;
 
-    const colour = blendColor(visual.weights, (v) => v.mist.color);
-    const base = blendNumber(visual.weights, (v) => v.mist.alpha);
-    const dawn = blendNumber(visual.weights, (v) => v.mist.dawnBoost);
+    const colour = blendColor(visual.weights, pickMistColor);
+    const base = blendNumber(visual.weights, pickMistAlpha);
+    const dawn = blendNumber(visual.weights, pickMistDawnBoost);
     // Underground it keeps some strength (dust, spores); the Mire is thick through its base alpha.
     const presence = mist.undergroundFront + (1 - mist.undergroundFront) * visual.outdoors;
     const alpha = visual.features.mist

@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { DISPLAY } from '../config';
+import { ATMOSPHERE, DISPLAY } from '../config';
 
 export interface MistLayerOptions {
   /** Noise cells across the object (x, y) and octaves. */
@@ -32,7 +32,7 @@ export class MistLayer {
           noiseCells: [options.cells[0], options.cells[1]],
           noiseIterations: options.iterations,
           noiseOffset: [this.x, this.y],
-          noiseValuePower: 1.4,
+          noiseValuePower: ATMOSPHERE.mist.noiseValuePower,
         },
         0,
         0,

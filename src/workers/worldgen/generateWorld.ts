@@ -50,7 +50,7 @@ export const WORLDGEN_STEPS: readonly WorldgenStep[] = [
   { label: 'Carving caves', run: caves },
   { label: 'Seeding ores and Lumen', run: ores },
   { label: 'Filling pools and lava', run: liquids },
-  { label: 'Clearing the starting glade', run: structures },
+  { label: 'Raising the ancient trees', run: structures },
   { label: 'Building back walls', run: backgroundWalls },
   { label: 'Growing glowcaps and roots', run: decorations },
   { label: 'Spreading the Gloam', run: initialGloam },

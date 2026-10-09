@@ -12,7 +12,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
  */
 export function makeBackMistTexture(textures: Phaser.Textures.TextureManager): void {
   if (textures.exists(TEXTURE_KEY)) return;
-  const { width, height, cellsX, cellsY, seed } = ATMOSPHERE.mist.texture;
+  const { width, height, cellsX, cellsY, seed, profileRamp, noiseGain } = ATMOSPHERE.mist.texture;
   const texture = textures.createCanvas(TEXTURE_KEY, width, height);
   if (!texture) return;
   const random = mulberry32(seed);
@@ -25,7 +25,7 @@ export function makeBackMistTexture(textures: Phaser.Textures.TextureManager): v
     const iy = Math.floor(fy);
     const ty = smooth(fy - iy);
     // Opacity ramps in from the top and stays full near the bottom.
-    const profile = smooth(Math.min(1, y / (height * 0.85)));
+    const profile = smooth(Math.min(1, y / (height * profileRamp)));
     for (let x = 0; x < width; x++) {
       const fx = (x / width) * cellsX;
       const ix = Math.floor(fx);
@@ -37,7 +37,7 @@ export function makeBackMistTexture(textures: Phaser.Textures.TextureManager): v
       image.data[o] = 255;
       image.data[o + 1] = 255;
       image.data[o + 2] = 255;
-      image.data[o + 3] = Math.round(255 * profile * Math.min(1, noise * 1.3));
+      image.data[o + 3] = Math.round(255 * profile * Math.min(1, noise * noiseGain));
     }
   }
   texture.context.putImageData(image, 0, 0);

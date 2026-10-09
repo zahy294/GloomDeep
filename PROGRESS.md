@@ -4,6 +4,104 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M5 — The mystical forest look ✅ (2026-10-09)
+
+### Built
+
+- **Display:** short windows crop rows instead of dropping to ×1, so a windowed 1080p browser (~950 px tall) runs at ×2 with 474 rows (down to `DISPLAY.minHeight` 432). Title, sky and art-test scenes follow the live height.
+- **World structures and flora** (world generation, all data-driven):
+  - **Giant trees** (`src/data/trees.ts`), three species: elder, moonbirch and willow.
+    - Living-wood trunk walls you walk in front of, and one-way branches with leaf clumps and vines.
+    - A lumpy canopy with noise gaps and full-height shaft columns; willows get leaf curtains.
+    - Root flares and roots in the ground. One giant tree stands west of the starting glade, so morning light falls through its canopy onto the spawn.
+  - **Flora** (`src/data/flora.ts`): grass, ferns, flowers, saplings, moonpetals, reeds and toadstools on the surface; glowcaps, glowmoss, crystals, ember blooms and hanging moss and vines in caves.
+  - **Small rune ruins**, one on the glade.
+  - **Waterfalls:** a cut ledge with a basin and a falling-water column.
+- **Simulation:**
+  - **One-way platforms:** land from above, jump up through, hold Down to drop through.
+  - **Decorations (flora):** removed when their support goes, and whole vine chains fall together. Blocks can replace them but can't be built off them.
+  - **Leaf canopies filter sunlight** (`sunTransmit`): the World keeps a canopy shade per column for the light worker, floored at 0.4, so forests are dappled rather than black.
+  - **Weather and wind** (`src/sim/weather.ts`): wind, rain spells, storms and lightning (a `lightning` event; rain dims the sun, flashes brighten it) and morning mist.
+    - It is a pure function of seed and time, so nothing extra is saved.
+    - New worlds start with 10 dry minutes.
+  - **Glowing lights:** bioluminescent ones pulse, runes wake as the player approaches, and touching a glowing plant brightens it.
+- **Render** (data per biome and depth layer in `src/data/biomeVisuals.ts`, blended by camera position over ~2 s through `VisualState`):
+  - **Sky:** 4 parallax tree layers per surface biome, tinted with atmospheric perspective and cross-faded at borders, plus back mist and starfall. Rain greys the sky and hides the sun and moon; lightning flashes it.
+  - **Game:**
+    - Swaying foliage (`SpriteGPULayer` per chunk, GPU sway with the wind, bending as the player passes).
+    - Rain with splashes, leaf drips, falling leaves and petals.
+    - Pool reflections (`CaptureFrame`, High quality) and animated waterfalls with spray and mist.
+  - **Glow:** light shafts through canopy gaps, angled by the sun and strongest at golden hours; motes in the shafts; ambient motes, fireflies, spores and embers.
+  - **Front:** front mist (`NoiseSimplex2D`) and a dark foreground canopy.
+  - **Camera:** a per-biome colour grade (ColorMatrix on the Sky and Game cameras), underwater teal with a wobble, heat haze in the Ember Roots, and a vignette.
+  - **Camera framing:** outdoors the camera frames more forest above the player.
+- **Audio** (procedural Web Audio until recordings are approved):
+  - Wind, rain and rumble beds; birds, crickets, drips and chimes, all blended by place, time and weather.
+  - Thunder after lightning.
+  - Generative music per place (pads plus a sparse melody in the place's scale), cross-fading between the two most present places.
+- **Quality settings:** Low turns off camera filters, mist, reflections, glow and shaft motes, and cuts parallax and particles.
+- **Art pipeline:** placeholder flora, saplings, particles, parallax layers and foreground canopy, as seamless white silhouettes tinted at runtime. Standalone pack images for anything that repeats. Nano Banana prompts are in `art/prompts/style-reference.md` and `art/prompts/batches/m5-forest-look.md`.
+- **Tests:** 401, covering:
+  - platforms;
+  - decoration support and cascades;
+  - canopy shade and the light falloff through leaves;
+  - weather determinism, dry start and flash;
+  - pulse, proximity and touch;
+  - giant trees, flora, ruins and waterfalls in a medium world;
+  - the biome blend, colour grade matrix, shaft detection, foliage, weather, atmosphere and audio mixing maths.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Standing still in the Elderglade at sunrise looks like a fantasy painting (light shafts, mist, motes, swaying grass) | ✅ `forest-sunrise.png`, `forest-morning.png`: golden shafts through the giant tree's canopy onto the glade, hazy tree lines, mist, motes, swaying grass and flowers, a rune arch, the dark foreground canopy with vines |
+| Walking from the surface down to the Moonstone Hollows feels like passing through different places | ✅ each depth layer has its own flora glow, fog colour, particles, grade and music (`biome-glowcap_grottos/rootdeep/moonstone_hollows.png`); the look cross-fades with depth |
+| A screenshot of each biome is easy to tell apart | ✅ `biome-*.png`: warm gold Elderglade, silver-blue Vale, muted grey-green Mire; teal and pink Grottos, mossy Rootdeep, pale silver-blue Hollows, smoky red Ember Roots, violet Gloam Heart |
+
+### Decisions and deviations
+
+- **Leaves filter sunlight instead of blocking it.** Canopies sit about 100 rows up, outside the light worker's region, so the World carries per-column canopy shade.
+- **The spawn tree stands west of the glade**, so the morning light slants toward the spawn. The shaft lean is limited to 0.32 because the canopy is far above.
+- **Back mist is a baked fog texture, not `NoiseSimplex2D`.** The noise object can't fade at its top edge. The front mist uses the noise object.
+- **The camera grade is on the Sky and Game cameras only.** A filter covers one camera; the glow stays ungraded so light colours stay vivid. The vignette sits on the last camera.
+- **Caves stay dark for gameplay.** Each layer reads as its own place through glowing flora and a mist colour drawn over the lit result, not through fill light. The M3 darkness check now samples cells away from glowing plants. The depth-layer shots aim the lantern into the cave.
+- **Waterfalls are static**, a carved ledge plus a column of waterfall tiles, until liquids flow in M9.
+- **Real parallax art is fully coloured.** Approved layers skip the biome tint and get only time-of-day light.
+- **Audio is procedural** until recordings exist.
+- **The new tile ids 27–49 are appended**, so the save format is unchanged.
+- **The shot suite runs the west-run test on Low quality**, because software rendering in headless Chromium is slow. `SHOT_DIST` and `SHOT_EXTRA` were added for ad-hoc shots.
+
+### Reviewer pass
+
+No blockers. Fixed from the review:
+- Pool reflections froze after Save & quit and reopening a world (CaptureFrame refuses a texture key in use).
+- A burst of music after unpausing (missed beats are now skipped).
+- A stale light-shaft listener after a restart.
+- Unnamed tuning numbers in renderers and audio moved to config/data.
+- Per-frame allocations in the audio mix and the biome blend closures.
+- Blocks could be built off a flower or vine.
+- Root flares recorded a ground row they hadn't placed.
+- A stale step label.
+
+### Performance
+
+- **Real GPU (headed Chromium):** about 164 FPS at every quality level, with about 0.13 ms of CPU per frame and 28–33 draw calls (budget 100).
+- **Headless SwiftShader** (software, not representative): about 19 FPS on High and 44 on Low.
+
+### Known issues
+
+- All M5 art is code-drawn placeholder. The look depends heavily on the real parallax, tree and foliage art; prompts are ready.
+- Mire pools are shallow (1–3 rows), so reflections are small. The reflections show no sky, since the sky is another scene.
+- Lava doesn't emit light yet (M9). Waterfalls don't fill pools (M9).
+- Placing a block on a flower destroys the flower without a drop (no decoration has a drop yet). A plant in front of a wall is mined before the wall.
+- The audio has only been verified to run without errors; nobody has listened to it yet.
+
+### Next step
+
+**M6 — Items, crafting and UI:** item and recipe registries, crafting stations, tool tiers and mining hardness, the full inventory with drag and drop, the crafting screen, health and the Lumen and lens HUD.
+
+---
+
 ## M4 — World generation, biomes and saving ✅ (2026-10-09)
 
 ### Built

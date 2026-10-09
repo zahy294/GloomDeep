@@ -123,7 +123,12 @@ export class LightSystem {
     const points = new Float32Array((2 + this.touched.size) * POINT_FLOATS);
     let p = 0;
     const addPoint = (x: number, y: number, color: readonly number[], radius: number) => {
-      points.set([x, y, color[0] ?? 0, color[1] ?? 0, color[2] ?? 0, radius], p);
+      points[p] = x;
+      points[p + 1] = y;
+      points[p + 2] = color[0] ?? 0;
+      points[p + 3] = color[1] ?? 0;
+      points[p + 4] = color[2] ?? 0;
+      points[p + 5] = radius;
       p += POINT_FLOATS;
     };
     addPoint(

@@ -232,8 +232,8 @@ function roots(
       const length = between(random, s.def.roots.length);
       for (let i = 0; i < length; i++) {
         if (ry < ground) {
-          setFg(ctx, rx, ry, s.root);
-          ctx.surface[rx] = Math.min(ctx.surface[rx] ?? ry, ry);
+          // Only a flare that was actually placed raises the column's ground.
+          if (setFg(ctx, rx, ry, s.root)) ctx.surface[rx] = Math.min(ctx.surface[rx] ?? ry, ry);
         } else {
           replaceSolid(ctx, rx, ry, s.root);
         }

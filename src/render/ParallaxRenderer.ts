@@ -59,7 +59,7 @@ export class ParallaxRenderer {
 
   update(visual: VisualState): void {
     const { view, weights, features } = visual;
-    const dt = Math.min(0.1, Math.max(0, visual.realTime - this.lastTime));
+    const dt = Math.min(ATMOSPHERE.maxFrameSeconds, Math.max(0, visual.realTime - this.lastTime));
     this.lastTime = visual.realTime;
 
     // The remembered ground line under the camera, smoothed so hills do not jolt the tree lines.

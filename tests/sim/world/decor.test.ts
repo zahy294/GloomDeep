@@ -73,6 +73,14 @@ describe('decorations', () => {
     expect(hasSupport(world, 'fg', 2, 9, TUFT)).toBe(true);
     expect(hasSupport(world, 'fg', 9, 3, TUFT)).toBe(false);
   });
+
+  it('a block cannot be built off a flower or a hanging vine alone', () => {
+    const { world } = setup();
+    world.set(5, 2, STONE);
+    world.set(5, 3, VINE);
+    expect(hasSupport(world, 'fg', 6, 3, STONE)).toBe(false); // only the vine beside it
+    expect(hasSupport(world, 'fg', 6, 2, STONE)).toBe(true); // the stone beside it
+  });
 });
 
 describe('leaf canopies and the skyline', () => {

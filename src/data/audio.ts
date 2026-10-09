@@ -14,6 +14,7 @@ export const SOUND_DESIGN = {
     length: [0.06, 0.14],
     gap: 0.05,
     gain: 0.07,
+    attack: 0.01,
   },
   crickets: {
     rate: 1.4,
@@ -21,10 +22,32 @@ export const SOUND_DESIGN = {
     pulseHz: 28,
     length: [0.18, 0.4],
     gain: 0.025,
+    attack: 0.02,
   },
-  drips: { rate: 0.6, hz: [700, 1600], drop: 0.55, decay: 0.35, gain: 0.12, echo: 0.28 },
-  chimes: { rate: 0.18, octaveUp: 24, decay: 2.8, gain: 0.06 },
-  thunder: { filter: 180, decay: 3.2, gain: 0.7, crackFilter: 1800, crackGain: 0.25 },
+  drips: {
+    rate: 0.6,
+    hz: [700, 1600],
+    drop: 0.55,
+    decay: 0.35,
+    gain: 0.12,
+    echo: 0.28,
+    attack: 0.002,
+    /** The cave echo is this fraction as loud as the drip. */
+    echoGain: 0.35,
+  },
+  chimes: { rate: 0.18, octaveUp: 24, decay: 2.8, gain: 0.06, attack: 0.005 },
+  thunder: {
+    filter: 180,
+    decay: 3.2,
+    gain: 0.7,
+    crackFilter: 1800,
+    crackGain: 0.25,
+    attack: 0.05,
+    /** Strike distance varies the delay by `1 - jitter/2 .. 1 + jitter/2` of the base delay. */
+    delayJitter: 0.6,
+    /** The high crack dies this fraction as slowly as the rumble. */
+    crackDecayFactor: 0.2,
+  },
   music: {
     /** Pads: a new chord every `chordBeats`, voiced root–fifth–octave(+third) from the scale. */
     chordBeats: 16,
@@ -38,7 +61,19 @@ export const SOUND_DESIGN = {
     melodyGain: 0.06,
     melodyAttack: 0.02,
     melodyDecay: 2.2,
+    /** Scale degrees a new pad chord may be rooted on (repeats weight the pick towards the tonic). */
+    chordRootDegrees: [0, 0, 3, 4, 5],
+    /** Pad chord tones as scale-degree offsets from the chord root. */
+    chordTones: [0, 2, 4],
+    /** Pad oscillators are detuned randomly by up to half of this many cents each way. */
+    padDetuneCents: 8,
+    /** Delay before a freshly created music voice plays its first beat (s). */
+    firstBeatDelay: 0.1,
   },
+  /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
+  envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },
+  /** Random stereo position spread: pan is drawn from -half..+half. */
+  panSpread: 1.6,
   /** Oscillator types and low-pass cutoff per music timbre (biomeVisuals.ts `music.timbre`). */
   timbres: {
     warm: { pad: 'triangle', lead: 'triangle', cutoff: 1400 },

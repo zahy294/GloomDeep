@@ -24,15 +24,21 @@ export class PoolReflections {
   private readonly found = new Int32Array(MAX_CANDIDATES * FIELDS);
   private foundCount = 0;
 
+  private readonly textures: Phaser.Textures.TextureManager;
+
   constructor(
     scene: Phaser.Scene,
     private readonly world: World,
     enabled: boolean,
   ) {
+    this.textures = scene.textures;
     if (!enabled || scene.renderer.type !== Phaser.WEBGL) {
       this.capture = null;
       return;
     }
+    // CaptureFrame registers its texture by key and refuses a key in use: a previous session's
+    // capture texture must go first, or the new frame would draw into nothing.
+    if (scene.textures.exists(CAPTURE_KEY)) scene.textures.remove(CAPTURE_KEY);
     this.capture = scene.add
       .captureFrame(CAPTURE_KEY)
       .setDepth(Depth.reflectionCapture)
@@ -85,6 +91,9 @@ export class PoolReflections {
 
   destroy(): void {
     this.capture?.destroy();
+    // CaptureFrame does not remove its framebuffer texture itself. (The texture manager is kept
+    // from the constructor: at shutdown the game object may no longer know its scene.)
+    if (this.textures.exists(CAPTURE_KEY)) this.textures.remove(CAPTURE_KEY);
     for (const image of this.images) image.destroy();
   }
 
@@ -111,11 +120,11 @@ export class PoolReflections {
       image.setVisible(false);
       return;
     }
-    const phase = seconds * FX.rippleHz * TWO_PI + index * 1.7;
+    const phase = seconds * FX.rippleHz * TWO_PI + index * FX.slotPhaseStep;
     image
       .setCrop(left, sourceTop, right - left, sourceBottom - sourceTop)
       .setPosition(Math.round(Math.sin(phase) * FX.rippleAmplitudePx), 2 * surfaceY)
-      .setAlpha(FX.alpha * (1 + FX.shimmer * Math.sin(phase * 0.6 + 1)))
+      .setAlpha(FX.alpha * (1 + FX.shimmer * Math.sin(phase * FX.shimmerRate + FX.shimmerPhase)))
       .setVisible(true);
   }
 

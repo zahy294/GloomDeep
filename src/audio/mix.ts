@@ -27,6 +27,9 @@ export function emptyLevels(): AmbienceLevels {
   return { wind: 0, rain: 0, birds: 0, crickets: 0, drips: 0, chimes: 0, rumble: 0 };
 }
 
+/** Accumulator reused by every `ambienceLevels` call (audio is single-threaded, called per frame). */
+const scratch = emptyLevels();
+
 /**
  * Ambient layer levels (0..1) for this moment: each place's ambience blended by its weight, then
  * shaped by time and weather — birds sing by day, crickets at dusk and night, wind follows the
@@ -37,7 +40,8 @@ export function ambienceLevels(
   visuals: readonly BiomeVisual[],
   out: AmbienceLevels,
 ): AmbienceLevels {
-  const o = emptyLevels();
+  const o = scratch;
+  o.wind = o.birds = o.crickets = o.drips = o.chimes = o.rumble = 0;
   let total = 0;
   for (let i = 0; i < visuals.length; i++) {
     const w = input.weights[i] ?? 0;
@@ -70,8 +74,32 @@ export function ambienceLevels(
   return out;
 }
 
-/** The (up to) two most present places and their music gains, for crossfading biome music. */
-export function musicMix(weights: Float32Array): { index: number; gain: number }[] {
+export interface MusicShare {
+  index: number;
+  gain: number;
+}
+
+/** Reusable result of `musicMix`: the first `count` entries of `shares` are valid. */
+export interface MusicMix {
+  count: number;
+  readonly shares: [MusicShare, MusicShare];
+}
+
+export function createMusicMix(): MusicMix {
+  return {
+    count: 0,
+    shares: [
+      { index: 0, gain: 0 },
+      { index: 0, gain: 0 },
+    ],
+  };
+}
+
+/**
+ * The (up to) two most present places and their music gains, for crossfading biome music.
+ * Writes into `out` so the per-frame call allocates nothing.
+ */
+export function musicMix(weights: Float32Array, out: MusicMix): MusicMix {
   let a = -1;
   let b = -1;
   for (let i = 0; i < weights.length; i++) {
@@ -83,13 +111,21 @@ export function musicMix(weights: Float32Array): { index: number; gain: number }
       b = i;
     }
   }
-  const out: { index: number; gain: number }[] = [];
   const wa = a >= 0 ? (weights[a] ?? 0) : 0;
   const wb = b >= 0 ? (weights[b] ?? 0) : 0;
   const sum = wa + wb;
-  if (a >= 0 && wa > 0) out.push({ index: a, gain: wa / sum });
-  if (b >= 0 && wb > AUDIO.musicMinWeight) out.push({ index: b, gain: wb / sum });
+  out.count = 0;
+  if (a >= 0 && wa > 0) addShare(out, a, wa / sum);
+  if (b >= 0 && wb > AUDIO.musicMinWeight) addShare(out, b, wb / sum);
   return out;
+}
+
+function addShare(out: MusicMix, index: number, gain: number): void {
+  const share = out.shares[out.count];
+  if (!share) return;
+  share.index = index;
+  share.gain = gain;
+  out.count++;
 }
 
 /** MIDI note → frequency (Hz). */

@@ -83,6 +83,14 @@ export function approachWeights(
 }
 
 /** Weighted average of a number picked from each visual. */
+/** Hoisted so the per-frame blends allocate no closures. */
+export const pickMistColor = (v: BiomeVisual): number => v.mist.color;
+export const pickMistAlpha = (v: BiomeVisual): number => v.mist.alpha;
+export const pickMistDawnBoost = (v: BiomeVisual): number => v.mist.dawnBoost;
+export const pickMoteColor = (v: BiomeVisual): number => v.motes.color;
+export const pickMoteCount = (v: BiomeVisual): number => v.motes.count;
+export const pickForegroundCanopy = (v: BiomeVisual): number => (v.foregroundCanopy ? 1 : 0);
+
 export function blendNumber(weights: Float32Array, pick: (v: BiomeVisual) => number): number {
   let sum = 0;
   let total = 0;

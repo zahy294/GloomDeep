@@ -30,6 +30,9 @@ const NEIGHBOURS = [
   [0, -1],
 ] as const;
 
+/** Per id: foreground tiles a new block can be built against (not flowers, vines or waterfalls). */
+const HOLDS = Uint8Array.from(TILES, (t) => (t.id !== AIR && !t.decor && !t.waterfall ? 1 : 0));
+
 /**
  * Placement rule: a tile must touch something — a neighbouring block or wall, or (for a block)
  * a wall behind it. Nothing floats in mid-air.
@@ -39,7 +42,7 @@ export function hasSupport(world: World, layer: TileLayer, x: number, y: number,
   if (layer === 'fg' && isDecor(id)) return decorSupported(world, x, y, id);
   if (layer === 'fg' && world.getBg(x, y) !== AIR) return true;
   for (const [dx, dy] of NEIGHBOURS) {
-    if (world.get(x + dx, y + dy) !== AIR || world.getBg(x + dx, y + dy) !== AIR) return true;
+    if (HOLDS[world.get(x + dx, y + dy)] === 1 || world.getBg(x + dx, y + dy) !== AIR) return true;
   }
   return false;
 }

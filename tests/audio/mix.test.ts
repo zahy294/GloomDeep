@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ambienceLevels,
   emptyLevels,
+  createMusicMix,
   midiToHz,
   musicMix,
   nextDegree,
@@ -73,20 +74,24 @@ describe('musicMix', () => {
   it('plays one place alone, or crossfades the two most present places', () => {
     const w = new Float32Array(VISUALS.length);
     w[GLADE] = 1;
-    expect(musicMix(w)).toEqual([{ index: GLADE, gain: 1 }]);
+    const out = createMusicMix();
+    musicMix(w, out);
+    expect(out.count).toBe(1);
+    expect(out.shares[0]).toEqual({ index: GLADE, gain: 1 });
     w[GLADE] = 0.6;
     w[1] = 0.3;
     w[2] = 0.1;
-    const mix = musicMix(w);
-    expect(mix.map((m) => m.index)).toEqual([GLADE, 1]);
-    expect(mix[0]!.gain).toBeCloseTo(0.6 / 0.9, 6);
+    const mix = musicMix(w, out);
+    expect(mix.count).toBe(2);
+    expect(mix.shares.map((m) => m.index)).toEqual([GLADE, 1]);
+    expect(mix.shares[0].gain).toBeCloseTo(0.6 / 0.9, 6);
   });
 
   it('ignores a barely-present second place', () => {
     const w = new Float32Array(VISUALS.length);
     w[GLADE] = 0.97;
     w[1] = AUDIO.musicMinWeight / 2;
-    expect(musicMix(w)).toHaveLength(1);
+    expect(musicMix(w, createMusicMix()).count).toBe(1);
   });
 });
 

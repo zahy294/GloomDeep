@@ -4,9 +4,6 @@ import { mulberry32 } from '../sim/random';
 import { TextureKey } from './scenes/keys';
 import type { VisualState } from './VisualState';
 
-const POOL = 3;
-const FADE_IN = 0.2;
-
 interface Streak {
   readonly image: Phaser.GameObjects.Image;
   age: number;
@@ -23,12 +20,12 @@ export class Starfall {
   private readonly random = mulberry32(ATMOSPHERE.starfall.seed);
 
   constructor(private readonly scene: Phaser.Scene) {
-    for (let i = 0; i < POOL; i++) {
+    for (let i = 0; i < ATMOSPHERE.starfall.pool; i++) {
       const image = scene.add
         .image(0, 0, TextureKey.particle)
         .setOrigin(1, 0.5)
-        .setDepth(0.5)
-        .setScale(ATMOSPHERE.starfall.length / 2, 0.5)
+        .setDepth(ATMOSPHERE.starfall.depth)
+        .setScale(ATMOSPHERE.starfall.length / 2, ATMOSPHERE.starfall.thickness)
         .setVisible(false);
       this.streaks.push({ image, age: 0, duration: 0, x: 0, y: 0, dx: 0, dy: 0 });
     }
@@ -48,7 +45,7 @@ export class Starfall {
       }
       s.image.setPosition(s.x + s.dx * t, s.y + s.dy * t);
       // Quick fade in, long fade out.
-      const alpha = t < FADE_IN ? t / FADE_IN : (1 - t) / (1 - FADE_IN);
+      const alpha = t < cfg.fadeIn ? t / cfg.fadeIn : (1 - t) / (1 - cfg.fadeIn);
       s.image.setAlpha(alpha * visual.day.stars);
     }
   }
@@ -61,7 +58,7 @@ export class Starfall {
     s.y = this.random() * this.scene.scale.height * cfg.band;
     const direction = this.random() < 0.5 ? -1 : 1;
     s.dx = direction * cfg.travel;
-    s.dy = cfg.travel * 0.45;
+    s.dy = cfg.travel * cfg.slope;
     s.age = 0;
     s.duration = (cfg.durationMin + this.random() * (cfg.durationMax - cfg.durationMin)) / 1000;
     s.image.setRotation(Math.atan2(s.dy, s.dx)).setAlpha(0).setVisible(true);

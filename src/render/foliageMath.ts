@@ -56,7 +56,7 @@ export function swayTiming(tx: number, ty: number): { periodMs: number; delayMs:
   const a = positionHash(tx, ty);
   const b = positionHash(ty + 7919, tx + 104729);
   const period = periodMs * (1 + (a * 2 - 1) * periodJitter);
-  return { periodMs: period, delayMs: b * period * 2 };
+  return { periodMs: period, delayMs: b * period * FOLIAGE.sway.delayPeriods };
 }
 
 /**

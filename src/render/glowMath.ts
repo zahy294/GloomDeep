@@ -1,6 +1,6 @@
 import { AMBIENT, SHAFTS } from '../config';
 import type { ParticleRule } from '../data/biomeVisuals';
-import { blendNumber, VISUALS } from './biomeBlend';
+import { blendNumber, pickMoteCount, VISUALS } from './biomeBlend';
 import type { VisualState } from './VisualState';
 
 /** The world arrays shaft detection reads (a subset of World). */
@@ -69,7 +69,7 @@ const smooth = (t: number) => {
  * right (positive), the evening sun to the left, noon is vertical.
  */
 export function beamLean(dayFraction: number): number {
-  const t = Math.max(-1, Math.min(1, (0.5 - dayFraction) / 0.25));
+  const t = Math.max(-1, Math.min(1, (0.5 - dayFraction) / SHAFTS.goldenSpan));
   return Math.sin((t * Math.PI) / 2) * SHAFTS.maxLean;
 }
 
@@ -80,8 +80,9 @@ export function beamAlpha(
   rain: number,
   outdoors: number,
 ): number {
-  const golden = clamp01(Math.abs(dayFraction - 0.5) / 0.25);
-  const hour = SHAFTS.noonAlphaFactor + (1 - SHAFTS.noonAlphaFactor) * smooth(golden * 1.4);
+  const golden = clamp01(Math.abs(dayFraction - 0.5) / SHAFTS.goldenSpan);
+  const hour =
+    SHAFTS.noonAlphaFactor + (1 - SHAFTS.noonAlphaFactor) * smooth(golden * SHAFTS.goldenSharpness);
   const gate = smooth(
     (daylight - SHAFTS.daylightFadeFrom) / (SHAFTS.daylightFadeTo - SHAFTS.daylightFadeFrom),
   );
@@ -103,7 +104,7 @@ export function whenFactor(
     case 'night':
       return clamp01(night);
     case 'dusk':
-      return clamp01(Math.max(dusk * 1.5, night * AMBIENT.duskNightCarry));
+      return clamp01(Math.max(dusk * AMBIENT.duskBoost, night * AMBIENT.duskNightCarry));
   }
 }
 
@@ -152,7 +153,7 @@ const SLOT_OF_KIND = {
 /** Counts per slot kind that the biome blend asks for this frame (before pool caps). */
 export function wantedCounts(visual: VisualState, density: number, out: Float32Array): void {
   out.fill(0);
-  out[ParticleSlot.mote] = blendNumber(visual.weights, (v) => v.motes.count) * density;
+  out[ParticleSlot.mote] = blendNumber(visual.weights, pickMoteCount) * density;
   for (let i = 0; i < VISUALS.length; i++) {
     const w = visual.weights[i] ?? 0;
     if (w <= 0) continue;

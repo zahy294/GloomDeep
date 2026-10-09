@@ -4,6 +4,7 @@ import type { BiomeVisual } from '../data/biomeVisuals';
 import { WEATHER } from '../data/weather';
 import {
   ambienceLevels,
+  createMusicMix,
   emptyLevels,
   midiToHz,
   musicMix,
@@ -41,6 +42,7 @@ export class AudioDirector {
   private readonly windFilter: BiquadFilterNode;
   private readonly sources: AudioScheduledSourceNode[] = [];
   private readonly levels = emptyLevels();
+  private readonly mix = createMusicMix();
   private readonly voices: MusicVoice[] = [];
   /** Next time (audio clock) each event layer may fire. */
   private readonly nextEvent = { birds: 0, crickets: 0, drips: 0, chimes: 0 };
@@ -113,15 +115,24 @@ export class AudioDirector {
   /** Thunder after a lightning flash (the delay is how far away it struck). */
   thunder(): void {
     if (this.paused || this.ctx.state !== 'running') return;
-    const t = this.ctx.currentTime + WEATHER.lightning.thunderDelay * (0.7 + Math.random() * 0.6);
+    const t =
+      this.ctx.currentTime +
+      WEATHER.lightning.thunderDelay *
+        (1 -
+          SOUND_DESIGN.thunder.delayJitter / 2 +
+          Math.random() * SOUND_DESIGN.thunder.delayJitter);
     const d = SOUND_DESIGN.thunder;
     this.noiseBurst(t, 'lowpass', d.filter, d.decay, d.gain);
-    this.noiseBurst(t, 'bandpass', d.crackFilter, d.decay * 0.2, d.crackGain);
+    this.noiseBurst(t, 'bandpass', d.crackFilter, d.decay * d.crackDecayFactor, d.crackGain);
   }
 
   setPaused(paused: boolean): void {
     this.paused = paused;
-    this.master.gain.setTargetAtTime(paused ? 0 : AUDIO.master, this.ctx.currentTime, 0.1);
+    this.master.gain.setTargetAtTime(
+      paused ? 0 : AUDIO.master,
+      this.ctx.currentTime,
+      AUDIO.pauseFade,
+    );
   }
 
   destroy(): void {
@@ -138,7 +149,7 @@ export class AudioDirector {
   private events(horizon: number, l: ReturnType<typeof emptyLevels>): void {
     const d = SOUND_DESIGN;
     const due = (layer: keyof typeof this.nextEvent, level: number, rate: number) => {
-      if (level <= 0.01) return null;
+      if (level <= AUDIO.minEventLevel) return null;
       const next = this.nextEvent[layer];
       const now = this.ctx.currentTime;
       if (next > horizon) return null;
@@ -166,7 +177,7 @@ export class AudioDirector {
       const osc = this.ctx.createOscillator();
       osc.frequency.setValueAtTime(rand(b.from), at);
       osc.frequency.exponentialRampToValueAtTime(rand(b.to), at + length);
-      this.envelope(osc, at, 0.01, length, b.gain * level, this.panned(this.ambienceBus));
+      this.envelope(osc, at, b.attack, length, b.gain * level, this.panned(this.ambienceBus));
       at += length + b.gap;
     }
   }
@@ -184,7 +195,7 @@ export class AudioDirector {
     lfo.start(t);
     lfo.stop(t + length);
     osc.connect(am);
-    this.envelope(am, t, 0.02, length, c.gain * level, this.panned(this.ambienceBus), osc);
+    this.envelope(am, t, c.attack, length, c.gain * level, this.panned(this.ambienceBus), osc);
   }
 
   private drip(t: number, level: number): void {
@@ -194,12 +205,12 @@ export class AudioDirector {
     osc.frequency.setValueAtTime(hz, t);
     osc.frequency.exponentialRampToValueAtTime(hz * p.drop, t + p.decay);
     const out = this.panned(this.ambienceBus);
-    this.envelope(osc, t, 0.002, p.decay, p.gain * level, out);
+    this.envelope(osc, t, p.attack, p.decay, p.gain * level, out);
     // A soft echo, as if in a cave.
     const echo = this.ctx.createOscillator();
     echo.frequency.setValueAtTime(hz, t + p.echo);
     echo.frequency.exponentialRampToValueAtTime(hz * p.drop, t + p.echo + p.decay);
-    this.envelope(echo, t + p.echo, 0.002, p.decay, p.gain * level * 0.35, out);
+    this.envelope(echo, t + p.echo, p.attack, p.decay, p.gain * level * p.echoGain, out);
   }
 
   private chime(t: number, level: number): void {
@@ -211,25 +222,37 @@ export class AudioDirector {
     const osc = this.ctx.createOscillator();
     osc.type = 'triangle';
     osc.frequency.value = midiToHz(note);
-    this.envelope(osc, t, 0.005, c.decay, c.gain * level, this.panned(this.ambienceBus));
+    this.envelope(osc, t, c.attack, c.decay, c.gain * level, this.panned(this.ambienceBus));
   }
 
   private music(weights: Float32Array, now: number, horizon: number): void {
-    const mix = musicMix(weights);
+    const mix = musicMix(weights, this.mix);
     // Fade out voices whose place left the mix; fade the others to their share.
     for (const voice of this.voices) {
-      const share = mix.find((m) => m.index === voice.index)?.gain ?? 0;
-      voice.gain.gain.setTargetAtTime(share, now, AUDIO.smoothing * 3);
+      let share = 0;
+      for (let k = 0; k < mix.count; k++) {
+        if (mix.shares[k]!.index === voice.index) share = mix.shares[k]!.gain;
+      }
+      voice.gain.gain.setTargetAtTime(share, now, AUDIO.smoothing * AUDIO.musicFadeFactor);
     }
-    for (const m of mix) {
-      if (this.voices.some((v) => v.index === m.index)) continue;
+    for (let k = 0; k < mix.count; k++) {
+      const m = mix.shares[k]!;
+      if (this.hasVoice(m.index)) continue;
       const gain = this.gain(0, this.musicBus);
-      this.voices.push({ index: m.index, gain, nextBeat: now + 0.1, beat: 0, degree: 0 });
+      this.voices.push({
+        index: m.index,
+        gain,
+        nextBeat: now + SOUND_DESIGN.music.firstBeatDelay,
+        beat: 0,
+        degree: 0,
+      });
     }
     // Drop silent voices that are no longer in the mix.
     for (let i = this.voices.length - 1; i >= 0; i--) {
       const voice = this.voices[i]!;
-      if (!mix.some((m) => m.index === voice.index) && voice.gain.gain.value < 0.001) {
+      let inMix = false;
+      for (let k = 0; k < mix.count; k++) if (mix.shares[k]!.index === voice.index) inMix = true;
+      if (!inMix && voice.gain.gain.value < AUDIO.silentVoiceGain) {
         voice.gain.disconnect();
         this.voices.splice(i, 1);
       }
@@ -238,6 +261,8 @@ export class AudioDirector {
       const v = this.visuals[voice.index];
       if (!v) continue;
       const beatSeconds = 60 / v.music.bpm;
+      // Beats missed while paused (or while the tab slept) are skipped, not played all at once.
+      if (voice.nextBeat < now) voice.nextBeat = now;
       while (voice.nextBeat < horizon) {
         this.musicBeat(voice, v, voice.nextBeat, beatSeconds);
         voice.nextBeat += beatSeconds;
@@ -246,13 +271,19 @@ export class AudioDirector {
     }
   }
 
+  private hasVoice(index: number): boolean {
+    for (const voice of this.voices) if (voice.index === index) return true;
+    return false;
+  }
+
   private musicBeat(voice: MusicVoice, v: BiomeVisual, t: number, beatSeconds: number): void {
     const m = SOUND_DESIGN.music;
     const timbre = SOUND_DESIGN.timbres[v.music.timbre as Timbre];
     if (voice.beat % m.chordBeats === 0) {
       // A new pad chord rooted on a scale degree near the tonic.
-      const rootDegree = [0, 0, 3, 4, 5][Math.floor(Math.random() * 5)] ?? 0;
-      const chord = [0, 2, 4].map((k) =>
+      const rootDegrees = m.chordRootDegrees;
+      const rootDegree = rootDegrees[Math.floor(Math.random() * rootDegrees.length)] ?? 0;
+      const chord = m.chordTones.map((k) =>
         scaleNote(v.music.root - 12, v.music.scale, rootDegree + k),
       );
       const length = m.chordBeats * beatSeconds;
@@ -264,7 +295,7 @@ export class AudioDirector {
         const osc = this.ctx.createOscillator();
         osc.type = timbre.pad;
         osc.frequency.value = midiToHz(note);
-        osc.detune.value = (Math.random() - 0.5) * 8;
+        osc.detune.value = (Math.random() - 0.5) * m.padDetuneCents;
         this.envelope(osc, t, m.padAttack, length + m.padRelease, m.padGain, filter);
       }
     }
@@ -306,10 +337,13 @@ export class AudioDirector {
     const env = this.ctx.createGain();
     env.gain.setValueAtTime(0, t);
     env.gain.linearRampToValueAtTime(peak, t + attack);
-    env.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(attack + 0.01, length));
+    env.gain.exponentialRampToValueAtTime(
+      SOUND_DESIGN.envelope.floor,
+      t + Math.max(attack + SOUND_DESIGN.envelope.minDecay, length),
+    );
     source.connect(env);
     env.connect(out);
-    const end = t + length + 0.05;
+    const end = t + length + SOUND_DESIGN.envelope.tail;
     const scheduled = source instanceof AudioScheduledSourceNode ? source : driver;
     if (driver && scheduled !== driver) {
       driver.start(t);
@@ -337,12 +371,12 @@ export class AudioDirector {
     filter.type = type;
     filter.frequency.value = hz;
     src.connect(filter);
-    this.envelope(filter, t, 0.05, decay, peak, this.ambienceBus, src);
+    this.envelope(filter, t, SOUND_DESIGN.thunder.attack, decay, peak, this.ambienceBus, src);
   }
 
   private panned(out: AudioNode): AudioNode {
     const pan = this.ctx.createStereoPanner();
-    pan.pan.value = Math.random() * 1.6 - 0.8;
+    pan.pan.value = (Math.random() - 0.5) * SOUND_DESIGN.panSpread;
     pan.connect(out);
     return pan;
   }

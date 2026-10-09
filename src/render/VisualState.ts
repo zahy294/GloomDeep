@@ -1,12 +1,10 @@
-import { BIOME_BLEND, TILE_SIZE } from '../config';
+import { BIOME_BLEND, TILE_SIZE, TIME_OF_DAY_FX } from '../config';
 import { LIQUID } from '../data/biomes';
 import type { DaySample } from '../sim/dayCycle';
 import type { QualityFeatures } from '../settings';
 import type { Simulation } from '../sim/Simulation';
 import { approachWeights, biomeWeights, SURFACE_COUNT, VISUALS } from './biomeBlend';
 
-const DUSK_CENTRE = 0.77;
-const DUSK_HALF_WIDTH = 0.06;
 const MAX_SUN = 255;
 
 /**
@@ -93,7 +91,7 @@ export class VisualState {
     this.day = sim.day;
     this.daylight = Math.max(sim.day.sunR, sim.day.sunG, sim.day.sunB) / MAX_SUN;
     this.night = 1 - this.daylight;
-    const d = Math.abs(sim.dayFraction - DUSK_CENTRE) / DUSK_HALF_WIDTH;
+    const d = Math.abs(sim.dayFraction - TIME_OF_DAY_FX.duskCentre) / TIME_OF_DAY_FX.duskHalfWidth;
     this.dusk = d >= 1 ? 0 : 1 - d * d;
     this.simTime = sim.time;
     this.realTime += dt;

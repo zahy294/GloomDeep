@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { AMBIENT, SHAFTS, TILE_SIZE } from '../config';
 import { PARTICLE_FRAME } from '../data/spriteAssets';
 import type { World } from '../sim/world/World';
-import { blendColor } from './biomeBlend';
+import { blendColor, pickMoteColor } from './biomeBlend';
 import { Depth } from './depth';
 import type { PlacedShaft } from './LightShafts';
 import { makeRandom, ParticleSlot, shaftPoint, wantedCounts } from './glowMath';
@@ -10,7 +10,6 @@ import { spriteFrame } from './spriteFrames';
 import type { VisualState } from './VisualState';
 
 const KINDS = 5;
-const MAX_DT = 0.05;
 const TWO_PI = Math.PI * 2;
 
 /** Frame of the particles sheet for each slot kind. */
@@ -38,7 +37,7 @@ export class AmbientGlowParticles {
   private readonly fade: Float32Array;
   private readonly wanted = new Float32Array(KINDS);
   private readonly point = { x: 0, y: 0 };
-  private readonly random = makeRandom(0x61c88647);
+  private readonly random = makeRandom(AMBIENT.seed);
   private lastMoteColor = -1;
   private world: World | null = null;
 
@@ -88,13 +87,13 @@ export class AmbientGlowParticles {
   }
 
   update(dt: number): void {
-    const step = Math.min(dt, MAX_DT);
+    const step = Math.min(dt, AMBIENT.maxStepSeconds);
     const { visual } = this;
     wantedCounts(visual, this.density, this.wanted);
     this.wanted[ParticleSlot.shaftMote] = this.shaftMotes
       ? SHAFTS.motesPerShaft * this.shafts.count * this.density
       : 0;
-    const moteColor = blendColor(visual.weights, (v) => v.motes.color);
+    const moteColor = blendColor(visual.weights, pickMoteColor);
     const recolor = moteColor !== this.lastMoteColor;
     this.lastMoteColor = moteColor;
     for (let k = 0; k < KINDS; k++) {
@@ -119,7 +118,7 @@ export class AmbientGlowParticles {
           continue;
         }
         const a = this.move(k, i, idx, step);
-        if (a <= 0.01) {
+        if (a <= AMBIENT.minAlpha) {
           image.setVisible(false);
           continue;
         }
@@ -169,7 +168,8 @@ export class AmbientGlowParticles {
     const c = AMBIENT.firefly;
     const { view } = this.visual;
     const ground = this.groundY(this.px[i] ?? 0);
-    const onScreen = ground !== null && ground > view.y && ground < view.y + view.height + 64;
+    const onScreen =
+      ground !== null && ground > view.y && ground < view.y + view.height + c.perchMarginPx;
     const base = onScreen ? ground : view.y + view.height;
     const h =
       (c.minHeightTiles + this.random() * (c.maxHeightTiles - c.minHeightTiles)) * TILE_SIZE;
@@ -199,7 +199,8 @@ export class AmbientGlowParticles {
       const speed = SHAFTS.moteFallSpeed / Math.max(TILE_SIZE, visiblePx);
       const run = (((sb + t * speed) % 1) + 1) % 1;
       const along = shaft.tFrom + run * (shaft.tTo - shaft.tFrom);
-      const across = Math.sin(t * 0.5 + sa * 3) * 0.8;
+      const g = AMBIENT.shaftMote;
+      const across = Math.sin(t * g.swayRate + sa * g.swayPhase) * g.swayAmount;
       shaftPoint(
         shaft.topX,
         shaft.topY,
@@ -210,40 +211,47 @@ export class AmbientGlowParticles {
         across,
         this.point,
       );
-      const twinkle = 0.6 + 0.4 * Math.sin(t * 1.8 + sa);
+      const twinkle = g.twinkleBase + g.twinkleDepth * Math.sin(t * g.twinkleSpeed + sa);
       this.images[i]?.setPosition(this.point.x, this.point.y).setScale(SHAFTS.moteScale);
-      return SHAFTS.moteAlpha * Math.sin(run * Math.PI) * twinkle * Math.min(1, shaft.alpha * 3);
+      return (
+        SHAFTS.moteAlpha *
+        Math.sin(run * Math.PI) *
+        twinkle *
+        Math.min(1, shaft.alpha * g.beamAlphaGain)
+      );
     }
 
     if (kind === ParticleSlot.mote) {
       const c = AMBIENT.mote;
-      x += (Math.sin(t * 0.3 + sa) * c.speed + wind * 0.5) * dt;
-      y += (Math.cos(t * 0.23 + sa * 1.3) * 0.6 - 0.15) * c.speed * dt;
-      alpha = c.alpha * (0.45 + 0.55 * Math.sin(t * c.twinkleSpeed + sa));
-      scale = c.scale * (0.7 + 0.6 * sb);
+      x += (Math.sin(t * c.weaveRate + sa) * c.speed + wind * c.windFactor) * dt;
+      y += (Math.cos(t * c.bobRate + sa * c.bobPhase) * c.bobAmount - c.riseBias) * c.speed * dt;
+      alpha = c.alpha * (c.twinkleBase + c.twinkleDepth * Math.sin(t * c.twinkleSpeed + sa));
+      scale = c.scale * (c.scaleBase + c.scaleVar * sb);
     } else if (kind === ParticleSlot.firefly) {
       const c = AMBIENT.firefly;
-      const a = sa + Math.sin(t * c.wanderSpeed + sb * 9) * 2.4;
-      x += (Math.cos(a) * c.speed + wind * 0.3) * dt;
-      y += Math.sin(a * 1.3) * c.speed * 0.5 * dt;
-      const blink = Math.sin(t * c.blinkSpeed + sa * 2.1);
-      alpha = c.alpha * (blink > 0 ? blink * blink : 0.05);
+      const a = sa + Math.sin(t * c.wanderSpeed + sb * c.wanderPhase) * c.wanderTurn;
+      x += (Math.cos(a) * c.speed + wind * c.windFactor) * dt;
+      y += Math.sin(a * c.verticalRate) * c.speed * c.verticalFactor * dt;
+      const blink = Math.sin(t * c.blinkSpeed + sa * c.blinkPhase);
+      alpha = c.alpha * (blink > 0 ? blink * blink : c.dimAlpha);
       scale = c.scale;
     } else if (kind === ParticleSlot.spore) {
       const c = AMBIENT.spore;
-      y -= c.rise * (0.6 + 0.8 * sb) * dt;
-      x += (Math.sin(t * c.swaySpeed + sa) * c.sway + wind * 0.4) * dt;
-      alpha = c.alpha * (0.5 + 0.5 * Math.sin(t * 1.1 + sa * 1.7));
-      scale = c.scale * (0.75 + 0.5 * sb);
+      y -= c.rise * (c.riseBase + c.riseVar * sb) * dt;
+      x += (Math.sin(t * c.swaySpeed + sa) * c.sway + wind * c.windFactor) * dt;
+      alpha =
+        c.alpha *
+        (c.twinkleBase + c.twinkleDepth * Math.sin(t * c.twinkleRate + sa * c.twinklePhase));
+      scale = c.scale * (c.scaleBase + c.scaleVar * sb);
     } else {
       const c = AMBIENT.ember;
-      y -= c.rise * (0.6 + 0.8 * sb) * dt;
-      x += (Math.sin(t * 1.3 + sa) * c.sway + wind) * dt;
+      y -= c.rise * (c.riseBase + c.riseVar * sb) * dt;
+      x += (Math.sin(t * c.swayRate + sa) * c.sway + wind) * dt;
       const flicker =
-        0.25 * Math.sin(t * c.flickerSpeed + sa * 5) +
-        0.2 * Math.sin(t * c.flickerSpeed * 2.3 + sa);
-      alpha = c.alpha * (0.55 + flicker);
-      scale = c.scale * (0.7 + 0.5 * sb);
+        c.flickerDepth * Math.sin(t * c.flickerSpeed + sa * c.flickerPhase) +
+        c.flickerDepth2 * Math.sin(t * c.flickerSpeed * c.flickerRatio + sa);
+      alpha = c.alpha * (c.alphaBase + flicker);
+      scale = c.scale * (c.scaleBase + c.scaleVar * sb);
     }
 
     // Wrap around the view so particles stay near the camera without respawn bookkeeping.

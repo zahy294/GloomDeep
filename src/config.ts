@@ -429,10 +429,20 @@ export const AUDIO = {
   melodyRange: 7,
   /** Events are scheduled this far ahead of the audio clock. */
   lookahead: 0.25,
+  /** The master gain glides to/from silence over this time constant when pausing (s). */
+  pauseFade: 0.1,
+  /** Music voice gains fade this many times slower than the ambience smoothing. */
+  musicFadeFactor: 3,
+  /** A voice below this gain that left the mix is dropped. */
+  silentVoiceGain: 0.001,
+  /** Ambient event layers below this level do not fire. */
+  minEventLevel: 0.01,
 } as const;
 
 /** Sky-side and front-side atmosphere (plan 2.0, 2.2 layers 3, 4, 15, 16; M5 D1/D5). */
 export const ATMOSPHERE = {
+  /** Per-frame time step used by the atmosphere layers is clamped to this (s), so a stalled tab does not jump them. */
+  maxFrameSeconds: 0.1,
   parallax: {
     /** Where each layer's bottom edge sits on screen (fraction of view height) with the camera at ground level; back to front. */
     bottomFraction: [0.6, 0.7, 0.84, 1.0],
@@ -459,7 +469,17 @@ export const ATMOSPHERE = {
      * edge (fraction of view height), strength relative to the biome's mist alpha, drift (px/s),
      * extra drift at full wind (px/s) and camera parallax.
      */
-    texture: { width: 256, height: 96, cellsX: 4, cellsY: 3, seed: 0x6157 },
+    texture: {
+      width: 256,
+      height: 96,
+      cellsX: 4,
+      cellsY: 3,
+      seed: 0x6157,
+      /** Fraction of the texture height over which opacity ramps in from the top. */
+      profileRamp: 0.85,
+      /** Multiplier on the value noise before it is clamped to opacity. */
+      noiseGain: 1.3,
+    },
     scaleX: [3, 4],
     scaleY: [3, 2],
     bandBottom: [0.9, 1.0],
@@ -480,10 +500,19 @@ export const ATMOSPHERE = {
     undergroundFront: 1,
     /** Mist alpha is changed in steps no smaller than this. */
     alphaEpsilon: 0.004,
+    /** Contrast of the front mist noise (shader `noiseValuePower`; higher = patchier). */
+    noiseValuePower: 1.4,
   },
   starfall: {
     /** Streaks per real minute on a fully clear night. */
     perMinute: 3,
+    /** Streak pool size, sprite depth and thickness (y scale), and how steep the fall is (dy per dx). */
+    pool: 3,
+    depth: 0.5,
+    thickness: 0.5,
+    slope: 0.45,
+    /** Fraction of the streak's life spent fading in. */
+    fadeIn: 0.2,
     /** Needs at least this much night and at most this much rain. */
     minNight: 0.7,
     maxRain: 0.2,
@@ -496,6 +525,8 @@ export const ATMOSPHERE = {
     seed: 0x57a2,
   },
   sky: {
+    /** Stars: count, placement seed, the top fraction of the view they fill, and the chance and size (px) of a bright one. */
+    stars: { count: 90, seed: 0x5ca7, band: 0.7, brightChance: 0.2, brightSize: 2, dimSize: 1 },
     /** At full rain the sun and moon fade to 1 − this. */
     rainHidesBodies: 0.9,
     /** Overcast: how far the sky goes towards grey, and how much darker, at full rain. */
@@ -514,6 +545,8 @@ export const ATMOSPHERE = {
       tint: 0x0b1f24,
       swayPx: 6,
       swaySpeed: 0.6,
+      /** Sway at no wind, as a fraction of the sway at full wind (sway scales with `calmSway + |wind|`). */
+      calmSway: 0.4,
       /** Hidden below this opacity. */
       minAlpha: 0.04,
     },
@@ -557,6 +590,15 @@ export const SHAFTS = {
   /** Generated beam texture size (smooth gradient, linear filtering). */
   textureWidth: 32,
   textureHeight: 128,
+  /** Beams below this opacity are not drawn. */
+  minAlpha: 0.002,
+  /** Beam texture brightness is `profileBase + profileSpan * (1 - t)` down the beam (t 0 = top): brighter at the top. */
+  profileBase: 0.7,
+  profileSpan: 0.3,
+  /** Sway: the angle swings at this fraction of the opacity breathing speed; per-beam phases come from x times these. */
+  angleSpeedFactor: 0.7,
+  phaseSpread: 1.7,
+  anglePhaseFactor: 0.6,
   /** Fractions of the beam length over which its top fades in and its foot fades out. */
   fadeInFraction: 0.04,
   fadeOutFraction: 0.08,
@@ -568,6 +610,10 @@ export const SHAFTS = {
   moteDriftPx: 5,
   moteScale: 1,
   moteAlpha: 0.9,
+  /** Days are measured from noon: beams reach their golden-hour strength/lean at this far from 0.5. */
+  goldenSpan: 0.25,
+  /** How fast the beam brightens from noon to golden hour (higher = sooner). */
+  goldenSharpness: 1.4,
 } as const;
 
 /** Floating motes and glowing particles (fireflies, spores, embers), drawn additively. */
@@ -584,7 +630,50 @@ export const AMBIENT = {
   duskNightCarry: 0.3,
   /** Wind (-1..1) to horizontal speed (px/s). */
   windSpeed: 14,
-  mote: { speed: 5, twinkleSpeed: 1.4, scale: 1, alpha: 0.9 },
+  /** Longest time step the particle motion integrates (s). */
+  maxStepSeconds: 0.05,
+  /** Fireflies tick over to `dusk` rules this much faster than the dusk factor alone (clamped to 1). */
+  duskBoost: 1.5,
+  /** Slots whose computed alpha falls below this are hidden. */
+  minAlpha: 0.01,
+  /** Seed for the per-slot phase and variation numbers (deterministic placement). */
+  seed: 0x61c88647,
+  /**
+   * Per kind below, `speed`/`rise`/`sway` are px/s; the `*Rate` and `*Speed` entries are radians per
+   * second of the sine they drive; `*Phase` multiplies the slot's random phase so slots differ; a
+   * `*Base` + `*Depth` pair is `base + depth * sin(...)` (a 0..1 brightness breathing).
+   */
+  mote: {
+    speed: 5,
+    twinkleSpeed: 1.4,
+    scale: 1,
+    alpha: 0.9,
+    /** Horizontal weave rate and the share of wind that pushes motes. */
+    weaveRate: 0.3,
+    windFactor: 0.5,
+    /** Vertical bob: rate, phase spread, amplitude and the steady upward bias (fractions of speed). */
+    bobRate: 0.23,
+    bobPhase: 1.3,
+    bobAmount: 0.6,
+    riseBias: 0.15,
+    twinkleBase: 0.45,
+    twinkleDepth: 0.55,
+    /** Size varies per slot by `scaleBase + scaleVar * random`. */
+    scaleBase: 0.7,
+    scaleVar: 0.6,
+  },
+  /** Motes inside light shafts (counts/speed/size/alpha are in SHAFTS.mote*). */
+  shaftMote: {
+    /** Sideways wobble across the beam: rate, phase spread and amplitude (-1..1 across the width). */
+    swayRate: 0.5,
+    swayPhase: 3,
+    swayAmount: 0.8,
+    twinkleSpeed: 1.8,
+    twinkleBase: 0.6,
+    twinkleDepth: 0.4,
+    /** Motes reach full opacity once the beam's own opacity times this reaches 1. */
+    beamAlphaGain: 3,
+  },
   firefly: {
     tint: 0xd8f56a,
     speed: 9,
@@ -595,9 +684,56 @@ export const AMBIENT = {
     /** Tiles above the ground they hover within. */
     minHeightTiles: 0.5,
     maxHeightTiles: 6,
+    windFactor: 0.3,
+    /** Heading wander: phase spread per slot and how far (rad) the heading swings. */
+    wanderPhase: 9,
+    wanderTurn: 2.4,
+    /** Vertical motion follows the heading at this rate and fraction of speed. */
+    verticalRate: 1.3,
+    verticalFactor: 0.5,
+    blinkPhase: 2.1,
+    /** Opacity (fraction of `alpha`) between blinks. */
+    dimAlpha: 0.05,
+    /** A ground this far below the view bottom still counts as on screen when perching (px). */
+    perchMarginPx: 64,
   },
-  spore: { tint: 0xa6f0ff, rise: 6, sway: 5, swaySpeed: 0.7, scale: 1.6, alpha: 0.95 },
-  ember: { tint: 0xffa040, rise: 22, sway: 8, flickerSpeed: 7, scale: 1.6, alpha: 1 },
+  spore: {
+    tint: 0xa6f0ff,
+    rise: 6,
+    sway: 5,
+    swaySpeed: 0.7,
+    scale: 1.6,
+    alpha: 0.95,
+    windFactor: 0.4,
+    /** Rise speed varies per slot by `riseBase + riseVar * random`. */
+    riseBase: 0.6,
+    riseVar: 0.8,
+    twinkleRate: 1.1,
+    twinklePhase: 1.7,
+    twinkleBase: 0.5,
+    twinkleDepth: 0.5,
+    scaleBase: 0.75,
+    scaleVar: 0.5,
+  },
+  ember: {
+    tint: 0xffa040,
+    rise: 22,
+    sway: 8,
+    flickerSpeed: 7,
+    scale: 1.6,
+    alpha: 1,
+    riseBase: 0.6,
+    riseVar: 0.8,
+    swayRate: 1.3,
+    /** Two flicker sines: depths, the second one's rate multiplier, and the phase spread. */
+    flickerDepth: 0.25,
+    flickerDepth2: 0.2,
+    flickerRatio: 2.3,
+    flickerPhase: 5,
+    alphaBase: 0.55,
+    scaleBase: 0.7,
+    scaleVar: 0.5,
+  },
 } as const;
 
 /** Decoration sway and bend (plan 2.2 layer 9; src/render/FoliageRenderer.ts). */
@@ -613,6 +749,8 @@ export const FOLIAGE = {
     /** One swing takes this long, varied per plant by up to `periodJitter` (fraction). */
     periodMs: 2400,
     periodJitter: 0.45,
+    /** Each plant's swing starts up to this many periods late. */
+    delayPeriods: 2,
   },
   /** Members are re-patched when the wind moved this much, at most this often. */
   windPatchThreshold: 0.04,
@@ -655,6 +793,8 @@ export const WEATHER_FX = {
     canopyStopChance: 0.85,
     /** Rain below this intensity does not fall at all. */
     minIntensity: 0.05,
+    /** New drops start up to this many px lower than the spawn row, so they do not fall in a line. */
+    spawnJitterPx: 4,
   },
   splash: {
     /** Chance a drop that hits something makes a splash, and how many specks it throws. */
@@ -665,6 +805,8 @@ export const WEATHER_FX = {
     speedUp: 70,
     gravity: 420,
     scale: 0.45,
+    /** Splashes spawn this far above the surface (px). */
+    surfaceLiftPx: 1,
   },
   drip: {
     /** Drips per second at full rain with a canopy on screen, at full density. */
@@ -673,9 +815,18 @@ export const WEATHER_FX = {
     alpha: 0.7,
     /** Random cells tried to find a canopy underside per drip/leaf spawned. */
     probes: 14,
+    /** Drips fall from `xMin .. xMin + xSpan` across the canopy tile. */
+    xMin: 0.2,
+    xSpan: 0.6,
   },
   /** Leaves and petals refill an empty screen over about this long. */
   fillSeconds: 4,
+  /** Leaves and petals live `min .. min + spread` of their lifespan, and splashes launch at that fraction of full speed. */
+  lifeScale: { min: 0.6, spread: 0.4 },
+  /** The steady spawn rate keeps a screen full over this fraction of a leaf's life. */
+  steadyLifeFraction: 0.5,
+  /** Particles may stray this many margins past the sides (and, for drifters, the top) before dying. */
+  farMarginFactor: 2,
   leaf: {
     fallSpeed: 26,
     fallSpeedJitter: 0.4,
@@ -689,6 +840,8 @@ export const WEATHER_FX = {
     alpha: 0.95,
     /** Leaves die this far outside the view. */
     marginPx: 96,
+    /** Leaves with no canopy on screen start up to this fraction of the margin above the view. */
+    highSpawnFraction: 0.5,
   },
   petal: {
     fallSpeed: 20,
@@ -700,7 +853,24 @@ export const WEATHER_FX = {
     lifeSeconds: 22,
     fadeSeconds: 0.9,
     alpha: 0.95,
+    /** Petals blow in from this far above the view's top (px), across this fraction of its height. */
+    spawnAbovePx: 8,
+    spawnBandFraction: 0.6,
   },
+} as const;
+
+/** Time-of-day windows other effects key off (src/render/VisualState.ts). */
+export const TIME_OF_DAY_FX = {
+  /** Day fraction (0..1) at which `dusk` peaks, and the half-width of the dusk window. */
+  duskCentre: 0.77,
+  duskHalfWidth: 0.06,
+} as const;
+
+/** What each quality level switches (plan 2.10; src/settings.ts). */
+export const QUALITY = {
+  low: { parallaxLayers: 2, particleDensity: 0.35 },
+  medium: { parallaxLayers: 3, particleDensity: 0.7 },
+  high: { parallaxLayers: 4, particleDensity: 1 },
 } as const;
 
 /** Camera colour grade, underwater look, heat haze and vignette (plan 2.5, src/render/CameraGrade.ts). */
@@ -721,10 +891,14 @@ export const GRADE = {
     wobbleHz: 0.35,
   },
   heatHaze: { amount: 0.0035, hz: 0.8 },
-  /** Soft displacement map, stretched over the whole view. */
-  /** `edgeMargin`: displacement fades to none over this fraction of the view at its edges. */
+  /**
+   * Soft displacement map, stretched over the whole view. `edgeMargin`: displacement fades to none
+   * over this fraction of the view at its edges.
+   */
   noise: { width: 96, height: 54, seed: 0x6a1d, edgeMargin: 0.06 },
   /** Edge darkening; stronger at night. See FilterVignette: only radius > 0.71 covers the corners. */
+  /** The displacement's vertical push rotates this much slower than the horizontal one. */
+  displacementYRate: 0.8,
   vignette: { radius: 0.8, strengthDay: 0.1, strengthNight: 0.16, color: 0x000000 },
 } as const;
 
@@ -742,6 +916,10 @@ export const WATER_FX = {
     rippleHz: 0.7,
     /** Alpha breathes by this fraction around `alpha` at the ripple speed. */
     shimmer: 0.2,
+    /** Ripple phase offset per pool slot (rad), and the shimmer's speed relative to the ripple and its phase. */
+    slotPhaseStep: 1.7,
+    shimmerRate: 0.6,
+    shimmerPhase: 1,
   },
   waterfall: {
     /** Falling-water strips drawn at once. */
@@ -760,6 +938,15 @@ export const WATER_FX = {
     mistScale: 0.55,
     mistLifespanMs: 1500,
     mistAlpha: 0.2,
+    /** Spray start opacity, and how far above the landing row (px) spray and mist spawn. */
+    sprayAlpha: 0.9,
+    sprayLiftPx: 1,
+    mistLiftPx: 3,
+    /** Mist puffs drift sideways up to +-mistSpeedX and rise at mistRiseMin..mistRiseMax (px/s), growing by mistGrowth. */
+    mistSpeedX: 6,
+    mistRiseMin: 8,
+    mistRiseMax: 18,
+    mistGrowth: 2,
     /** Capacity of each emitter. */
     maxParticles: 220,
   },

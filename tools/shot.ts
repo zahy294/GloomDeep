@@ -233,6 +233,10 @@ const BIOME_SHOTS: Shot[] = [...SURFACE_BIOMES, ...DEPTH_LAYERS].map(({ key }) =
   query: `?scene=game&ui=0&time=morning&biome=${key}`,
   prepare: async (page: Page) => {
     await waitForLight(page);
+    // Underground, aim the lantern into the cave the way a player would look around.
+    if (DEPTH_LAYERS.some((l) => l.key === key)) {
+      await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.45);
+    }
     await page.waitForTimeout(2000); // particles, mist and the biome blend settle
   },
 }));
@@ -367,7 +371,8 @@ const SHOTS: Shot[] = [
     // M4 "Done when": quitting and reloading restores the world exactly (in the real browser,
     // through IndexedDB and the gzip save format).
     name: 'save-reload-restored',
-    query: '?ui=1',
+    // Low quality: a behaviour check, and software rendering keeps the sim at full speed there.
+    query: '?ui=1&quality=low',
     prepare: async (page) => {
       await openWorldList(page);
       await createWorld(page, 'Save test', 42, 'Small');
