@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import type { VisualState } from '../VisualState';
 import { SceneKey } from './keys';
 
 /**
@@ -9,8 +10,14 @@ import { SceneKey } from './keys';
  * this camera's scroll in step with its own.
  */
 export class GlowScene extends Phaser.Scene {
+  protected visual!: VisualState;
+
   constructor() {
     super(SceneKey.Glow);
+  }
+
+  init(data: { visual: VisualState }): void {
+    this.visual = data.visual;
   }
 
   /** Follows the world camera exactly (same zoom, whole-pixel scroll). */

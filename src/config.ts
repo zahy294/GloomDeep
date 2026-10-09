@@ -55,6 +55,20 @@ export const SAVE = {
   backupSpacingSeconds: 120,
 } as const;
 
+/** Blending biome looks by camera position (src/render/biomeBlend.ts). Tiles and seconds. */
+export const BIOME_BLEND = {
+  /** Still fully "surface" this many rows below the ground, fully underground after the fade. */
+  surfaceDepth: 18,
+  surfaceFade: 24,
+  /** Surface biomes are averaged over ±columnRadius columns, sampled every columnStep. */
+  columnRadius: 48,
+  columnStep: 4,
+  /** Depth layers blend over this many rows each side of a boundary. */
+  layerFade: 20,
+  /** A crossing fades over about this long (plan 2.5: ~2 s). */
+  transitionSeconds: 2,
+} as const;
+
 /** World generation (plan 3.2). Distances in tiles unless noted. */
 export const WORLDGEN = {
   /** Surface height as a fraction of world height, before hills. */
@@ -333,7 +347,7 @@ export const LIGHT = {
   jobTimeoutSeconds: 1,
   /** Touching a glowing plant brightens it for this long (plan 2.0 bioluminescence)... */
   /** Sunlight never drops below this fraction under a leaf canopy (a dim, dappled forest floor). */
-  canopyMinSun: 0.18,
+  canopyMinSun: 0.4,
   touchSeconds: 4,
   /** ...with its light radius multiplied by up to this much, fading back over that time. */
   touchRadiusBoost: 1.8,

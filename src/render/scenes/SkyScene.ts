@@ -3,6 +3,7 @@ import { DISPLAY } from '../../config';
 import { PALETTE } from '../../data/palette';
 import { mulberry32 } from '../../sim/random';
 import type { DaySample } from '../../sim/dayCycle';
+import type { VisualState } from '../VisualState';
 import { SceneKey, TextureKey } from './keys';
 
 /** What the sky needs from the running game each frame. */
@@ -40,8 +41,11 @@ export class SkyScene extends Phaser.Scene {
     super(SceneKey.Sky);
   }
 
-  init(data: { source: SkySource }): void {
+  protected visual!: VisualState;
+
+  init(data: { source: SkySource; visual: VisualState }): void {
     this.source = data.source;
+    this.visual = data.visual;
   }
 
   create(): void {

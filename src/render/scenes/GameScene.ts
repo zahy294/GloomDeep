@@ -36,6 +36,7 @@ import type { SaveState, WorldMeta } from '../../sim/world/worldData';
 import { CameraDirector } from '../CameraDirector';
 import { ChunkRenderer, type PreloadBudget } from '../ChunkRenderer';
 import { liquidFrame } from '../liquidFrames';
+import { VisualState } from '../VisualState';
 import { GlowRenderer } from '../GlowRenderer';
 import { LightMapRenderer } from '../LightMapRenderer';
 import { Depth } from '../depth';
@@ -45,6 +46,7 @@ import { InputMapper } from '../InputMapper';
 import { ParticleFX } from '../ParticleFX';
 import { PlayerRenderer, type PlayerActivity } from '../PlayerRenderer';
 import { TileCursor } from '../TileCursor';
+import type { FrontScene } from './FrontScene';
 import type { GlowScene } from './GlowScene';
 import { SceneKey, TextureKey } from './keys';
 
@@ -97,6 +99,9 @@ export class GameScene extends Phaser.Scene {
   private lightMap!: LightMapRenderer;
   private glow!: GlowRenderer;
   private glowScene!: GlowScene;
+  private frontScene!: FrontScene;
+  /** Atmosphere state shared with the sky, glow and front scenes (biome blend, weather, time). */
+  private visual!: VisualState;
   private lightBackend: LightBackend | null = null;
   private drawCalls: DrawCallCounter | null = null;
   private debugOpen = false;
@@ -162,9 +167,13 @@ export class GameScene extends Phaser.Scene {
     // a transparent background, so the multiply light map only darkens what the world draws.
     this.cameras.main.setForceComposite(true);
     // Sky is registered before Game in main.ts, so it renders first (underneath).
-    this.scene.launch(SceneKey.Sky, { source: this.sim });
-    this.scene.launch(SceneKey.Glow);
+    this.visual = new VisualState();
+    this.visual.update(this.sim, this.cameras.main, 0, 0, 0);
+    this.scene.launch(SceneKey.Sky, { source: this.sim, visual: this.visual });
+    this.scene.launch(SceneKey.Glow, { visual: this.visual });
     this.glowScene = this.scene.get(SceneKey.Glow) as GlowScene;
+    this.scene.launch(SceneKey.Front, { visual: this.visual });
+    this.frontScene = this.scene.get(SceneKey.Front) as FrontScene;
     const quality = loadSettings(
       this.params.quality ? { quality: this.params.quality } : {},
     ).quality;
@@ -265,6 +274,7 @@ export class GameScene extends Phaser.Scene {
       this.lightBackend?.destroy?.();
       this.scene.stop(SceneKey.Sky);
       this.scene.stop(SceneKey.Glow);
+      this.scene.stop(SceneKey.Front);
       sim.events.clear();
       this.bridge.set({
         debug: null,
@@ -374,6 +384,13 @@ export class GameScene extends Phaser.Scene {
     this.view.y = cam.scrollY;
     this.view.width = cam.width;
     this.view.height = cam.height;
+    this.visual.update(
+      this.sim,
+      cam,
+      this.playerView.feetX(alpha),
+      this.playerView.feetY(alpha),
+      delta / 1000,
+    );
     this.preloadBudget.remaining = CHUNK_RENDER.maxPreloadsPerFrame;
     this.chunks.update(this.view, this.preloadBudget);
     this.walls.update(this.view, this.preloadBudget);
@@ -386,6 +403,7 @@ export class GameScene extends Phaser.Scene {
     this.lightMap.update();
     const facing = this.sim.player.facing;
     if (this.glowScene.sys.isActive()) this.glowScene.follow(cam);
+    if (this.frontScene.sys.isActive()) this.frontScene.follow(cam);
     this.glow.update(
       this.view,
       this.sim.time,
