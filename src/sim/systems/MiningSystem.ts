@@ -7,6 +7,7 @@ import type { ActionState } from '../input';
 import type { Inventory } from '../inventory/Inventory';
 import { AIR, type World } from '../world/World';
 import { inReach, tileAt } from './tileTargeting';
+import { clearDoorColumn, isDoor } from '../world/doors';
 
 const NO_TARGET = Number.MIN_SAFE_INTEGER;
 
@@ -193,6 +194,7 @@ export function updateMining(
     state.stage = 0;
     emitDamaged(events, state); // clears the crack overlay
     world.setLayer(layer, tx, ty, AIR);
+    if (layer === 'fg' && isDoor(id)) clearDoorColumn(world, tx, ty); // the whole door comes away
     brokenPayload.x = tx;
     brokenPayload.y = ty;
     brokenPayload.id = id;

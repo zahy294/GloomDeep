@@ -1,4 +1,5 @@
 import { decorSupported, isDecor } from '../world/decor';
+import { doorFits, isDoor, placeDoor } from '../world/doors';
 import { BUILDING } from '../../config';
 import { ITEMS } from '../../data/items';
 import { TILES, tileId } from '../../data/tiles';
@@ -68,6 +69,31 @@ function replaceable(existing: number, layer: TileLayer): boolean {
 }
 
 const placedPayload = { x: 0, y: 0, id: 0, layer: 'fg' as TileLayer };
+
+/** A door goes in as a whole column standing on the ground, with the aimed cell at its bottom. */
+function placeDoorAt(
+  state: BuildingState,
+  player: Player,
+  inventory: Inventory,
+  world: World,
+  events: EventBus<SimEvents>,
+  id: number,
+  tx: number,
+  ty: number,
+): void {
+  const free = (existing: number) => replaceable(existing, 'fg');
+  if (!inReach(player.body, tx, ty, BUILDING.reachTiles) || !doorFits(world, tx, ty, free)) return;
+  for (let k = 0; k < BUILDING.doorHeight; k++) if (overlapsBody(player.body, tx, ty - k)) return;
+  placeDoor(world, tx, ty, id);
+  inventory.removeFromSlot(inventory.selected, 1);
+  state.cooldown = BUILDING.placeInterval;
+  placedPayload.x = tx;
+  placedPayload.y = ty;
+  placedPayload.id = id;
+  placedPayload.layer = 'fg';
+  events.emit('tilePlaced', placedPayload);
+  events.emit('inventoryChanged', NO_PAYLOAD);
+}
 const NO_PAYLOAD: Record<string, never> = {};
 
 /** Holding `useAlt` places the selected block (or, with `wallMode`, a background wall). */
@@ -90,6 +116,10 @@ export function updateBuilding(
   const tx = tileAt(input.aimX);
   const ty = tileAt(input.aimY);
   const layer: TileLayer = input.isHeld('wallMode') ? 'bg' : 'fg';
+  if (layer === 'fg' && isDoor(id)) {
+    placeDoorAt(state, player, inventory, world, events, id, tx, ty);
+    return;
+  }
   if (
     !world.inBounds(tx, ty) ||
     !replaceable(world.getLayer(layer, tx, ty), layer) ||

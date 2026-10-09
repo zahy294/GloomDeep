@@ -24,6 +24,8 @@ export interface SpawnContext {
   random: () => number;
   nextId: () => number;
   events: EventBus<SimEvents>;
+  /** Beacons' safe circles: nothing spawns inside. */
+  safe: (x: number, y: number) => boolean;
 }
 
 /**
@@ -73,7 +75,7 @@ export class SpawnSystem {
     // Outside the view, so nothing appears on screen.
     const offX = Math.abs(x + 0.5 - ctx.focusX) >= SPAWN.viewHalfWidth;
     const offY = Math.abs(y + 0.5 - ctx.focusY) >= SPAWN.viewHalfHeight;
-    if ((!offX && !offY) || !world.inBounds(x, y)) return false;
+    if ((!offX && !offY) || !world.inBounds(x, y) || ctx.safe(x, y)) return false;
 
     const i = y * world.width + x;
     const light = Math.max(world.lightR[i] ?? 0, world.lightG[i] ?? 0, world.lightB[i] ?? 0);

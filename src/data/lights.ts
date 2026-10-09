@@ -22,6 +22,30 @@ export interface LightDef {
 export const LIGHTS: readonly LightDef[] = [
   { key: 'torch', color: [255, 178, 96], radius: 12, flicker: 0.12 },
   { key: 'furnace', color: [255, 140, 64], radius: 8, flicker: 0.1 },
+  /** M10: a jar of fireflies, open Lumen blooms, fairy mushrooms, beacons and wisps. */
+  {
+    key: 'firefly',
+    color: [200, 240, 120],
+    radius: 7,
+    flicker: 0,
+    pulse: { period: 1.7, depth: 0.35 },
+  },
+  {
+    key: 'lumen_bloom',
+    color: [110, 225, 220],
+    radius: 4,
+    flicker: 0,
+    pulse: { period: 3.1, depth: 0.25 },
+  },
+  { key: 'fae', color: [230, 150, 210], radius: 2, flicker: 0, pulse: { period: 2.2, depth: 0.5 } },
+  {
+    key: 'beacon',
+    color: [150, 235, 255],
+    radius: 16,
+    flicker: 0,
+    pulse: { period: 4, depth: 0.12 },
+  },
+  { key: 'wisp', color: [170, 230, 255], radius: 5, flicker: 0.1 },
   /** Lava (a liquid, lit through the light job's liquid cells) and burning tiles. */
   { key: 'lava', color: [255, 110, 40], radius: 7, flicker: 0.06 },
   { key: 'fire', color: [255, 150, 60], radius: 8, flicker: 0.3 },

@@ -121,6 +121,25 @@ export interface SimEvents {
   tileBurned: { readonly x: number; readonly y: number; readonly layer: TileLayer };
   /** A falling block of silt or gravel landed and became a tile. */
   blockLanded: { readonly x: number; readonly y: number; readonly id: number };
+  /** Someone spoke (right-clicked): show their line. */
+  talk: {
+    readonly npcId: number;
+    readonly key: string;
+    readonly name: string;
+    readonly role: string;
+    readonly text: string;
+  };
+  /** A villager moved into a home / lost their home (it stopped being valid). */
+  npcArrived: { readonly key: string; readonly name: string };
+  npcHomeless: { readonly key: string; readonly name: string };
+  /** A beacon was right-clicked: offer travel to the beacons (tile positions). */
+  beaconMenu: {
+    readonly x: number;
+    readonly y: number;
+    readonly beacons: readonly { readonly x: number; readonly y: number }[];
+  };
+  /** The player fast-travelled to a beacon. */
+  travelled: { readonly x: number; readonly y: number };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

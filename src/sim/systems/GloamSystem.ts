@@ -42,16 +42,26 @@ export class GloamSystem {
   private scratch = new Uint8Array(0);
   private readonly updated: TileRect = { x0: 0, y0: 0, width: 0, height: 0 };
   private readonly unsubscribe: (() => void)[];
+  /** Sum of world.gloam, kept up to date (the Dryad's "how much is cleansed"). */
+  total = 0;
+  /** The total when the world began (saved); `cleansed` compares against it. */
+  initial = 0;
+  /** Beacons burn the Gloam in their circle as if it were lit (set by the Simulation). */
+  covered: ((x: number, y: number) => boolean) | null = null;
 
   constructor(
     private readonly world: World,
     private readonly events: EventBus<SimEvents>,
   ) {
+    for (let i = 0; i < world.gloam.length; i++) this.total += world.gloam[i] ?? 0;
+    this.initial = this.total;
     this.unsubscribe = [
       events.on('tileChanged', ({ x, y }) => {
         const i = world.index(x, y);
-        if ((world.gloam[i] ?? 0) > 0 && !canHoldGloam(world, i)) {
+        const g = world.gloam[i] ?? 0;
+        if (g > 0 && !canHoldGloam(world, i)) {
           world.gloam[i] = 0;
+          this.total -= g;
           this.emit(x, y, 1, 1);
         }
       }),
@@ -63,6 +73,12 @@ export class GloamSystem {
 
   destroy(): void {
     for (const off of this.unsubscribe) off();
+  }
+
+  /** Share of the world's starting Gloam that is gone, 0..1. */
+  get cleansed(): number {
+    if (this.initial <= 0) return 1;
+    return Math.min(1, Math.max(0, 1 - this.total / this.initial));
   }
 
   /**
@@ -91,7 +107,9 @@ export class GloamSystem {
         const i = world.index(x, y);
         const g = world.gloam[i] ?? 0;
         if (g === 0) continue;
-        world.gloam[i] = Math.max(0, Math.round(g - GLOAM.burstStrength * (1 - d / radius)));
+        const next = Math.max(0, Math.round(g - GLOAM.burstStrength * (1 - d / radius)));
+        world.gloam[i] = next;
+        this.total += next - g;
         changed = true;
       }
     }
@@ -125,11 +143,16 @@ export class GloamSystem {
         if (!canHoldGloam(world, i)) {
           if (g !== 0) {
             world.gloam[i] = 0;
+            this.total -= g;
             changed = true;
           }
           continue;
         }
-        const light = Math.max(world.lightR[i] ?? 0, world.lightG[i] ?? 0, world.lightB[i] ?? 0);
+        // Inside a beacon's circle the Gloam burns as if in full light.
+        const light =
+          g > 0 && this.covered?.(x, y)
+            ? MAX
+            : Math.max(world.lightR[i] ?? 0, world.lightG[i] ?? 0, world.lightB[i] ?? 0);
         let delta: number;
         const burning = crimson !== null && light >= LENS_FX.coneMinLight && inCone(crimson, x, y);
         if (light >= GLOAM.cleanseLight || burning) {
@@ -148,6 +171,7 @@ export class GloamSystem {
         const clamped = next < 0 ? 0 : next > MAX ? MAX : next;
         if (clamped !== g) {
           world.gloam[i] = clamped;
+          this.total += clamped - g;
           changed = true;
         }
       }

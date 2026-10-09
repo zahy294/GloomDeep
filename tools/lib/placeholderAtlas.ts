@@ -255,7 +255,10 @@ export function buildPlaceholderAtlas(
         if (
           tile.placeholderShape === 'workbench' ||
           tile.placeholderShape === 'furnace' ||
-          tile.placeholderShape === 'anvil'
+          tile.placeholderShape === 'anvil' ||
+          tile.placeholderShape === 'door' ||
+          tile.placeholderShape === 'jar' ||
+          tile.placeholderShape === 'beacon'
         ) {
           if (kind === 'tiles') {
             drawStation(tile.placeholderShape, (x, y, c) => put(data, width, ox + x, oy + y, c));

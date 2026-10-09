@@ -85,6 +85,8 @@ export function makeState(width: number, height: number, fill?: (i: number) => n
     randomState: 0xdeadbeef,
     spawnX: 100,
     spawnY: 200,
+    npcs: [{ key: 'tinker', x: 33, y: 64, homeId: 1234 }],
+    gloamInitial: 98765,
   };
 }
 
@@ -210,6 +212,8 @@ describe('MIGRATIONS', () => {
     expect(out.player.health).toBe(HEALTH.max);
     expect(out.inventory.cursor).toBeNull();
     expect(out.drops[0]?.pickupAfter).toBe(ITEM_DROP.pickupDelay);
+    expect(out.npcs).toEqual([]);
+    expect(out.gloamInitial).toBe(-1);
   });
 });
 

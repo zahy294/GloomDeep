@@ -2,7 +2,7 @@ import { HEALTH, ITEM_DROP } from '../config';
 import type { SaveState, WorldArrays } from '../sim/world/worldData';
 
 /** Bump when the layout or header fields change, and add a migration for the old version. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 const MAGIC = [0x47, 0x4c, 0x44, 0x50]; // "GLDP"
 const PREAMBLE_BYTES = 8; // magic + uint32 header length
@@ -51,6 +51,13 @@ export const MIGRATIONS: MigrationTable = {
     if (h.player) h.player.health = HEALTH.max;
     if (h.inventory) h.inventory.cursor = null;
     for (const d of h.drops ?? []) d.pickupAfter = ITEM_DROP.pickupDelay;
+    return save;
+  },
+  // v3 (M10): villagers and the Old Dryad; the starting Gloam is unknown for older worlds.
+  2: (save) => {
+    const h = save.header as SaveHeader & { npcs?: unknown[]; gloamInitial?: number };
+    h.npcs = [];
+    h.gloamInitial = -1;
     return save;
   },
 };

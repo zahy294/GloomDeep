@@ -27,7 +27,8 @@ export interface TileDef {
   /** false for objects like torches: one fixed look instead of blob autotiling. Default true. */
   readonly autotile?: boolean;
   /** Placeholder art shape for non-terrain tiles. */
-  readonly placeholderShape?: 'torch' | 'platform' | 'workbench' | 'furnace' | 'anvil';
+  readonly placeholderShape?:
+    'torch' | 'platform' | 'workbench' | 'furnace' | 'anvil' | 'door' | 'jar' | 'beacon';
   /** A crafting station (src/data/recipes.ts): recipes that need it work within reach of it. */
   readonly station?: string;
   /** Must stand on a solid block or platform; the block under it can't be mined while it stands. */
@@ -53,6 +54,19 @@ export interface TileDef {
    * soil; null = nothing left). Applies to the tile as a block and as a background wall.
    */
   readonly flammable?: { readonly seconds: number; readonly becomes: string | null };
+  /**
+   * A door (M10): placed as a column of `DOOR_HEIGHT` cells; right-click swaps the whole column
+   * between this tile and `toggles` (closed doors are solid, open ones are not).
+   */
+  readonly door?: { readonly toggles: string };
+  /** Landing on its top bounces you back up, keeping this share of the fall speed (glowcaps). */
+  readonly bouncy?: number;
+  /** A beacon (M10): no shades spawn within `radius` tiles, the Gloam there burns away, and
+   * right-clicking it opens fast travel to the other beacons. */
+  readonly beacon?: { readonly radius: number };
+  /** Lumen blooms: the tile it turns into when the light rises above / falls below a threshold. */
+  readonly opensTo?: string;
+  readonly closesTo?: string;
   /** Placeholder ore: the base ramp with clusters of this ramp's colours. */
   readonly placeholderOre?: RampName;
   /** One-way platform (branches): stand on its top, jump up through it, drop through with Down. */
@@ -276,6 +290,7 @@ export const TILES: readonly TileDef[] = [
   {
     id: 17,
     key: 'glowcap_flesh',
+    bouncy: 0.8,
     name: 'Glowcap Flesh',
     solid: true,
     hardness: 0.3,
@@ -768,6 +783,101 @@ export const TILES: readonly TileDef[] = [
     platform: true,
     autotile: false,
     placeholderShape: 'platform',
+  },
+  // M10: a living world.
+  {
+    id: 57,
+    key: 'door_closed',
+    name: 'Door',
+    solid: true,
+    hardness: 0.5,
+    drop: 'door',
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'door',
+    door: { toggles: 'door_open' },
+    flammable: { seconds: 6, becomes: null },
+  },
+  {
+    id: 58,
+    key: 'door_open',
+    name: 'Door',
+    solid: false,
+    hardness: 0.5,
+    drop: 'door',
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'door',
+    door: { toggles: 'door_closed' },
+    flammable: { seconds: 6, becomes: null },
+  },
+  {
+    id: 59,
+    key: 'firefly_jar',
+    name: 'Firefly Jar',
+    solid: false,
+    hardness: 0.1,
+    drop: 'firefly_jar',
+    mergesWith: [],
+    placeholderRamp: 'moonSilver',
+    light: 'firefly',
+    autotile: false,
+    placeholderShape: 'jar',
+  },
+  {
+    id: 60,
+    key: 'lumen_bloom',
+    name: 'Lumen Bloom',
+    solid: false,
+    hardness: 0.05,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    decor: { support: 'ground', sprite: 'flora', frame: 13, sway: 0.1 },
+    opensTo: 'lumen_bloom_open',
+  },
+  {
+    id: 61,
+    key: 'lumen_bloom_open',
+    name: 'Lumen Bloom',
+    solid: false,
+    hardness: 0.05,
+    drop: 'lumen_petal',
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'lumen_bloom',
+    decor: { support: 'ground', sprite: 'flora', frame: 14, sway: 0.12 },
+    closesTo: 'lumen_bloom',
+  },
+  {
+    id: 62,
+    key: 'fairy_mushroom',
+    name: 'Fairy Mushroom',
+    solid: false,
+    hardness: 0.05,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'rose',
+    light: 'fae',
+    decor: { support: 'ground', sprite: 'flora', frame: 15, sway: 0 },
+  },
+  {
+    id: 63,
+    key: 'beacon',
+    name: 'Beacon',
+    solid: false,
+    hardness: 1.5,
+    tier: 1,
+    drop: 'beacon',
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'beacon',
+    autotile: false,
+    placeholderShape: 'beacon',
+    needsGround: true,
+    beacon: { radius: 30 },
   },
 ];
 

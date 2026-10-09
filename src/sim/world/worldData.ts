@@ -99,4 +99,8 @@ export interface SaveState {
   /** Spawn point, feet-centre, pixels (respawn in M8). */
   spawnX: number;
   spawnY: number;
+  /** Villagers and the Old Dryad (M10): data key, feet-centre (pixels), home room id or -1. */
+  npcs: { key: string; x: number; y: number; homeId: number }[];
+  /** Sum of the Gloam when the world began (the Dryad's "how much is cleansed"); -1 = unknown. */
+  gloamInitial: number;
 }

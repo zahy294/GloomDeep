@@ -31,10 +31,10 @@ function frameOf(sheet: RgbaImage, fw: number, fh: number, index: number) {
 const same = (a: RgbaImage, b: RgbaImage) => Buffer.from(a.data).equals(Buffer.from(b.data));
 
 describe('placeholder sheets', () => {
-  it('flora: 13 frames of 16x32; ground plants touch the bottom, ceiling plants the top', () => {
+  it('flora: 16 frames of 16x32; ground plants touch the bottom, ceiling plants the top', () => {
     const def = spriteAsset('flora')!;
     const sheet = buildFlora();
-    expect([sheet.width, sheet.height]).toEqual([16 * 13, 32]);
+    expect([sheet.width, sheet.height]).toEqual([16 * def.frames, 32]);
     const ceiling = new Set(
       TILES.filter((t) => t.decor?.sprite === 'flora' && t.decor.support === 'ceiling').map(
         (t) => t.decor!.frame,

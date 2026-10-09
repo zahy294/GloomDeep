@@ -166,6 +166,29 @@ export const RECIPES: readonly RecipeDef[] = [
     inputs: [{ item: 'iron_bar', count: 3 }],
     station: 'anvil',
   },
+  // M10: homes, jars and beacons.
+  {
+    key: 'door',
+    output: { item: 'door', count: 1 },
+    inputs: [{ item: 'elderwood_planks', count: 6 }],
+    station: 'workbench',
+  },
+  {
+    key: 'glass_jar',
+    output: { item: 'glass_jar', count: 1 },
+    inputs: [{ item: 'silt', count: 3 }],
+    station: 'furnace',
+  },
+  {
+    key: 'beacon',
+    output: { item: 'beacon', count: 1 },
+    inputs: [
+      { item: 'lumen_crystal', count: 8 },
+      { item: 'runestone', count: 12 },
+      { item: 'copper_bar', count: 4 },
+    ],
+    station: 'anvil',
+  },
   // Lenses (plan 1.4: each from a different place) and flares.
   {
     key: 'verdant_lens',

@@ -59,6 +59,10 @@ export interface ItemDef {
    * A bucket (M9): `empty` scoops up a full cell of liquid, the others pour one out (right mouse).
    */
   readonly bucket?: 'empty' | 'water' | 'lava';
+  /** Lantern fuel: Lumen restored when burned from the inventory (Lumen crystals, petals). */
+  readonly fuel?: number;
+  /** An empty jar: right-click a firefly to catch it into this item. */
+  readonly catches?: string;
   /** Damage this item adds when shot as ammo. */
   readonly ammoDamage?: number;
 }
@@ -108,6 +112,7 @@ export const ITEMS: readonly ItemDef[] = [
     maxStack: BLOCK_STACK,
     placesTile: 'lumen_crystal',
     category: 'material',
+    fuel: 25,
   },
   {
     id: 6,
@@ -496,6 +501,56 @@ export const ITEMS: readonly ItemDef[] = [
     icon: 20,
     bucket: 'lava',
   },
+  // M10.
+  {
+    id: 47,
+    key: 'door',
+    name: 'Door',
+    maxStack: STATION_STACK,
+    placesTile: 'door_closed',
+    category: 'station',
+    description: 'Three tiles tall. Right-click to open or close. Homes need one.',
+  },
+  {
+    id: 48,
+    key: 'glass_jar',
+    name: 'Glass Jar',
+    maxStack: STATION_STACK,
+    placesTile: null,
+    category: 'tool',
+    description: 'Right-click a firefly to catch it.',
+    icon: 21,
+    catches: 'firefly_jar',
+  },
+  {
+    id: 49,
+    key: 'firefly_jar',
+    name: 'Firefly Jar',
+    maxStack: STATION_STACK,
+    placesTile: 'firefly_jar',
+    category: 'light',
+    description: 'A soft light you can place.',
+  },
+  {
+    id: 50,
+    key: 'lumen_petal',
+    name: 'Lumen Petal',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    description: 'From an open Lumen bloom. Your lantern burns it as fuel.',
+    icon: 22,
+    fuel: 8,
+  },
+  {
+    id: 51,
+    key: 'beacon',
+    name: 'Beacon',
+    maxStack: STATION_STACK,
+    placesTile: 'beacon',
+    category: 'light',
+    description: 'Keeps shades and the Gloam away nearby. Right-click to travel between beacons.',
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {
@@ -558,6 +613,14 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'bucket', count: 4 },
     { item: 'silt', count: 40 },
     { item: 'elderwood_planks', count: 60 },
+  ],
+  village: [
+    { item: 'door', count: 6 },
+    { item: 'torch', count: 20 },
+    { item: 'elderwood_planks', count: 400 },
+    { item: 'iron_pickaxe', count: 1 },
+    { item: 'glass_jar', count: 5 },
+    { item: 'beacon', count: 2 },
   ],
   crafting: [
     { item: 'elderwood_pickaxe', count: 1 },

@@ -298,6 +298,8 @@ export const BUILDING = {
   placeInterval: 0.1,
   /** Seconds between bucket scoops or pours while held. */
   bucketInterval: 0.25,
+  /** Doors are this many tiles tall (the player is 2.4). */
+  doorHeight: 3,
 } as const;
 
 export const INVENTORY = {
@@ -580,6 +582,27 @@ export const MATERIALS_VIEW = {
   emberLift: 25,
   /** At most one ignition crackle per this many seconds. */
   igniteSoundGap: 0.6,
+} as const;
+
+/** Your village (plan 1.7, M10): homes and folk. Tiles and seconds. */
+export const SETTLEMENT = {
+  /** How often homes are re-checked and newcomers considered. */
+  checkSeconds: 2,
+  /** A home's open space: at least / at most this many cells (bigger = not closed in). */
+  minCells: 30,
+  maxCells: 220,
+  /** Share of a home's cells that need a background wall behind them. */
+  wallCoverage: 0.9,
+  /** Cells of headroom a resident needs where they stand. */
+  standHeight: 3,
+  /** Villagers stroll inside their home: walking speed and pause between strolls. */
+  walkSpeed: 30,
+  idleSecondsMin: 2,
+  idleSecondsMax: 6,
+  /** The Old Dryad stands this many tiles from the spawn tree's trunk. */
+  dryadOffset: 3,
+  /** Right-clicking someone within this many pixels of the cursor talks to them. */
+  talkSlop: 6,
 } as const;
 
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */

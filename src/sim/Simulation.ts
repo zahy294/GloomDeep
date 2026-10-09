@@ -5,6 +5,7 @@ import {
   HEALTH,
   ITEM_DROP,
   LIQUID,
+  SETTLEMENT,
   SIM,
   SPAWN,
   SWIM,
@@ -24,6 +25,10 @@ import {
   type CombatState,
 } from './systems/CombatSystem';
 import { SpawnSystem } from './systems/SpawnSystem';
+import { SettlementSystem } from './systems/SettlementSystem';
+import { BeaconSystem } from './systems/BeaconSystem';
+import { createInteractState, updateInteract, type InteractState } from './systems/InteractSystem';
+import { SPAWN_TREE } from '../data/trees';
 import { LiquidSystem } from './systems/LiquidSystem';
 import { FireSystem } from './systems/FireSystem';
 import { FallingSystem } from './systems/FallingSystem';
@@ -114,6 +119,9 @@ export class Simulation {
   readonly gloam: GloamSystem;
   private readonly lensState: LensState = createLensState();
   private readonly flareState: FlareState = createFlareState();
+  readonly settlement: SettlementSystem;
+  readonly beacons: BeaconSystem;
+  private readonly interactState: InteractState = createInteractState();
   readonly liquids: LiquidSystem;
   readonly fire: FireSystem;
   readonly falling: FallingSystem;
@@ -123,6 +131,7 @@ export class Simulation {
   /** Burning cells sent to the light job, nearest first (reused). */
   private readonly fireLights: number[] = [];
   private readonly splashPayload = { x: 0, y: 0, lava: false };
+  private readonly travelledPayload = { x: 0, y: 0 };
   private readonly crimsonCone: Cone = createCone();
   readonly mining: MiningState = createMiningState();
   private readonly building: BuildingState = createBuildingState();
@@ -171,6 +180,11 @@ export class Simulation {
       this.fire.ignite(x, y),
     );
     this.falling = new FallingSystem(this.world, this.events);
+    this.settlement = new SettlementSystem(this.world, this.events, this.random);
+    this.beacons = new BeaconSystem(this.world, this.events);
+    this.gloam.covered = (x, y) => this.beacons.covers(x, y);
+    // The Old Dryad waits by the spawn tree (a loaded world replaces it with the saved folk).
+    this.settlement.ensureDryad(this.dryadColumn());
     this.spawnsEnabled = options.spawns ?? false;
     this.combatContext = {
       player: this.player,
@@ -194,6 +208,7 @@ export class Simulation {
       random: this.random,
       nextId: () => this.nextEnemyId++,
       events: this.events,
+      safe: (x: number, y: number) => this.beacons.covers(x, y),
     };
     this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
@@ -284,6 +299,11 @@ export class Simulation {
       sim.drops.push(drop);
     }
     sim.rng.state = save.randomState >>> 0;
+    if (save.npcs.length > 0) sim.settlement.npcs.length = 0;
+    for (const n of save.npcs) sim.settlement.restore(n.key, n.x, n.y, n.homeId);
+    sim.settlement.ensureDryad(sim.dryadColumn());
+    // An older save doesn't know the starting Gloam: count from now.
+    if (save.gloamInitial >= 0) sim.gloam.initial = save.gloamInitial;
     return sim;
   }
 
@@ -337,6 +357,13 @@ export class Simulation {
         ...this.falling.savedAsDrops(),
       ],
       randomState: this.rng.state,
+      npcs: this.settlement.npcs.map((n) => ({
+        key: n.key,
+        x: n.body.x + n.body.width / 2,
+        y: n.body.y + n.body.height,
+        homeId: n.homeId,
+      })),
+      gloamInitial: this.gloam.initial,
       spawnX: this.spawnX,
       spawnY: this.spawnY,
     };
@@ -414,6 +441,20 @@ export class Simulation {
     this.stepCount++;
     this.applyCommands();
     this.updateRespawn(dt);
+    // Right-click on people, doors and beacons first: it claims the press from placing.
+    const interacting =
+      !this.player.dead &&
+      updateInteract(this.interactState, {
+        player: this.player,
+        input: this.input,
+        world: this.world,
+        npcs: this.settlement.npcs,
+        beacons: this.beacons,
+        events: this.events,
+        bodies: () => [this.player.body, ...this.settlement.npcs.map((n) => n.body)],
+        cleansed: () => this.gloam.cleansed,
+        tryCatch: (x, y) => this.tryCatch(x, y),
+      });
     updatePlayer(this.player, this.input, this.world, dt);
     // With a weapon selected the left button attacks instead of mining; the dead do neither.
     const armed = selectedWeapon(this.inventory) !== null;
@@ -428,7 +469,7 @@ export class Simulation {
       dt,
       armed || this.player.dead,
     );
-    if (!this.player.dead) {
+    if (!this.player.dead && !interacting) {
       updateBuilding(
         this.building,
         this.player,
@@ -439,7 +480,7 @@ export class Simulation {
         dt,
       );
     }
-    if (!this.player.dead) {
+    if (!this.player.dead && !interacting) {
       updateBuckets(
         this.bucketState,
         this.player,
@@ -483,6 +524,7 @@ export class Simulation {
     this.weather.update(this.elapsed, this.dayFraction, this.events);
     this.weather.applyToSun(this.day, this.sunNow);
     this.updateMaterials(dt);
+    this.settlement.update(dt);
     this.light.update(
       dt,
       this.elapsed,
@@ -662,6 +704,33 @@ export class Simulation {
     }
   }
 
+  /** Where the Old Dryad stands: beside the spawn tree's trunk, on the glade side. */
+  private dryadColumn(): number {
+    const spawn = Math.floor(this.spawnX / TILE_SIZE);
+    const trunk = spawn + SPAWN_TREE.offset;
+    return trunk + Math.sign(spawn - trunk || 1) * SETTLEMENT.dryadOffset;
+  }
+
+  /** Catching critters (fireflies in jars) — filled in by the critter system. */
+  private tryCatch(_x: number, _y: number): boolean {
+    return false;
+  }
+
+  /** Fast travel to a beacon: stand on top of it. */
+  private travel(x: number, y: number): void {
+    if (!this.beacons.at(x, y) || this.player.dead) return;
+    const b = this.player.body;
+    b.x = (x + 0.5) * TILE_SIZE - b.width / 2;
+    b.y = (y + 1) * TILE_SIZE - b.height;
+    b.vx = 0;
+    b.vy = 0;
+    this.player.prevX = b.x;
+    this.player.prevY = b.y;
+    this.travelledPayload.x = x;
+    this.travelledPayload.y = y;
+    this.events.emit('travelled', this.travelledPayload);
+  }
+
   /** Dead: count down, then come back at the spawn with full health (briefly invulnerable). */
   private updateRespawn(dt: number): void {
     const p = this.player;
@@ -742,6 +811,9 @@ export class Simulation {
         }
         case 'craft':
           this.craft(command.recipe, command.times);
+          break;
+        case 'travel':
+          this.travel(command.x, command.y);
           break;
       }
     }

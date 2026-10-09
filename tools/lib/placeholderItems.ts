@@ -199,6 +199,42 @@ const BUCKET = [
   '.....0000000....',
 ];
 
+/** A glass jar with a cork, fireflies glowing inside (y). */
+const JAR = [
+  '................',
+  '................',
+  '......BBBB......',
+  '......Bhdd......',
+  '.....000000.....',
+  '....03333330....',
+  '....03.y..30....',
+  '....03..y.30....',
+  '....03y...30....',
+  '....03..y.30....',
+  '....03.y.y30....',
+  '....02222220....',
+  '.....000000.....',
+  '................',
+  '................',
+  '................',
+];
+
+/** A Lumen petal: a curved glowing petal. */
+const LUMEN_PETAL = [
+  '................',
+  '................',
+  '..........000...',
+  '........00330...',
+  '......0033320...',
+  '.....03333220...',
+  '....033322220...',
+  '...033222210....',
+  '...03222210.....',
+  '..0322210.......',
+  '..022110........',
+  '..00000.........',
+];
+
 /** Frame order matches `icon` in src/data/items.ts. */
 const ICONS: readonly { pattern: readonly string[]; ramp: RampName; inside?: RampName | null }[] = [
   { pattern: PICKAXE, ramp: 'bark' }, // elderwood pickaxe
@@ -222,6 +258,8 @@ const ICONS: readonly { pattern: readonly string[]; ramp: RampName; inside?: Ram
   { pattern: BUCKET, ramp: 'stone', inside: null }, // bucket
   { pattern: BUCKET, ramp: 'stone', inside: 'cyan' }, // water bucket
   { pattern: BUCKET, ramp: 'stone', inside: 'ember' }, // lava bucket
+  { pattern: JAR, ramp: 'moonSilver', inside: null }, // glass jar (empty)
+  { pattern: LUMEN_PETAL, ramp: 'cyan' }, // lumen petal
 ];
 
 /** The `items` placeholder sheet: one row of 16×16 icons. */
@@ -235,7 +273,11 @@ export function buildItemIcons(): RgbaImage {
   const out = createImage(def.frameWidth * def.frames, def.frameHeight);
   ICONS.forEach(({ pattern, ramp, inside }, frame) => {
     // 'w' is the bucket's contents: liquid, or the dark inside of an empty bucket.
-    const colors = { ...legend(ramp), w: inside ? PALETTE[inside][2] : PALETTE[ramp][0] };
+    const colors = {
+      ...legend(ramp),
+      w: inside ? PALETTE[inside][2] : PALETTE[ramp][0],
+      y: PALETTE.honey[3], // fireflies in a jar
+    };
     paint((x, y, c) => setPixel(out, frame * def.frameWidth + x, y, c), pattern, colors);
   });
   return out;
@@ -298,10 +340,53 @@ const ANVIL = [
   '................',
 ];
 
+/** One cell of a 3-tall wooden door: planks with a frame and a brass handle. */
+const DOOR = [
+  'BBBBBBBBBBBBBBBB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhRhB',
+  'BhhdhhhdhhhdhRhB',
+  'BhhdhhhdhhhdhhhB',
+  'BBBBBBBBBBBBBBBB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BhhdhhhdhhhdhhhB',
+  'BBBBBBBBBBBBBBBB',
+];
+
+/** A beacon: a runestone plinth holding a large glowing crystal. */
+const BEACON = [
+  '.......00.......',
+  '......0330......',
+  '.....033320.....',
+  '.....033220.....',
+  '.....032220.....',
+  '......0220......',
+  '.......00.......',
+  '.....SSSSSS.....',
+  '......SssS......',
+  '......SssS......',
+  '......SssS......',
+  '......SssS......',
+  '.....SSssSS.....',
+  '....SSssssSS....',
+  '...SSSSSSSSSS...',
+  '...SSSSSSSSSS...',
+];
+
 const STATIONS = {
   workbench: { pattern: WORKBENCH, ramp: 'bark' },
   furnace: { pattern: FURNACE, ramp: 'stone' },
   anvil: { pattern: ANVIL, ramp: 'moonSilver' },
+  door: { pattern: DOOR, ramp: 'bark' },
+  jar: { pattern: JAR, ramp: 'moonSilver' },
+  beacon: { pattern: BEACON, ramp: 'cyan' },
 } as const satisfies Record<string, { pattern: readonly string[]; ramp: RampName }>;
 
 export type StationShape = keyof typeof STATIONS;
@@ -315,5 +400,14 @@ export function drawStation(
   const ember = PALETTE.ember;
   const honey = PALETTE.honey;
   // The furnace mouth glows: e/E ember, y the hot core.
-  paint(put, pattern, { ...legend(ramp), e: ember[1], E: ember[2], y: honey[3] });
+  const stone = PALETTE.moonSilver;
+  paint(put, pattern, {
+    ...legend(ramp),
+    e: ember[1],
+    E: ember[2],
+    y: honey[3],
+    R: PALETTE.gold[3],
+    S: stone[0],
+    s: stone[2],
+  });
 }

@@ -54,7 +54,7 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frames: 12,
   },
   /** Ground and ceiling flora, frame order = `decor.frame` in src/data/tiles.ts. */
-  { id: 'flora', placeholder: 'sprites/flora.png', frameWidth: 16, frameHeight: 32, frames: 13 },
+  { id: 'flora', placeholder: 'sprites/flora.png', frameWidth: 16, frameHeight: 32, frames: 16 },
   /** Sapling decorations: elder, moonbirch, willow. */
   {
     id: 'saplings',
@@ -64,7 +64,7 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frames: 3,
   },
   /** Item icons (frame = `icon` in src/data/items.ts): pickaxes, bars, lenses, flare, weapons. */
-  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 21 },
+  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 23 },
   /** Creatures (src/data/enemies.ts `frame`): two 24×24 frames each. */
   {
     id: 'enemies',

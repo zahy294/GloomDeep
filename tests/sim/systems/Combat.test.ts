@@ -252,6 +252,7 @@ describe('spawning', () => {
         return () => id++;
       })(),
       events,
+      safe: () => false,
     };
     return ctx;
   }

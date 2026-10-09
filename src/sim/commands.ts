@@ -23,6 +23,8 @@ export type SimCommand =
   | { readonly type: 'dropCursor' }
   /** The inventory screen closed: put the held stack back (what doesn't fit is dropped). */
   | { readonly type: 'stowCursor' }
+  /** Fast travel to the beacon at tile (x, y) (from a beacon's travel list). */
+  | { readonly type: 'travel'; readonly x: number; readonly y: number }
   /** Crafts a recipe (src/data/recipes.ts key) up to `times` times. */
   | { readonly type: 'craft'; readonly recipe: string; readonly times: number }
   /** Debug: jump to a time of day (0..1). */

@@ -368,6 +368,41 @@ function emberBloom(): PixelCanvas {
   return c;
 }
 
+/** A Lumen bloom, closed: a cyan bud wrapped in leaves. */
+function lumenBloom(): PixelCanvas {
+  const c = ground();
+  c.line(8, BASE, 8, 20, 'mint', [1, 2]);
+  c.line(8, 28, 5, 26, 'mint', [1, 2]);
+  c.line(8, 26, 11, 25, 'mint', [1, 2]);
+  c.ellipse(8, 17, 2, 4, 'cyan', 1);
+  c.outline();
+  c.set(8, 15, 'cyan', 2).set(7, 16, 'cyan', 2);
+  return c;
+}
+
+/** A Lumen bloom, open: wide glowing petals round a bright heart. */
+function lumenBloomOpen(): PixelCanvas {
+  const c = ground();
+  c.line(8, BASE, 8, 21, 'mint', [1, 2]);
+  c.line(8, 28, 5, 26, 'mint', [1, 2]);
+  c.line(8, 26, 11, 25, 'mint', [1, 2]);
+  c.ellipse(8, 17, 6, 3, 'cyan', 3);
+  c.ellipse(8, 14, 3, 4, 'cyan', 2);
+  c.outline();
+  c.rect(7, 16, 3, 2, 'mint', 3).set(8, 15, 'cyan', 3);
+  return c;
+}
+
+/** A small pale fairy-ring mushroom with a rose cap. */
+function fairyMushroom(): PixelCanvas {
+  const c = ground();
+  c.rect(7, 26, 2, 6, 'moonSilver', 3);
+  c.ellipse(8, 25, 4, 2, 'rose', 2);
+  c.outline();
+  c.set(6, 24, 'rose', 3).set(9, 25, 'moonSilver', 3);
+  return c;
+}
+
 const FLORA_BUILDERS: readonly (() => PixelCanvas)[] = [
   grassTuft,
   fern,
@@ -382,6 +417,9 @@ const FLORA_BUILDERS: readonly (() => PixelCanvas)[] = [
   glowmossTuft,
   crystalShard,
   emberBloom,
+  lumenBloom,
+  lumenBloomOpen,
+  fairyMushroom,
 ];
 
 function requireAsset(id: string) {
