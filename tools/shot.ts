@@ -12,7 +12,7 @@ import { CHUNK_RENDER, DEBUG, DISPLAY, TILE_SIZE, WORLD, WORLD_SIZES } from '../
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../src/data/biomes';
 import { itemId } from '../src/data/items';
 import { tileId } from '../src/data/tiles';
-import { integerZoom } from '../src/render/integerScale';
+import { viewSize } from '../src/render/integerScale';
 import { Simulation } from '../src/sim/Simulation';
 import { generateWorld } from '../src/workers/worldgen/generateWorld';
 import type { GameProbe } from '../src/types/window';
@@ -28,6 +28,8 @@ interface Shot {
   query: string;
   /** Runs after the page loads and before the screenshot. Throw to fail the shot. */
   prepare: (page: Page) => Promise<void>;
+  /** Browser viewport for this shot (default 1920×1080). */
+  viewport?: { width: number; height: number };
   /** Screenshot only this region (viewport pixels). */
   clip?: { x: number; y: number; width: number; height: number };
 }
@@ -65,9 +67,10 @@ function check(condition: boolean, message: string): void {
 const report: string[] = [];
 
 /** Canvas zoom for the shot viewport (device pixel ratio 1), and its letterbox offset. */
-const ZOOM = integerZoom(VIEWPORT.width, VIEWPORT.height, 1);
+const VIEW = viewSize(VIEWPORT.width, VIEWPORT.height, 1);
+const ZOOM = VIEW.zoom;
 const CANVAS_LEFT = (VIEWPORT.width - DISPLAY.width * ZOOM) / 2;
-const CANVAS_TOP = (VIEWPORT.height - DISPLAY.height * ZOOM) / 2;
+const CANVAS_TOP = (VIEWPORT.height - VIEW.height * ZOOM) / 2;
 
 /** Moves the real mouse over the centre of a world tile. */
 async function pointAtTile(page: Page, tx: number, ty: number): Promise<void> {
@@ -375,6 +378,26 @@ const SHOTS: Shot[] = [
         `save → reload: player at ${after.playerX},${after.playerY} (unchanged), ` +
           `41×21 tiles and walls around it and the inventory identical`,
       );
+    },
+  },
+  {
+    // A windowed 1080p browser (~950 px tall): rows are cropped to keep the ×2 zoom.
+    name: 'windowed-1080p-crop',
+    query: '?scene=game&time=noon',
+    viewport: { width: 1920, height: 950 },
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const size = await page.evaluate(() => {
+        const canvas = document.querySelector('canvas');
+        const rect = canvas?.getBoundingClientRect();
+        return { w: canvas?.width, h: canvas?.height, cssW: rect?.width, cssH: rect?.height };
+      });
+      const expected = viewSize(1920, 950, 1);
+      check(
+        size.w === DISPLAY.width && size.h === expected.height && size.cssW === 1920,
+        `expected a 960×${expected.height} canvas at ×2, got ${JSON.stringify(size)}`,
+      );
+      report.push(`windowed 1080p: ×${expected.zoom}, ${size.w}×${size.h} game pixels`);
     },
   },
   {
@@ -704,7 +727,7 @@ try {
   // `SHOT_ONLY=name1,name2 npm run shot` reruns just those shots.
   const only = process.env.SHOT_ONLY?.split(',');
   for (const shot of SHOTS.filter((s) => !only || only.includes(s.name))) {
-    const page = await browser.newPage({ viewport: VIEWPORT });
+    const page = await browser.newPage({ viewport: shot.viewport ?? VIEWPORT });
     page.on('pageerror', (err) => errors.push(`[${shot.name}] ${err.message}`));
     page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(`[${shot.name}] console: ${msg.text()}`);

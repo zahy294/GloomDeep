@@ -17,25 +17,33 @@ export class TitleScene extends Phaser.Scene {
 
   create(data?: { screen?: 'title' | 'worlds' }): void {
     this.cameras.main.setBackgroundColor(PALETTE.tealShadow[0]);
-    this.drawGroundStrip();
+    const strip = this.drawGroundStrip();
+    // The view height changes when the window is resized (rows are cropped to keep the zoom).
+    const place = () => strip.setY(this.scale.height - TitleScene.groundRows * TILE_SIZE);
+    place();
+    this.scale.on(Phaser.Scale.Events.RESIZE, place);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
+      this.scale.off(Phaser.Scale.Events.RESIZE, place),
+    );
 
     // The overlay shows the title or the world list on top of this backdrop (src/flow/WorldFlow.ts).
     this.bridge.set({ screen: data?.screen ?? 'title' });
   }
 
   /** A strip of every placeholder tile along the bottom, so the generated atlas is visible. */
-  private drawGroundStrip(): void {
+  private drawGroundStrip(): Phaser.GameObjects.Container {
     const solidTiles = TILES.filter((t) => t.placeholderRamp !== null);
     const rows = TitleScene.groundRows;
-    const top = DISPLAY.height - rows * TILE_SIZE;
+    const strip = this.add.container(0, 0);
     for (let row = 0; row < rows; row++) {
       for (let x = 0; x < DISPLAY.width; x += TILE_SIZE) {
         const tile = solidTiles[(x / TILE_SIZE + row) % solidTiles.length];
         if (!tile) continue;
-        this.add
-          .image(x, top + row * TILE_SIZE, TextureKey.tiles, iconFrame(tile.id))
-          .setOrigin(0, 0);
+        strip.add(
+          this.add.image(x, row * TILE_SIZE, TextureKey.tiles, iconFrame(tile.id)).setOrigin(0, 0),
+        );
       }
     }
+    return strip;
   }
 }

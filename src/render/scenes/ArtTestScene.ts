@@ -80,7 +80,7 @@ export class ArtTestScene extends Phaser.Scene {
   }
 
   private groundTop(): number {
-    return DISPLAY.height - GROUND_ROWS * TILE_SIZE;
+    return this.scale.height - GROUND_ROWS * TILE_SIZE;
   }
 
   /** Placeholder-or-approved grass and soil, so the asset is seen against the real tiles. */
@@ -172,7 +172,7 @@ export class ArtTestScene extends Phaser.Scene {
   private finish(): void {
     if (this.isNight()) {
       this.add
-        .rectangle(0, 0, DISPLAY.width, DISPLAY.height, NIGHT_TINT)
+        .rectangle(0, 0, DISPLAY.width, this.scale.height, NIGHT_TINT)
         .setOrigin(0, 0)
         .setBlendMode(Phaser.BlendModes.MULTIPLY);
     }

@@ -3,28 +3,37 @@ import { parseDebugParams } from '../../src/debugParams';
 import { CHUNK_RENDER } from '../../src/config';
 import { approach, clampAbs, clampScroll } from '../../src/render/cameraMath';
 import { chunkRangeFor, inRange, rangeSize } from '../../src/render/chunkMath';
-import { integerZoom } from '../../src/render/integerScale';
+import { viewSize } from '../../src/render/integerScale';
 
-describe('integerZoom', () => {
-  it('scales 960×540 by ×2 on a 1080p window', () => {
-    expect(integerZoom(1920, 1080, 1)).toBe(2);
+describe('viewSize', () => {
+  it('scales 960×540 by ×2 on a 1080p screen', () => {
+    expect(viewSize(1920, 1080, 1)).toEqual({ zoom: 2, height: 540 });
   });
 
-  it('uses the largest whole number that fits both dimensions', () => {
-    expect(integerZoom(2560, 1440, 1)).toBe(2); // ×2.67 would stretch; letterbox instead
-    expect(integerZoom(3840, 2160, 1)).toBe(4);
-    expect(integerZoom(1920, 900, 1)).toBe(1); // height limits it
+  it('crops rows to keep ×2 in a windowed 1080p browser instead of dropping to ×1', () => {
+    expect(viewSize(1920, 950, 1)).toEqual({ zoom: 2, height: 474 }); // even row count
+    expect(viewSize(1920, 900, 1)).toEqual({ zoom: 2, height: 450 });
+  });
+
+  it('never crops below the minimum height; drops a zoom level instead', () => {
+    expect(viewSize(1920, 800, 1)).toEqual({ zoom: 1, height: 540 }); // 400 rows at ×2 is too few
+  });
+
+  it('uses the largest whole number that fits the width, letterboxing extra height', () => {
+    expect(viewSize(2560, 1440, 1)).toEqual({ zoom: 2, height: 540 }); // ×2.67 would stretch
+    expect(viewSize(3840, 2160, 1)).toEqual({ zoom: 4, height: 540 });
   });
 
   it('counts device pixels, so OS display scaling still gives whole-number game pixels', () => {
     // A 1080p screen at 150% scaling reports a 1280×720 CSS viewport.
-    expect(integerZoom(1280, 720, 1.5)).toBe(2);
+    expect(viewSize(1280, 720, 1.5)).toEqual({ zoom: 2, height: 540 });
     // A 4K screen at 150% reports 2560×1440 CSS.
-    expect(integerZoom(2560, 1440, 1.5)).toBe(4);
+    expect(viewSize(2560, 1440, 1.5)).toEqual({ zoom: 4, height: 540 });
   });
 
   it('never drops below ×1 on small windows', () => {
-    expect(integerZoom(800, 400, 1)).toBe(1);
+    expect(viewSize(800, 400, 1)).toEqual({ zoom: 1, height: 540 });
+    expect(viewSize(960, 500, 1)).toEqual({ zoom: 1, height: 500 });
   });
 });
 

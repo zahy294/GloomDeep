@@ -4,6 +4,11 @@ export const DISPLAY = {
   /** Internal render resolution; the canvas is scaled up by whole numbers only. */
   width: 960,
   height: 540,
+  /**
+   * Rows may be cropped down to this height to keep a larger whole-number zoom (a windowed 1080p
+   * browser is ~950 px tall: ×2 with 474 rows instead of ×1 with 540).
+   */
+  minHeight: 432,
   /** Never scale below this, even if the window is smaller than the internal resolution. */
   minZoom: 1,
   /** Colour behind the letterbox bars. */

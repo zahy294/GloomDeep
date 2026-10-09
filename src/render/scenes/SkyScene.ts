@@ -11,8 +11,11 @@ export interface SkySource {
   day: DaySample;
 }
 
-/** Sun/moon path: an arc centred below the screen bottom, radius as a fraction of the width. */
-const ARC = { centreY: DISPLAY.height * 1.05, radiusX: DISPLAY.width * 0.45, radiusY: 420 };
+/**
+ * Sun/moon path: an arc centred just below the bottom of the view (whose height varies with the
+ * window, see integerScale.ts), radius as a fraction of the width.
+ */
+const ARC = { centreBelow: 1.05, radiusX: DISPLAY.width * 0.45, radiusY: 420 };
 const STAR_COUNT = 90;
 const STAR_SEED = 0x5ca7;
 /** Stars only appear in the top part of the sky. */
@@ -42,20 +45,16 @@ export class SkyScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.gradient = this.add
-      .gradient(
-        {
-          bands: [{ start: 0, end: 1, colorStart: PALETTE.moonSilver[1], colorEnd: 0xffffff }],
-          start: { x: 0, y: 0 },
-          shape: { x: 0, y: 1 },
-          dither: true,
-        },
-        0,
-        0,
-        DISPLAY.width,
-        DISPLAY.height,
-      )
-      .setOrigin(0, 0);
+    this.makeGradient();
+    // Rows are cropped or restored when the window is resized: keep the horizon colour at the bottom.
+    const resize = () => {
+      this.gradient.destroy();
+      this.makeGradient();
+    };
+    this.scale.on(Phaser.Scale.Events.RESIZE, resize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
+      this.scale.off(Phaser.Scale.Events.RESIZE, resize),
+    );
 
     this.stars = this.add.graphics();
     const random = mulberry32(STAR_SEED);
@@ -90,11 +89,33 @@ export class SkyScene extends Phaser.Scene {
     this.placeOnArc(this.moon, dayFraction + 0.25);
   }
 
+  private makeGradient(): void {
+    this.gradient = this.add
+      .gradient(
+        {
+          bands: [{ start: 0, end: 1, colorStart: PALETTE.moonSilver[1], colorEnd: 0xffffff }],
+          start: { x: 0, y: 0 },
+          shape: { x: 0, y: 1 },
+          dither: true,
+        },
+        0,
+        0,
+        DISPLAY.width,
+        this.scale.height,
+      )
+      .setOrigin(0, 0)
+      .setDepth(-1);
+    // Force the day colours to be encoded into the new gradient on the next update.
+    this.encodedTop = -1;
+    this.encodedHorizon = -1;
+  }
+
   /** `phase` 0 = rising on the left horizon, 0.25 = top, 0.5 = setting on the right. */
   private placeOnArc(body: Phaser.GameObjects.Image, phase: number): void {
     const angle = (((phase % 1) + 1) % 1) * Math.PI * 2;
     const x = DISPLAY.width / 2 - Math.cos(angle) * ARC.radiusX;
-    const y = ARC.centreY - Math.sin(angle) * ARC.radiusY;
-    body.setPosition(Math.round(x), Math.round(y)).setVisible(y < ARC.centreY);
+    const centreY = this.scale.height * ARC.centreBelow;
+    const y = centreY - Math.sin(angle) * ARC.radiusY;
+    body.setPosition(Math.round(x), Math.round(y)).setVisible(y < centreY);
   }
 }
