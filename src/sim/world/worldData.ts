@@ -41,6 +41,8 @@ export interface GeneratedWorld {
   /** Player spawn, feet-centre, pixels. */
   spawnX: number;
   spawnY: number;
+  /** Columns where cave entrances open at the surface (not saved; tests and debug starts). */
+  caveMouths?: number[];
 }
 
 export interface SavedPlayer {

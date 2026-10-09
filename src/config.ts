@@ -111,6 +111,37 @@ export const WORLDGEN = {
   /** Max turn per step (radians, ± half) and vertical squash: mostly horizontal tunnels. */
   wormTurn: 0.6,
   wormVerticalScale: 0.6,
+  /**
+   * Cave entrances (Minecraft-like): winding tunnels from the surface down into the depths.
+   * They descend in switchbacks at a walkable slope (angles from horizontal, radians), so you can
+   * walk down and climb back out; small chambers open up along the way.
+   */
+  caveEntrances: {
+    perThousandColumns: 1.5,
+    /** One entrance this far (columns) from the spawn, on a random side, so it's easy to find. */
+    nearSpawnMin: 60,
+    nearSpawnMax: 110,
+    /** Entrances keep at least this many columns apart and away from the spawn glade. */
+    spacing: 120,
+    /** How deep they reach, as a fraction of the world's height. */
+    depthFraction: 0.55,
+    minSlope: 0.4,
+    maxSlope: 0.9,
+    turn: 0.25,
+    /** Steps between switchbacks (the tunnel reverses horizontal direction). */
+    switchbackMin: 25,
+    switchbackMax: 55,
+    radius: 2.2,
+    mouthRadius: 3.2,
+    /** Chance per step of a small chamber, and its radius. */
+    chamberChance: 0.02,
+    chamberRadius: 4.5,
+    maxSteps: 3000,
+    /** Giant trees stay this many columns away from a mouth. */
+    treeClearance: 14,
+    /** Loose silt and gravel this many tiles around a tunnel become stone (it can't cave in). */
+    firmRing: 2,
+  },
   /** Large open caverns (low-frequency noise). */
   cavernWavelength: 140,
   cavernThreshold: 0.78,
@@ -176,7 +207,7 @@ export const WORLDGEN = {
    */
   spiritBridges: {
     perThousandColumns: 5,
-    attemptsPerBridge: 200,
+    attemptsPerBridge: 400,
     minSpan: 4,
     maxSpan: 9,
     pitDepthMin: 5,
@@ -768,6 +799,8 @@ export const DEBUG = {
   overlayRefreshHz: 4,
   /** World seed for `?scene=game` starts without `seed=`. */
   defaultSeed: 1,
+  /** `?spot=entrance`: stand this many tiles before the cave mouth (on the spawn's side). */
+  entranceStandOff: 6,
   /** `?enemy=`: how many tiles right of the player the creature stands. */
   enemyOffsetTiles: 4,
 } as const;

@@ -769,6 +769,8 @@ const SHOTS: Shot[] = [
   ...GLOAM_SHOTS,
   ...COMBAT_SHOTS,
   ...MATERIAL_SHOTS,
+  // M10: a cave entrance near the spawn, and inside it, looking down the switchbacks.
+  { name: 'cave-entrance', query: '?scene=game&time=noon&ui=0&spot=entrance', prepare: settled(2000) },
   { name: 'title', query: '', prepare: (page) => waitForScreen(page, 'title') },
   {
     // M4: the title leads to the world list (with an empty IndexedDB: no worlds yet).

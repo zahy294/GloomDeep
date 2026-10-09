@@ -88,5 +88,6 @@ export function generateWorld(
     },
     spawnX: ctx.spawnX,
     spawnY: ctx.spawnY,
+    caveMouths: [...ctx.caveMouths],
   };
 }

@@ -866,6 +866,16 @@ export class GameScene extends Phaser.Scene {
     let feet: { x: number; y: number } | null = null;
     if (x !== null && y !== null) {
       feet = { x, y: findOpenFeetRow(sim.world, x, y, Math.ceil(PLAYER.height / TILE_SIZE)) };
+    } else if (spot === 'entrance') {
+      // Beside the cave mouth nearest the spawn, on the ground before it opens.
+      const sx = Math.floor(generated.spawnX / TILE_SIZE);
+      const mouths = generated.caveMouths ?? [];
+      const mouth = mouths.reduce(
+        (a, b) => (Math.abs(b - sx) < Math.abs(a - sx) ? b : a),
+        mouths[0] ?? sx,
+      );
+      const fx = mouth + (mouth > sx ? -DEBUG.entranceStandOff : DEBUG.entranceStandOff);
+      feet = { x: fx, y: sim.world.groundRow(fx) };
     } else if (biome !== null || spot !== null) {
       feet = findDebugSpawn(sim.world, { biome, spot });
       if (!feet)

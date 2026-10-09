@@ -69,6 +69,8 @@ export function caves(ctx: GenContext): void {
     }
   }
 
+  caveEntrances(ctx);
+
   const random = stepRandom(ctx, 4);
   const worms = Math.round((width / 1000) * WORLDGEN.wormsPerThousandColumns);
   for (let w = 0; w < worms; w++) {
@@ -88,6 +90,85 @@ export function caves(ctx: GenContext): void {
       x += Math.cos(angle);
       y += Math.sin(angle) * WORLDGEN.wormVerticalScale;
       if (x < 2 || x > width - 3 || y < 2 || y > height - 3) break;
+    }
+  }
+}
+
+/**
+ * Cave entrances (part of step 4): tunnels that open at the surface and wind down into the
+ * depths in walkable switchbacks, like the cave mouths of other sandbox games. One opens a short
+ * walk from the spawn. They are carved before the noise caves' rule `caveMinDepth` applies, so they
+ * cut through the soil; the spawn glade stays protected.
+ */
+function caveEntrances(ctx: GenContext): void {
+  const cfg = WORLDGEN.caveEntrances;
+  const { width, height } = ctx;
+  const random = stepRandom(ctx, 14);
+  const centre = Math.floor(width / 2);
+  const margin = WORLDGEN.wormEdgeMargin + cfg.spacing / 2;
+  const mouths: number[] = [];
+  const free = (x: number) =>
+    x > margin &&
+    x < width - margin &&
+    Math.abs(x - centre) > WORLDGEN.spawnHalfWidth + cfg.mouthRadius &&
+    mouths.every((m) => Math.abs(m - x) >= cfg.spacing);
+  // The one near the spawn first.
+  const side = random() < 0.5 ? -1 : 1;
+  const near =
+    centre + side * Math.round(cfg.nearSpawnMin + random() * (cfg.nearSpawnMax - cfg.nearSpawnMin));
+  if (free(near)) mouths.push(near);
+  const wanted = Math.max(1, Math.round((width / 1000) * cfg.perThousandColumns));
+  for (let tries = 0; tries < wanted * 20 && mouths.length < wanted; tries++) {
+    const x = Math.floor(random() * width);
+    if (free(x)) mouths.push(x);
+  }
+  const bottom = Math.floor(height * cfg.depthFraction);
+  for (const mouth of mouths) {
+    ctx.caveMouths.push(mouth);
+    let x = mouth;
+    let y = (ctx.surface[mouth] ?? 0) - 1;
+    let dir = random() < 0.5 ? -1 : 1;
+    let slope = cfg.minSlope + random() * (cfg.maxSlope - cfg.minSlope);
+    let untilTurn = cfg.switchbackMin + random() * (cfg.switchbackMax - cfg.switchbackMin);
+    for (let step = 0; step < cfg.maxSteps && y < bottom; step++) {
+      const surface = ctx.surface[Math.round(x)] ?? 0;
+      const r =
+        y < surface + 2
+          ? cfg.mouthRadius
+          : random() < cfg.chamberChance
+            ? cfg.chamberRadius
+            : cfg.radius;
+      carveTunnel(ctx, Math.round(x), Math.round(y), r);
+      slope = Math.min(cfg.maxSlope, Math.max(cfg.minSlope, slope + (random() - 0.5) * cfg.turn));
+      x += Math.cos(slope) * dir;
+      y += Math.sin(slope);
+      // Turn back at the world's edges and at the protected spawn glade (carving skips it).
+      const glade = Math.abs(x + dir * cfg.mouthRadius - centre) <= WORLDGEN.spawnHalfWidth;
+      if (--untilTurn <= 0 || x < margin || x > width - margin || glade) {
+        dir = -dir as 1 | -1;
+        untilTurn = cfg.switchbackMin + random() * (cfg.switchbackMax - cfg.switchbackMin);
+      }
+    }
+  }
+}
+
+/**
+ * Carves an open disc (for entrances: allowed above caveMinDepth, never in the spawn glade), and
+ * firms up loose silt and gravel in a ring around it into stone, so settling can't plug the
+ * tunnel and its roof holds.
+ */
+function carveTunnel(ctx: GenContext, cx: number, cy: number, radius: number): void {
+  const firm = WORLDGEN.caveEntrances.firmRing;
+  const outer = radius + firm;
+  const r = Math.ceil(outer);
+  for (let y = cy - r; y <= cy + r; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      if (x < 1 || x >= ctx.width - 1 || y < 1 || y >= ctx.height - 1) continue;
+      const d2 = (x - cx) ** 2 + (y - cy) ** 2;
+      if (d2 > outer * outer || inSpawnArea(ctx, x, y)) continue;
+      const i = y * ctx.width + x;
+      if (d2 <= radius * radius) ctx.fg[i] = AIR;
+      else if (ctx.fg[i] === T.silt || ctx.fg[i] === T.gravel) ctx.fg[i] = T.stone;
     }
   }
 }
@@ -208,7 +289,6 @@ export function liquids(ctx: GenContext): void {
 export function decorations(ctx: GenContext): void {
   caveFeatures(ctx);
   flora(ctx);
-  spiritBridges(ctx);
 }
 
 /**
@@ -336,5 +416,7 @@ export function settle(ctx: GenContext): void {
       }
     }
   }
+  // After the settling, so no loose silt or gravel comes to rest on an unseen platform.
+  spiritBridges(ctx);
   placeWaterfalls(ctx);
 }

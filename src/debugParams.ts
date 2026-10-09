@@ -31,8 +31,11 @@ export interface DebugParams {
   pack: string | null;
   /** Debug start: spawn in this surface biome or depth layer (src/data/biomes.ts key). */
   biome: string | null;
-  /** Debug start: `spot=cave` spawns in an open cave pocket, `spot=waterfall` beside a waterfall. */
-  spot: 'cave' | 'waterfall' | null;
+  /**
+   * Debug start: `spot=cave` spawns in an open cave pocket, `spot=waterfall` beside a waterfall,
+   * `spot=entrance` at the cave entrance nearest the spawn.
+   */
+  spot: 'cave' | 'waterfall' | 'entrance' | null;
   /** Debug start world size (`size=small|medium|large`). */
   size: WorldSizeKey | null;
   /** `rain=0..1` forces the rain intensity for rendering only (screenshots); null = real weather. */
@@ -84,7 +87,8 @@ export function parseDebugParams(search: string): DebugParams {
     quality: (['low', 'medium', 'high'] as const).find((q) => q === params.get('quality')) ?? null,
     pack: nameParam(params, 'pack'),
     biome: nameParam(params, 'biome'),
-    spot: (['cave', 'waterfall'] as const).find((s) => s === params.get('spot')) ?? null,
+    spot:
+      (['cave', 'waterfall', 'entrance'] as const).find((s) => s === params.get('spot')) ?? null,
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
     rain: unitParam(params, 'rain'),
     kit: nameParam(params, 'kit'),

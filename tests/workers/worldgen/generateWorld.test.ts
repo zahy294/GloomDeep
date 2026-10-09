@@ -213,6 +213,34 @@ describe('giant trees (medium world)', () => {
     }
   });
 
+  it('has cave entrances that lead from the surface into the depths, one near the spawn', () => {
+    const mouths = generated.caveMouths ?? [];
+    expect(mouths.length).toBeGreaterThanOrEqual(4);
+    expect(mouths.some((m) => Math.abs(m - spawnX) <= 120)).toBe(true);
+    for (const mouth of mouths) {
+      // Flood open cells from just above the ground at the mouth; it must reach deep down.
+      const startY = world.groundRow(mouth) - 1;
+      const seen = new Uint8Array(MW * MH);
+      const stack = [startY * MW + mouth];
+      let deepest = startY;
+      while (stack.length > 0) {
+        const i = stack.pop() ?? 0;
+        if (seen[i]) continue;
+        seen[i] = 1;
+        const x = i % MW;
+        const y = (i - x) / MW;
+        if (world.isSolid(x, y) || y < startY - 3 || Math.abs(x - mouth) > 600) continue;
+        deepest = Math.max(deepest, y);
+        if (deepest > MH * 0.5) break;
+        if (x > 0) stack.push(i - 1);
+        if (x < MW - 1) stack.push(i + 1);
+        if (y > 0) stack.push(i - MW);
+        if (y < MH - 1) stack.push(i + MW);
+      }
+      expect(deepest, `entrance at column ${mouth}`).toBeGreaterThan(MH * 0.5);
+    }
+  });
+
   it('every surface biome has giant trees', () => {
     const biomes = new Set(trunks().map((x) => world.surfaceBiome[x]));
     expect(biomes.size).toBe(SURFACE_BIOMES.length);

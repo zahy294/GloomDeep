@@ -26,6 +26,8 @@ export interface GenContext {
   spawnArea: { x0: number; x1: number; y0: number; y1: number };
   spawnX: number;
   spawnY: number;
+  /** Columns where a cave entrance opens at the surface (giant trees keep clear of them). */
+  caveMouths: number[];
 }
 
 export function createContext(
@@ -51,6 +53,7 @@ export function createContext(
     spawnArea: { x0: 0, x1: -1, y0: 0, y1: -1 },
     spawnX: 0,
     spawnY: 0,
+    caveMouths: [],
   };
 }
 

@@ -60,6 +60,9 @@ export function giantTrees(ctx: GenContext): void {
 
 /** Flat, dry ground around the trunk. */
 function siteOk(ctx: GenContext, x: number): boolean {
+  // Not on a cave mouth: roots would plug it.
+  const clear = WORLDGEN.caveEntrances.treeClearance;
+  if (ctx.caveMouths.some((m) => Math.abs(m - x) < clear)) return false;
   const ground = ctx.surface[x] ?? 0;
   for (let dx = -TREE.siteHalfWidth; dx <= TREE.siteHalfWidth; dx++) {
     const s = ctx.surface[x + dx];
