@@ -1,3 +1,4 @@
+import { removeUnsupportedDecor } from './flora';
 import { TILE_SIZE } from '../../config';
 import { DEPTH_LAYERS } from '../../data/biomes';
 import type { GeneratedWorld } from '../../sim/world/worldData';
@@ -19,6 +20,7 @@ const SPAWN_CLEARANCE = 4;
  * step broke that), and the spawn is recorded. Boss arena reachability joins when arenas exist.
  */
 export function validate(ctx: GenContext): void {
+  removeUnsupportedDecor(ctx);
   const { width, fg, liquid } = ctx;
   const x = Math.floor(width / 2);
   const ground = ctx.surface[x] ?? 0;

@@ -42,8 +42,8 @@ Working file for M5; delete it when M5 is committed. Plan sections: 2.0, 2.2, 2.
 - [x] **A1** ✅ Tile properties: platforms, blocksSun, lightFalloff, decor + support rule; skyline; light worker per-tile falloff; tests (collision: platforms, drop-through; support; skyline; light).
 - [x] **A2** ✅ WeatherSystem + wind + lightning (sim, data `src/data/weather.ts`); tests.
 - [x] **A3** ✅ Light pulse + touch brighten (sim); tests.
-- [ ] **B1** Giant trees in worldgen (data `trees.ts`); tests (deterministic, spawn clear, canopy blocks sun, branches walkable).
-- [ ] **B2** Flora + rune ruins in worldgen (data `flora.ts`); tests.
+- [x] **B1** ✅ Giant trees in worldgen (data `trees.ts`); tests (deterministic, spawn clear, canopy blocks sun, branches walkable).
+- [x] **B2** ✅ Flora + rune ruins in worldgen (data `flora.ts`); tests.
 - [x] **C1** ✅ Placeholder art: new tiles, decor sprite sheets, small trees, parallax layers, foreground canopy, light-shaft texture.
 - [ ] **D1** Parallax + back mist (SkyScene).
 - [ ] **D2** FoliageRenderer (SpriteGPULayer, sway with wind, bend near player, falling leaves).

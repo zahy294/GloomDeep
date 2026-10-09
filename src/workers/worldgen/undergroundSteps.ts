@@ -2,6 +2,7 @@ import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../data/biomes';
 import { tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
+import { flora } from './flora';
 import {
   AIR,
   inSpawnArea,
@@ -192,9 +193,16 @@ export function liquids(ctx: GenContext): void {
 
 /**
  * Step 9 — decorations and flora: each layer's signature feature (glowcaps, roots, crystals) grows
- * in small clumps on cave floors, walls and ceilings. Surface flora comes with M5's visuals.
+ * in clumps on cave rock, then flora (grass, flowers, saplings, glowing plants, hanging moss) is
+ * placed by the rules in src/data/flora.ts.
  */
 export function decorations(ctx: GenContext): void {
+  caveFeatures(ctx);
+  flora(ctx);
+}
+
+/** Each layer's signature feature in small clumps on cave floors, walls and ceilings. */
+function caveFeatures(ctx: GenContext): void {
   const { width, height, fg, liquid } = ctx;
   const random = stepRandom(ctx, 9);
   // Neighbour offsets and a scratch list, allocated once (this loop visits every cell).

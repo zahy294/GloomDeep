@@ -3,6 +3,9 @@ import { TILE_SIZE } from '../../../src/config';
 import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../../src/data/biomes';
 import { tileId, TILES } from '../../../src/data/tiles';
 import { generateWorld, WORLDGEN_STEPS } from '../../../src/workers/worldgen/generateWorld';
+import { SPAWN_TREE } from '../../../src/data/trees';
+import { Simulation } from '../../../src/sim/Simulation';
+import { decorSupported, isDecor } from '../../../src/sim/world/decor';
 
 const W = 700;
 const H = 360;
@@ -125,4 +128,102 @@ describe('generateWorld', () => {
     console.log(`medium world generated in ${Math.round(ms)} ms`);
     expect(ms).toBeLessThan(15_000);
   }, 30_000);
+});
+
+describe('giant trees (medium world)', () => {
+  const MW = 4200;
+  const MH = 1200;
+  const generated = generateWorld(MW, MH, 1);
+  const { world } = Simulation.fromGenerated(generated);
+  const TRUNK = tileId('living_wood');
+  const BRANCH = tileId('branch');
+  const spawnX = Math.floor(generated.spawnX / TILE_SIZE);
+
+  /** Trunk centres: runs of living-wood wall columns 10 rows above the ground. */
+  function trunks(): number[] {
+    const found: number[] = [];
+    let start = -1;
+    for (let x = 0; x <= MW; x++) {
+      const y = world.groundRow(Math.min(x, MW - 1)) - 10;
+      const isTrunk = x < MW && world.getBg(x, y) === TRUNK;
+      if (isTrunk && start < 0) start = x;
+      if (!isTrunk && start >= 0) {
+        found.push(Math.floor((start + x - 1) / 2));
+        start = -1;
+      }
+    }
+    return found;
+  }
+
+  it('grows a giant tree at the edge of the starting glade, its canopy over the spawn side', () => {
+    const near = trunks().filter((x) => Math.abs(x - (spawnX + SPAWN_TREE.offset)) <= 3);
+    expect(near).toHaveLength(1);
+    // The canopy filters the sun over part of the glade, with gaps letting full sun through.
+    const span = Array.from({ length: 60 }, (_, i) => spawnX + SPAWN_TREE.offset - 30 + i);
+    expect(span.some((x) => world.canopyShade[x]! < 1)).toBe(true);
+    expect(span.some((x) => world.canopyShade[x] === 1)).toBe(true);
+    // The spawn itself stays clear: open air above the feet.
+    const ground = world.groundRow(spawnX);
+    for (let y = ground - 3; y < ground; y++) expect(world.isSolid(spawnX, y)).toBe(false);
+  });
+
+  it('every surface biome has giant trees', () => {
+    const biomes = new Set(trunks().map((x) => world.surfaceBiome[x]));
+    expect(biomes.size).toBe(SURFACE_BIOMES.length);
+  });
+
+  it('branches are walkable platforms (no solid block on top of them)', () => {
+    let branches = 0;
+    for (let i = 0; i < MW * MH; i++) {
+      if (world.fg[i] !== BRANCH) continue;
+      branches++;
+      const x = i % MW;
+      const y = (i - x) / MW;
+      expect(world.isSolid(x, y - 1)).toBe(false);
+    }
+    expect(branches).toBeGreaterThan(20);
+  });
+
+  it('every decoration is supported', () => {
+    let decor = 0;
+    for (let i = 0; i < MW * MH; i++) {
+      const id = world.fg[i]!;
+      if (!isDecor(id)) continue;
+      decor++;
+      const x = i % MW;
+      expect(decorSupported(world, x, (i - x) / MW, id)).toBe(true);
+    }
+    expect(decor).toBeGreaterThan(0);
+  });
+
+  it('each surface biome grows its own flora; caves grow theirs', () => {
+    const count = (key: string) => {
+      const id = tileId(key);
+      let n = 0;
+      for (let i = 0; i < MW * MH; i++) if (world.fg[i] === id) n++;
+      return n;
+    };
+    for (const key of ['grass_tuft', 'fern', 'silver_grass', 'moonpetal_bloom', 'mire_reed']) {
+      expect(count(key), key).toBeGreaterThan(20);
+    }
+    for (const key of ['glowcap_sprout', 'glowmoss_tuft', 'crystal_shard', 'hanging_moss']) {
+      expect(count(key), key).toBeGreaterThan(10);
+    }
+    expect(
+      count('elder_sapling') + count('moonbirch_sapling') + count('willow_sapling'),
+    ).toBeGreaterThan(5);
+  });
+
+  it('a small rune ruin stands on the glade, left of the spawn', () => {
+    const RUNE = tileId('carved_runestone');
+    const STONE = tileId('runestone');
+    let ruin = 0;
+    for (let x = spawnX - 30; x < spawnX; x++) {
+      for (let y = world.groundRow(x) - 8; y < world.groundRow(x) + 1; y++) {
+        const id = world.get(x, y);
+        if (id === RUNE || id === STONE) ruin++;
+      }
+    }
+    expect(ruin).toBeGreaterThanOrEqual(4);
+  });
 });

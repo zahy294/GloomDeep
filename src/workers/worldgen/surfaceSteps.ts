@@ -3,6 +3,8 @@ import { DEPTH_LAYERS, SURFACE_BIOMES } from '../../data/biomes';
 import { tileId } from '../../data/tiles';
 import { valueNoise1, valueNoise2 } from '../../sim/random';
 import { layerAt, noiseSeed, stepRandom, type GenContext } from './context';
+import { ruins } from './flora';
+import { giantTrees } from './giantTrees';
 
 const smoothstep = (t: number) => {
   const c = Math.min(1, Math.max(0, t));
@@ -135,12 +137,13 @@ export function dirtAndStone(ctx: GenContext): void {
 }
 
 /**
- * Step 7 — structures. M4 builds only the starting glade (flattened in step 2 and kept free of
- * caves, liquids and features). Giant trees (M5), ruins/shrines/arenas (M5–M12) and town prefabs
- * (M11) plug in here.
+ * Step 7 — structures: giant ancient trees (one at the edge of the starting glade) and small rune
+ * ruins (one on the glade).
+ * Ruins/shrines/arenas (M5–M12) and town prefabs (M11) plug in here.
  */
-export function structures(_ctx: GenContext): void {
-  // Intentionally empty for M4; see the doc comment.
+export function structures(ctx: GenContext): void {
+  giantTrees(ctx);
+  ruins(ctx);
 }
 
 /**

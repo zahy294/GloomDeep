@@ -112,6 +112,44 @@ export const WORLDGEN = {
   veinSizeRandomMin: 0.5,
   /** Secondary rock: noise above 1 − altRockAmount × this becomes the alt rock. */
   altRockSpread: 2.2,
+  /** Giant trees (src/data/trees.ts holds the species). */
+  trees: {
+    /** No trees this close to the world's sides, or this close to the world's top. */
+    edgeMargin: 60,
+    skyMargin: 4,
+    /** Where no species grows, step this far to the next candidate site. */
+    emptySiteStep: 40,
+    /** Ground within ±siteHalfWidth of the trunk may differ by at most maxSlope rows. */
+    siteHalfWidth: 6,
+    maxSlope: 3,
+    /** Trunk walls continue this far into the ground; the trunk never gets narrower than this. */
+    trunkFooting: 3,
+    minTrunkWidth: 2,
+    /** Branches rise one row every this many tiles. */
+    branchRiseEvery: 4,
+    /** Canopy lumps: placed this far out (fraction of the radii), sized relative to the crown. */
+    lumpReach: 0.8,
+    lumpSize: 0.55,
+    lumpMinScale: 0.6,
+    /** Willow curtains: fraction of columns with a strand, shortest strand as a fraction. */
+    droopDensity: 0.45,
+    droopMin: 0.35,
+    /** Hanging vines/moss: fraction of underside columns, longest chain. */
+    hangingDensity: 0.22,
+    hangingMaxLength: 6,
+    /** Roots: chance per step of growing outward (otherwise down). */
+    rootOutward: 0.6,
+  },
+  /** Flora and ruins (src/data/flora.ts holds the rules). */
+  flora: {
+    /** Saplings are drawn 3 tiles wide: keep them at least this many columns apart. */
+    saplingSpacing: 5,
+    /** Ruins: tries per wanted ruin, clear flat ground on either side, and how high to look for a
+     * giant tree trunk (so ruins never stand inside one). */
+    ruinAttempts: 20,
+    ruinClearance: 8,
+    trunkCheckHeight: 6,
+  },
   /** Feature clumps (glowcaps, roots, crystals) placed on cave surfaces: max size in tiles. */
   featureClumpMax: 4,
   /** Chance per exposed cave cell of a clump = layer featureAmount × this. */
