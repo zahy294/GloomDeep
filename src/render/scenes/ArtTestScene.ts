@@ -71,7 +71,9 @@ export class ArtTestScene extends Phaser.Scene {
       if (asset.category === 'terrain' && asset.material) this.drawTerrain(key, asset.material);
       else this.drawFrames(key);
       if (info.hasStyleReference) this.drawReference();
-      this.label(`${asset.id} · ${asset.category} · ${asset.status} · ${this.params.time}`);
+      this.label(
+        `${asset.id} · ${asset.category} · ${asset.status} · ${this.isNight() ? 'night' : 'day'}`,
+      );
       this.finish();
     });
     this.load.start();
@@ -153,6 +155,12 @@ export class ArtTestScene extends Phaser.Scene {
     image.setScale(1 / divisor);
   }
 
+  /** Night approximation for review screenshots (the scene has no lighting system of its own). */
+  private isNight(): boolean {
+    const t = this.params.time;
+    return t === 'night' || t === 'midnight' || t === 'dusk';
+  }
+
   private label(text: string): void {
     this.add.text(MARGIN, MARGIN, text, {
       fontFamily: 'monospace',
@@ -162,7 +170,7 @@ export class ArtTestScene extends Phaser.Scene {
   }
 
   private finish(): void {
-    if (this.params.time === 'night') {
+    if (this.isNight()) {
       this.add
         .rectangle(0, 0, DISPLAY.width, DISPLAY.height, NIGHT_TINT)
         .setOrigin(0, 0)

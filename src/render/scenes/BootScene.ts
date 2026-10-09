@@ -1,11 +1,16 @@
 import * as Phaser from 'phaser';
 import { TILE_SIZE } from '../../config';
+import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
 import type { SpriteAtlasInfo } from '../../data/artManifest';
 import { registerSpriteFrames } from '../spriteFrames';
 import { DataKey, DEFAULT_PACK_DIR, PackFile, SceneKey, TextureKey } from './keys';
 
 const PARTICLE_PX = 2;
+const SUN_RADIUS = 11;
+const MOON_RADIUS = 8;
+/** Glow sprite size; drawn smooth (linear filtering) and scaled to each light's radius. */
+const GLOW_PX = 64;
 
 /** Loads what every other scene needs, then hands over to the title (or a debug start scene). */
 export class BootScene extends Phaser.Scene {
@@ -36,9 +41,53 @@ export class BootScene extends Phaser.Scene {
       .fillRect(0, 0, PARTICLE_PX, PARTICLE_PX)
       .generateTexture(TextureKey.particle, PARTICLE_PX, PARTICLE_PX)
       .destroy();
+    this.makeSkyBodies();
+    this.makeGlow();
     const next = { title: SceneKey.Title, game: SceneKey.Game, 'art-test': SceneKey.ArtTest }[
       this.params.scene
     ];
     this.scene.start(next);
+  }
+
+  private makeSkyBodies(): void {
+    const d = SUN_RADIUS * 2 + 2;
+    this.make
+      .graphics({}, false)
+      .fillStyle(PALETTE.honey[1])
+      .fillCircle(d / 2, d / 2, SUN_RADIUS)
+      .fillStyle(PALETTE.gold[3])
+      .fillCircle(d / 2, d / 2, SUN_RADIUS - 1)
+      .fillStyle(PALETTE.honey[3])
+      .fillCircle(d / 2 - 2, d / 2 - 2, SUN_RADIUS - 5)
+      .generateTexture(TextureKey.sun, d, d)
+      .destroy();
+    const m = MOON_RADIUS * 2 + 2;
+    this.make
+      .graphics({}, false)
+      .fillStyle(PALETTE.moonSilver[1])
+      .fillCircle(m / 2, m / 2, MOON_RADIUS)
+      .fillStyle(PALETTE.moonSilver[3])
+      .fillCircle(m / 2, m / 2, MOON_RADIUS - 1)
+      .fillStyle(PALETTE.moonSilver[2])
+      .fillCircle(m / 2 + 2, m / 2 + 1, 2)
+      .fillCircle(m / 2 - 3, m / 2 - 2, 1)
+      .generateTexture(TextureKey.moon, m, m)
+      .destroy();
+  }
+
+  /** White radial falloff (bright centre, smooth edge) used by the additive glow pass. */
+  private makeGlow(): void {
+    const texture = this.textures.createCanvas(TextureKey.glow, GLOW_PX, GLOW_PX);
+    if (!texture) return;
+    const ctx = texture.context;
+    const r = GLOW_PX / 2;
+    const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, GLOW_PX, GLOW_PX);
+    texture.refresh();
+    texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   }
 }

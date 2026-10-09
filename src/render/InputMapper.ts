@@ -29,7 +29,12 @@ export class InputMapper {
     for (const action of ACTIONS) {
       this.bindings.push({
         action,
-        keys: (DEFAULT_BINDINGS[action] ?? []).map((name) => keyboard.addKey(name, true)),
+        keys: (DEFAULT_BINDINGS[action] ?? []).map((name) => {
+          const key = keyboard.addKey(name, true);
+          // Polling isDown once per frame misses taps shorter than a frame; latch the edge too.
+          key.on(Phaser.Input.Keyboard.Events.DOWN, () => this.actions.press(action));
+          return key;
+        }),
         mouse: MOUSE_BINDINGS[action] ?? null,
       });
     }
@@ -47,6 +52,7 @@ export class InputMapper {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       scene.game.events.off(Phaser.Core.Events.BLUR, this.releaseAll, this);
       for (const name of HOTBAR_KEYS) keyboard.off(`keydown-${name}`);
+      for (const binding of this.bindings) for (const key of binding.keys) key.removeAllListeners();
       scene.input.off(Phaser.Input.Events.POINTER_WHEEL, onWheel);
     });
   }

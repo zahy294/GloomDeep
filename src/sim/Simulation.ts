@@ -1,6 +1,9 @@
-import { SIM } from '../config';
+import { SIM, TIME } from '../config';
 import { itemId, STARTING_INVENTORY } from '../data/items';
+import { InlineLightBackend } from '../workers/lighting/backends';
+import type { LightBackend } from '../workers/lighting/lightJob';
 import type { SimCommand } from './commands';
+import { sampleDayCycle, type DaySample } from './dayCycle';
 import { createItemDrop, type ItemDrop } from './entities/ItemDrop';
 import { createPlayer, type Player } from './entities/Player';
 import { EventBus, type SimEvents } from './events';
@@ -10,6 +13,8 @@ import { Inventory } from './inventory/Inventory';
 import { mulberry32 } from './random';
 import { createBuildingState, updateBuilding, type BuildingState } from './systems/BuildingSystem';
 import { updateItemDrops } from './systems/ItemDropSystem';
+import { updateLantern } from './systems/LanternSystem';
+import { LightSystem } from './systems/LightSystem';
 import { createMiningState, updateMining, type MiningState } from './systems/MiningSystem';
 import { updatePlayer } from './systems/PlayerSystem';
 import { World, type WorldSize } from './world/World';
@@ -22,6 +27,10 @@ export interface SimulationOptions {
   seed?: number;
   stepsPerSecond?: number;
   maxStepsPerFrame?: number;
+  /** Where light jobs run (a Web Worker in the game); inline by default (tests, fallback). */
+  lightBackend?: LightBackend;
+  /** Day fraction to start at (0 = midnight, 0.5 = noon). */
+  startDayFraction?: number;
 }
 
 const NO_PAYLOAD: Record<string, never> = {};
@@ -36,6 +45,12 @@ export class Simulation {
   readonly drops: ItemDrop[] = [];
   readonly mining: MiningState = createMiningState();
   private readonly building: BuildingState = createBuildingState();
+  readonly light: LightSystem;
+  /** Time of day, 0..1 (0 = midnight, 0.5 = noon), and the cycle sampled at it. */
+  dayFraction: number;
+  readonly day: DaySample = sampleDayCycle(0);
+  /** Simulated seconds since start (drives flicker). */
+  private elapsed = 0;
   private readonly commands: SimCommand[] = [];
   private readonly random: () => number;
   private readonly loop: FixedStepLoop;
@@ -51,6 +66,13 @@ export class Simulation {
     const spawn = options.generate(this.world);
     this.player = createPlayer(spawn.spawnX, spawn.spawnY);
     this.random = mulberry32(options.seed ?? 0);
+    this.dayFraction = options.startDayFraction ?? TIME.startDayFraction;
+    sampleDayCycle(this.dayFraction, this.day);
+    this.light = new LightSystem(
+      this.world,
+      this.events,
+      options.lightBackend ?? new InlineLightBackend(),
+    );
     for (const { item, count } of STARTING_INVENTORY) this.inventory.add(itemId(item), count);
     this.loop = new FixedStepLoop(
       options.stepsPerSecond ?? SIM.stepsPerSecond,
@@ -62,6 +84,17 @@ export class Simulation {
   /** Called once per rendered frame with the real elapsed time. Returns the steps run. */
   update(frameMs: number): number {
     return this.loop.advance(frameMs);
+  }
+
+  /** Simulated seconds since the world started (flicker, animations). */
+  get time(): number {
+    return this.elapsed;
+  }
+
+  /** Jumps to a time of day (debug keys and `?time=`). */
+  setDayFraction(fraction: number): void {
+    this.dayFraction = ((fraction % 1) + 1) % 1;
+    sampleDayCycle(this.dayFraction, this.day);
   }
 
   /** Queues a command from the UI/input layer; applied at the start of the next step. */
@@ -103,6 +136,10 @@ export class Simulation {
       dt,
     );
     updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
+    updateLantern(this.player, this.input, this.inventory, this.events, dt);
+    this.elapsed += dt;
+    this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
+    this.light.update(dt, this.elapsed, this.day, this.player, this.input);
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
   }
@@ -119,6 +156,9 @@ export class Simulation {
           break;
         case 'swapSlots':
           this.inventory.swap(command.a, command.b);
+          break;
+        case 'setDayFraction':
+          this.setDayFraction(command.value);
           break;
       }
     }

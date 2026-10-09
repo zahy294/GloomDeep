@@ -138,6 +138,23 @@ const PLAYER_CLOSEUP = {
   height: 160,
 };
 
+/** A cave pocket in the default world (seed 1), found with tools in M1. */
+const CAVE = 'x=2374&y=453';
+const TORCH = tileId('torch');
+
+const lightAt = async (page: Page, x: number, y: number): Promise<[number, number, number]> =>
+  (await page.evaluate(([tx, ty]) => window.gloamdeep?.light(tx, ty) ?? null, [x, y] as const)) ?? [
+    0, 0, 0,
+  ];
+
+/** Waits until the light grid has been computed a few times (the worker is asynchronous). */
+async function waitForLight(page: Page): Promise<void> {
+  await waitForPlayerReady(page);
+  await page.waitForFunction(() => (window.gloamdeep?.probe()?.lightUpdates ?? 0) > 3, undefined, {
+    timeout: TIMEOUT_MS,
+  });
+}
+
 const GRASS = tileId('elderglade_grass');
 const PLANKS = tileId('elderwood_planks');
 const SOIL_ITEM = itemId('forest_soil');
@@ -271,6 +288,108 @@ const SHOTS: Shot[] = [
       );
       await page.mouse.down();
       await page.waitForTimeout(220);
+    },
+  },
+  // M3 lighting: day, sunset and night on the surface; a dark cave lit by torches.
+  {
+    name: 'light-noon',
+    query: '?scene=game&time=noon',
+    prepare: waitForLight,
+  },
+  {
+    name: 'light-sunset',
+    query: '?scene=game&time=sunset&ui=0',
+    prepare: async (page) => {
+      await waitForLight(page);
+      const p = (await probe(page)) as GameProbe;
+      const sky = await lightAt(
+        page,
+        Math.floor(p.playerX / TILE_SIZE),
+        Math.floor(p.playerY / TILE_SIZE) - 6,
+      );
+      check(sky[0] > sky[2] * 1.5, `sunset light should be warm, got rgb ${sky.join(',')}`);
+      report.push(`sunset surface light rgb ${sky.join(',')}`);
+    },
+  },
+  {
+    name: 'light-night-lantern',
+    query: '?scene=game&time=night&ui=0',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.mouse.move(VIEWPORT.width * 0.75, VIEWPORT.height * 0.55);
+      await page.waitForTimeout(300);
+    },
+  },
+  {
+    name: 'light-cave-dark',
+    query: `?scene=game&time=noon&ui=0&${CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF'); // lantern off
+      await page.waitForTimeout(400);
+      const p = (await probe(page)) as GameProbe;
+      // Away from the player (who keeps a faint aura, plan 2.1), the cave must be dark.
+      const cx = Math.floor(p.playerX / TILE_SIZE) - 6;
+      const cy = Math.floor(p.playerY / TILE_SIZE) - 1;
+      const here = await lightAt(page, cx, cy);
+      check((await tileAt(page, cx, cy)) === 0, 'expected open cave 6 tiles left of the player');
+      check(
+        Math.max(...here) < 24,
+        `cave should be dark with the lantern off, got rgb ${here.join(',')}`,
+      );
+      report.push(`cave light 6 tiles from the player, lantern off: rgb ${here.join(',')}`);
+    },
+  },
+  {
+    // The lantern's cone lights the cave where you aim (it's dark there with the lantern off).
+    name: 'light-cave-lantern',
+    query: `?scene=game&time=noon&ui=0&${CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      const p = (await probe(page)) as GameProbe;
+      const tx = Math.floor(p.playerX / TILE_SIZE) - 7;
+      const ty = Math.floor(p.playerY / TILE_SIZE) - 2;
+      await pointAtTile(page, tx, ty);
+      await page.waitForTimeout(400);
+      const lit = await lightAt(page, tx, ty);
+      check(
+        lit[1] > 60,
+        `the lantern cone should light the cave where it points, got rgb ${lit.join(',')}`,
+      );
+      report.push(`cave lit by the lantern 7 tiles away: rgb ${lit.join(',')}`);
+    },
+  },
+  {
+    name: 'light-cave-torches',
+    query: `?scene=game&time=noon&ui=0&${CAVE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('KeyF'); // lantern off: torches only
+      await page.keyboard.press('Digit3'); // torches
+      const p = (await probe(page)) as GameProbe;
+      const px = Math.floor(p.playerX / TILE_SIZE);
+      const row = Math.round(p.playerY / TILE_SIZE) - 1;
+      for (const dx of [-4, 4]) {
+        await holdOnTile(
+          page,
+          px + dx,
+          row,
+          'right',
+          async () => (await tileAt(page, px + dx, row)) === TORCH,
+        );
+      }
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForTimeout(500);
+      const lit = await lightAt(page, px + 4, row);
+      check(lit[1] > 100, `a torch should light the cave, got rgb ${lit.join(',')}`);
+      const end = (await probe(page)) as GameProbe;
+      check(
+        end.lightAvgMs < 4,
+        `light update averaged ${end.lightAvgMs.toFixed(2)} ms (budget 4 ms)`,
+      );
+      report.push(
+        `cave torch light rgb ${lit.join(',')}; light update avg ${end.lightAvgMs.toFixed(2)} ms over ${end.lightUpdates} updates`,
+      );
     },
   },
   {

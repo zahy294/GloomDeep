@@ -6,4 +6,6 @@ export type SimCommand =
   | { readonly type: 'selectSlot'; readonly slot: number }
   /** Moves the hotbar selection by ±n slots, wrapping (mouse wheel). */
   | { readonly type: 'cycleSlot'; readonly delta: number }
-  | { readonly type: 'swapSlots'; readonly a: number; readonly b: number };
+  | { readonly type: 'swapSlots'; readonly a: number; readonly b: number }
+  /** Debug: jump to a time of day (0..1). */
+  | { readonly type: 'setDayFraction'; readonly value: number };

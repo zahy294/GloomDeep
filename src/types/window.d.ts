@@ -20,6 +20,11 @@ export interface GameProbe {
   /** Camera scroll (world px at the view's top-left). */
   cameraX: number;
   cameraY: number;
+  dayFraction: number;
+  /** Average light-job compute time (ms) and number of light updates so far. */
+  lightAvgMs: number;
+  lightUpdates: number;
+  lumen: number;
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */
@@ -34,6 +39,8 @@ declare global {
       resetFrameStats: () => void;
       /** Tile id at a world tile coordinate (foreground or background), -1 outside the game. */
       tile: (x: number, y: number, layer?: 'fg' | 'bg') => number;
+      /** Light [r, g, b] at a world tile, null outside the game. */
+      light: (x: number, y: number) => [number, number, number] | null;
     };
   }
 }

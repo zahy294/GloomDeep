@@ -1,6 +1,6 @@
 import { BUILDING } from '../../config';
 import { ITEMS } from '../../data/items';
-import { tileId } from '../../data/tiles';
+import { TILES, tileId } from '../../data/tiles';
 import type { Player } from '../entities/Player';
 import type { EventBus, SimEvents, TileLayer } from '../events';
 import type { ActionState } from '../input';
@@ -19,6 +19,8 @@ export function createBuildingState(): BuildingState {
 
 /** Tile id each item places, or -1. Resolved once so data typos fail at startup. */
 const PLACES_TILE = ITEMS.map((i) => (i.placesTile ? tileId(i.placesTile) : -1));
+/** Only solid blocks make background walls (no torch walls). */
+const WALLABLE = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
 
 const NEIGHBOURS = [
   [1, 0],
@@ -65,6 +67,7 @@ export function updateBuilding(
   if (
     !world.inBounds(tx, ty) ||
     world.getLayer(layer, tx, ty) !== AIR ||
+    (layer === 'bg' && WALLABLE[id] !== 1) ||
     !inReach(player.body, tx, ty, BUILDING.reachTiles) ||
     (layer === 'fg' && overlapsBody(player.body, tx, ty)) ||
     !hasSupport(world, layer, tx, ty)

@@ -214,6 +214,59 @@ export const CHUNK_RENDER = {
   maxPreloadsPerFrame: 1,
 } as const;
 
+/**
+ * Light grid (plan 2.3). Each tile stores R, G, B in 0–255. Light spreads by flood fill, losing a
+ * fixed amount per tile depending on what the tile is made of.
+ */
+export const LIGHT = {
+  /** Loss per tile through open air / non-solid tiles (per channel). 255 ÷ 16 ≈ a 16-tile reach. */
+  airFalloff: 16,
+  /** Loss per tile through solid blocks: light only creeps a few tiles into walls. */
+  solidFalloff: 56,
+  /**
+   * The region recomputed around the camera, in tiles: the view (60×34) plus a border so the
+   * camera's look-ahead never reaches the edge, plus a margin that only feeds light inwards
+   * (sources up to `margin` tiles outside still reach the visible area). Only the inner part is
+   * written back to the world.
+   */
+  innerWidth: 72,
+  innerHeight: 46,
+  margin: 16,
+  /** Recomputations per second (the lantern and flicker move every frame). */
+  updateHz: 30,
+  /** A job not answered within this many seconds is abandoned and re-submitted. */
+  jobTimeoutSeconds: 1,
+} as const;
+
+/** Day–night cycle (plan 2.4). Day fraction: 0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk. */
+export const TIME = {
+  /** One full day in real seconds (~20 minutes). */
+  dayLengthSeconds: 1200,
+  /** Where a new world starts. */
+  startDayFraction: 0.3,
+} as const;
+
+/** The lantern and its fuel (plan 1.4). */
+export const LUMEN = {
+  max: 100,
+  /** Lumen per second while the lantern burns (scaled by the lens's drain multiplier). */
+  drainPerSecond: 0.5,
+  /** Lumen restored by burning one Lumen Crystal from the inventory. */
+  perCrystal: 25,
+  start: 100,
+} as const;
+
+/** Additive glow pass (plan 2.3 "Glow and bloom"). */
+export const GLOW = {
+  /** Halo diameter as a multiple of the light's radius in pixels. */
+  sizePerRadius: 0.9,
+  /** Halo opacity for emissive tiles and the lantern. */
+  tileAlpha: 0.55,
+  lanternAlpha: 0.45,
+  /** Most halos drawn at once (pooled sprites). */
+  maxSprites: 160,
+} as const;
+
 export const DEBUG = {
   /** How often the F3 overlay text refreshes (Hz). */
   overlayRefreshHz: 4,

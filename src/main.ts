@@ -8,6 +8,7 @@ import { ArtTestScene } from './render/scenes/ArtTestScene';
 import { BootScene } from './render/scenes/BootScene';
 import { GameScene } from './render/scenes/GameScene';
 import { DEFAULT_PACK_DIR, SceneKey } from './render/scenes/keys';
+import { SkyScene } from './render/scenes/SkyScene';
 import { TitleScene } from './render/scenes/TitleScene';
 import { App } from './ui/App';
 import { UiBridge } from './ui/bridge';
@@ -19,6 +20,7 @@ const bridge = new UiBridge({
   debug: null,
   inventory: null,
   inventoryOpen: false,
+  hud: null,
   packDir: debug.pack ?? DEFAULT_PACK_DIR,
 });
 
@@ -45,6 +47,7 @@ const game = new Phaser.Game({
   scene: [
     new BootScene(debug),
     new TitleScene(bridge),
+    new SkyScene(),
     new GameScene(bridge, debug),
     new ArtTestScene(bridge, debug),
   ],
@@ -64,6 +67,13 @@ window.gloamdeep = {
   resetFrameStats: () => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
     if (scene?.sys.isActive()) scene.resetFrameStats();
+  },
+  light: (x, y) => {
+    const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;
+    if (!scene?.sys.isActive()) return null;
+    const w = scene.simulation.world;
+    const i = y * w.width + x;
+    return [w.lightR[i] ?? 0, w.lightG[i] ?? 0, w.lightB[i] ?? 0];
   },
   tile: (x, y, layer = 'fg') => {
     const scene = game.scene.getScene(SceneKey.Game) as GameScene | null;

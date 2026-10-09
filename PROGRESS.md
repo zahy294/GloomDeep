@@ -4,6 +4,60 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M3 — Lighting ✅ (2026-10-09)
+
+### Built
+
+- **Light grid in the simulation** (rule 7): `world.lightR/G/B`, 0–255 per channel (decided: 0–255 for smooth coloured mixing; the flood fill is fast enough). `LightSystem` recomputes a region around the camera 30× per second — the view plus a border (72×46 tiles) plus a 16-tile margin that only feeds light inwards — and writes the inner part back, emitting `lightUpdated`.
+- **Flood fill in a Web Worker** (`src/workers/lighting/`): per-channel bucket-queue Dijkstra, exact (checked against a reference implementation on random grids). Seeds: sunlight straight down each column to the first solid tile (`World.skyline`, kept current on every edit), emissive tiles, point lights and the lantern cone (rays stop at solid tiles). Air loses 16 per tile, solid blocks 56. Deterministic fire flicker. **~0.15–0.35 ms per update** (budget 4 ms). Falls back to the main thread if workers are unavailable.
+- **Light map:** one texel per tile, LINEAR filtering, scaled ×16, MULTIPLY blend. **The sky is its own scene** rendered first; the Game camera composites into its own framebuffer with a transparent background, so the multiply only darkens the world and never the sky.
+- **Torches** (new tile + item, 30 to start with): placeable, flickering warm light, a fixed look instead of autotiling. Lumen and Moonstone crystals glow.
+- **Lantern with the Amber lens:** a cone of warm light towards the mouse plus a soft glow around the player; burns Lumen (HUD gauge); **F** toggles it; when there's room it burns a Lumen Crystal from the inventory to refill.
+- **Glow pass:** additive soft halos over emissive tiles and the lantern, flickering in step with the light grid; off on Low quality (`?quality=low`, saved setting).
+- **Day–night cycle** (20 min/day): keyframes for sunlight colour and sky gradient (`src/data/dayCycle.ts`), Phaser `Gradient` sky, sun and moon on an arc, stars at night. `?time=dawn|morning|noon|sunset|dusk|night|midnight`, **T** cycles times.
+- **HUD:** Lumen gauge, lens, clock. F3 shows the light at the player and the average light-update time.
+- **Input fix:** key taps shorter than one frame were lost (keys were only polled); presses are now latched on key-down.
+- **`npm run shot`:** noon, sunset, night-with-lantern, dark cave and torch-lit cave screenshots, with checks: sunset light is warm (r > 1.5 × b), a cave is fully dark with the lantern off, torches light it, the light update averages < 4 ms.
+- **Tests:** 216 (flood fill incl. reference comparison, walls, colour, sun, cone, flicker, backends; skyline; day cycle; lantern; LightSystem on a small world).
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Caves are dark | ✅ cave light 6 tiles from the player with the lantern off: rgb 0,0,0 (`light-cave-dark.png`) |
+| Torches and the lantern light them with soft, coloured light | ✅ torch-lit cave rgb ~172,120,65, soft falloff (`light-cave-torches.png`); the lantern cone lights the cave 7 tiles away where it points, rgb ~135,91,53 (`light-cave-lantern.png`) |
+| Sunset visibly turns everything warm | ✅ surface light at sunset rgb 237,133,76 (`light-sunset.png`) |
+| Light update under 4 ms on average | ✅ ~0.15 ms average in the worker (headless Chromium) |
+
+### Decisions and deviations
+
+- **Sky as a separate scene** instead of a sky layer in the Game scene: with one canvas, the multiplied light map would darken the sky twice at night. Rendering the world camera into its own framebuffer keeps empty sky transparent.
+- **Sunlight passes through background walls** (plan 2.3 wording) and stops at the first solid block.
+- **The lantern cone is light, not yet a "gameplay lens"**: Amber's slow healing waits for health (M6/M8); Azure/Crimson/Verdant are M7.
+- **Refuelling** by burning Lumen Crystals from the inventory automatically — the simplest rule until crafting (M6) decides otherwise.
+- **Sprite rim lighting deferred:** plan 2.3 suggests Phaser point lights (`setLighting(true)`) for rim highlights on the player and enemies. That needs normal maps, which come with real character art; the placeholder sprites would gain nothing. Revisit when the player/enemy art is approved.
+- **Moonlight raised slightly** (night sunlight 40,48,82) so the surface away from the lantern isn't pure black.
+- **Faint player aura** (always on, very dim) so the player is never invisible in full darkness (plan 2.1 readability).
+- **Glow pass uses additive soft sprites** rather than a Glow/Blur filter: same look for point-like sources at a fraction of the cost; a camera bloom (ParallelFilters) can be added later if wanted.
+- **Phaser gotcha:** `scene.moveBelow(a, b)` moves **b** below a. The scene list order in `main.ts` already draws the sky first.
+
+### Reviewer pass
+
+No blockers; the reviewer confirmed against Phaser's source that the MULTIPLY blend leaves the transparent framebuffer at alpha 0 (sky untouched) and that the flood fill and edge write-back are correct. Fixed from the review: a crashed light worker no longer freezes lighting (the backend switches to the main thread, and jobs unanswered for 1 s are abandoned and re-submitted); the sky gradient is only re-encoded when its colours change (it re-uploaded a texture every frame); the T debug key goes through a simulation command (rule 3); a lantern-in-cave check was added; falloffs of 0 are rejected (the bucket queue needs ≥ 1).
+
+### Known issues
+
+- Light results are applied when the worker answers (wall-clock), and light outside the current region goes stale when the camera leaves. Fine while nothing reads the grid for gameplay; apply results at a step boundary when the Gloam (M7) starts reading it.
+- Water and lava light behaviour arrives with liquids (M9); the falloff tables are per channel, ready for it.
+- Light jobs allocate their input arrays ~30× per second (small, off the per-frame path).
+- Flicker is 30 Hz (the light-update rate); the glow halos flicker every frame.
+
+### Next step
+
+**M4 — World generation, biomes and saving:** worldgen worker with the 12 steps and a progress screen, surface biomes and depth layers, ores and Lumen crystals by depth, save/load (IndexedDB + gzip), world select/create, autosave.
+
+---
+
 ## M2b — Art pipeline tools ✅ (2026-10-08)
 
 ### Built

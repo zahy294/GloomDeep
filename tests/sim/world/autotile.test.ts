@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AUTOTILE } from '../../../src/config';
-import { tileId } from '../../../src/data/tiles';
+import { TILES, tileId } from '../../../src/data/tiles';
 import {
   BLOB_INDEX,
   BLOB_MASKS,
@@ -135,6 +135,6 @@ describe('tileFrame', () => {
         expect(variationAt(x, y)).toBeLessThan(V);
       }
     }
-    expect(FRAME_COUNT).toBe(1 + 9 * FRAMES_PER_TILE);
+    expect(FRAME_COUNT).toBe(1 + (TILES.length - 1) * FRAMES_PER_TILE);
   });
 });

@@ -17,6 +17,12 @@ export interface TileDef {
   readonly mergesWith: readonly string[];
   /** Ramp used by the placeholder art generator and for mining particles. */
   readonly placeholderRamp: RampName | null;
+  /** Light this tile emits (key in src/data/lights.ts). Emissive tiles also get a glow (plan 2.3). */
+  readonly light?: string;
+  /** false for objects like torches: one fixed look instead of blob autotiling. Default true. */
+  readonly autotile?: boolean;
+  /** Placeholder art shape for non-terrain tiles. */
+  readonly placeholderShape?: 'torch';
 }
 
 /** First-pass tile registry. Add tiles here; no engine code should need to change. */
@@ -100,6 +106,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'lumen_crystal',
     mergesWith: [],
     placeholderRamp: 'cyan',
+    light: 'lumen_crystal',
   },
   {
     id: 8,
@@ -110,6 +117,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'moonstone_crystal',
     mergesWith: [],
     placeholderRamp: 'moonSilver',
+    light: 'moonstone_crystal',
   },
   {
     id: 9,
@@ -120,6 +128,19 @@ export const TILES: readonly TileDef[] = [
     drop: 'stone',
     mergesWith: ['stone'],
     placeholderRamp: 'gloam',
+  },
+  {
+    id: 10,
+    key: 'torch',
+    name: 'Torch',
+    solid: false,
+    hardness: 0.05,
+    drop: 'torch',
+    mergesWith: [],
+    placeholderRamp: 'ember',
+    light: 'torch',
+    autotile: false,
+    placeholderShape: 'torch',
   },
 ];
 

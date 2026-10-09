@@ -37,7 +37,8 @@ describe('parseDebugParams', () => {
     y: null,
     debugOverlay: false,
     assetId: null,
-    time: 'day',
+    time: null,
+    quality: null,
     pack: null,
   };
 
@@ -54,7 +55,8 @@ describe('parseDebugParams', () => {
       y: 300,
       debugOverlay: true,
       assetId: null,
-      time: 'day',
+      time: null,
+      quality: null,
       pack: null,
     });
   });
@@ -66,7 +68,20 @@ describe('parseDebugParams', () => {
       scene: 'art-test',
       assetId: 'soil_base',
       time: 'night',
+      quality: null,
       pack: 'packed-demo',
+    });
+  });
+
+  it('accepts named times (day = noon) and quality, rejects unknown or inherited names', () => {
+    expect(parseDebugParams('?time=sunset&quality=low')).toMatchObject({
+      time: 'sunset',
+      quality: 'low',
+    });
+    expect(parseDebugParams('?time=day').time).toBe('noon');
+    expect(parseDebugParams('?time=constructor&quality=ultra')).toMatchObject({
+      time: null,
+      quality: null,
     });
   });
 

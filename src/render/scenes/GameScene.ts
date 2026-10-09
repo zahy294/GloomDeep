@@ -1,6 +1,25 @@
 import * as Phaser from 'phaser';
-import { CHUNK_RENDER, DEBUG, FEEDBACK, PLAYER, TEST_WORLD, TILE_SIZE, WORLD } from '../../config';
+import {
+  CHUNK_RENDER,
+  DEBUG,
+  FEEDBACK,
+  LUMEN,
+  PLAYER,
+  TEST_WORLD,
+  TILE_SIZE,
+  WORLD,
+} from '../../config';
+import { NAMED_TIMES } from '../../data/dayCycle';
 import { itemById } from '../../data/items';
+import { lensByKey } from '../../data/lenses';
+import { loadSettings, qualityFeatures } from '../../settings';
+import { LANTERN_HAND } from '../../sim/systems/LightSystem';
+import {
+  createLightWorker,
+  InlineLightBackend,
+  WorkerLightBackend,
+} from '../../workers/lighting/backends';
+import type { LightBackend } from '../../workers/lighting/lightJob';
 import { DEBUG_KEYS, UI_KEYS } from '../../data/keybindings';
 import { PALETTE } from '../../data/palette';
 import type { DebugParams } from '../../debugParams';
@@ -11,6 +30,8 @@ import type { InventoryView, UiBridge } from '../../ui/bridge';
 import { generateTestWorld } from '../../workers/worldgen/testWorld';
 import { CameraDirector } from '../CameraDirector';
 import { ChunkRenderer, type PreloadBudget } from '../ChunkRenderer';
+import { GlowRenderer } from '../GlowRenderer';
+import { LightMapRenderer } from '../LightMapRenderer';
 import { Depth } from '../depth';
 import { DrawCallCounter } from '../drawCallCounter';
 import { DropRenderer } from '../DropRenderer';
@@ -58,6 +79,9 @@ export class GameScene extends Phaser.Scene {
   private cameraDirector!: CameraDirector;
   private playerView!: PlayerRenderer;
   private chunkBorders!: Phaser.GameObjects.Graphics;
+  private lightMap!: LightMapRenderer;
+  private glow!: GlowRenderer;
+  private lightBackend: LightBackend | null = null;
   private drawCalls: DrawCallCounter | null = null;
   private debugOpen = false;
   private debugAccumulator = 0;
@@ -86,6 +110,8 @@ export class GameScene extends Phaser.Scene {
         return { spawnX: (x + 0.5) * TILE_SIZE, spawnY: feetRow * TILE_SIZE };
       },
       seed,
+      lightBackend: this.createLightBackend(),
+      startDayFraction: this.params.time ? NAMED_TIMES[this.params.time] : undefined,
     });
     this.inventoryOpen = false;
     this.debugOpen = this.params.debugOverlay;
@@ -94,7 +120,14 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     const { world, player } = this.sim;
-    this.cameras.main.setBackgroundColor(PALETTE.moonSilver[1]);
+    // The sky is its own scene, drawn first. This camera composites into its own framebuffer with
+    // a transparent background, so the multiply light map only darkens what the world draws.
+    this.cameras.main.setForceComposite(true);
+    // Sky is registered before Game in main.ts, so it renders first (underneath).
+    this.scene.launch(SceneKey.Sky, { source: this.sim });
+    const quality = loadSettings(
+      this.params.quality ? { quality: this.params.quality } : {},
+    ).quality;
 
     const sim = this.sim;
     this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));
@@ -128,12 +161,25 @@ export class GameScene extends Phaser.Scene {
       this.playerView.feetX(1),
       this.playerView.feetY(1) - player.body.height / 2,
     );
+    this.lightMap = new LightMapRenderer(this, world, sim.events);
+    this.glow = new GlowRenderer(
+      this,
+      world,
+      player,
+      TextureKey.glow,
+      qualityFeatures(quality).glow,
+    );
     this.chunkBorders = this.add.graphics().setDepth(Depth.debug);
 
     this.input.keyboard?.on(`keydown-${DEBUG_KEYS.toggleOverlay}`, (e: KeyboardEvent) => {
       e.preventDefault(); // F3 is "find" in some browsers.
       this.debugOpen = !this.debugOpen;
       if (!this.debugOpen) this.bridge.set({ debug: null });
+    });
+    this.input.keyboard?.on(`keydown-${DEBUG_KEYS.cycleTime}`, () => {
+      const times = Object.values(NAMED_TIMES);
+      const next = times.find((t) => t > sim.dayFraction + 1e-3) ?? times[0] ?? 0;
+      sim.enqueue({ type: 'setDayFraction', value: next });
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.toggleInventory}`, () => {
       this.inventoryOpen = !this.inventoryOpen;
@@ -157,8 +203,11 @@ export class GameScene extends Phaser.Scene {
       this.walls.destroy();
       this.cursor.destroy();
       this.fx.destroy();
+      this.lightMap.destroy();
+      this.lightBackend?.destroy?.();
+      this.scene.stop(SceneKey.Sky);
       sim.events.clear();
-      this.bridge.set({ debug: null, inventory: null, inventoryOpen: false });
+      this.bridge.set({ debug: null, inventory: null, inventoryOpen: false, hud: null });
     });
     this.bridge.set({ screen: 'game', inventoryOpen: false });
     this.publishInventory();
@@ -200,6 +249,16 @@ export class GameScene extends Phaser.Scene {
     this.cursor.update();
     this.dropView.update(alpha);
     this.fx.update(delta / 1000);
+    // The light grid is computed around what the camera shows.
+    input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
+    this.lightMap.update();
+    const facing = this.sim.player.facing;
+    this.glow.update(
+      this.view,
+      this.sim.time,
+      this.playerView.feetX(alpha) + LANTERN_HAND.x * facing,
+      this.playerView.feetY(alpha) + LANTERN_HAND.y,
+    );
 
     this.timer.add(performance.now() - start);
     this.updateDebug(delta);
@@ -225,6 +284,10 @@ export class GameScene extends Phaser.Scene {
       drops: this.sim.drops.length,
       cameraX: this.cameras.main.scrollX,
       cameraY: this.cameras.main.scrollY,
+      dayFraction: this.sim.dayFraction,
+      lightAvgMs: this.sim.light.stats.avgMs,
+      lightUpdates: this.sim.light.stats.updates,
+      lumen: player.lumen,
     };
   }
 
@@ -262,12 +325,52 @@ export class GameScene extends Phaser.Scene {
       this.debugAccumulator = 0;
       this.timer.roll();
       if (this.debugOpen) this.publishDebug();
+      this.publishHud();
     }
 
     this.chunkBorders.clear();
     if (!this.debugOpen) return;
     this.chunkBorders.lineStyle(1, PALETTE.rose[3], 0.9);
     this.chunks.forEachLoaded((x, y, size) => this.chunkBorders.strokeRect(x, y, size, size));
+  }
+
+  private publishHud(): void {
+    const { player, dayFraction } = this.sim;
+    const minutes = Math.floor(dayFraction * 24 * 60);
+    const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    const hud = this.bridge.state.hud;
+    const lumen = Math.round(player.lumen);
+    if (hud && hud.lumen === lumen && hud.lanternOn === player.lanternOn && hud.clock === clock) {
+      return;
+    }
+    this.bridge.set({
+      hud: {
+        lumen,
+        lumenMax: LUMEN.max,
+        lanternOn: player.lanternOn,
+        lensName: lensByKey(player.lens).name,
+        clock,
+      },
+    });
+  }
+
+  /** Light at the tile the player's body is in, plus the average light-job time. */
+  private lightText(tileX: number, tileY: number): string {
+    const { world, light } = this.sim;
+    const i = Math.max(0, tileY - 1) * world.width + tileX;
+    const rgb = `${world.lightR[i] ?? 0},${world.lightG[i] ?? 0},${world.lightB[i] ?? 0}`;
+    return `${rgb} · ${light.stats.avgMs.toFixed(2)} ms avg`;
+  }
+
+  /** Light jobs run in a Web Worker; fall back to the main thread if workers are unavailable. */
+  private createLightBackend(): LightBackend {
+    try {
+      this.lightBackend = new WorkerLightBackend(createLightWorker());
+    } catch (error) {
+      console.warn('Light worker unavailable; lighting runs on the main thread', error);
+      this.lightBackend = new InlineLightBackend();
+    }
+    return this.lightBackend;
   }
 
   private publishDebug(): void {
@@ -288,7 +391,7 @@ export class GameScene extends Phaser.Scene {
         playerTileY: tileY,
         chunkX: Math.floor(tileX / world.chunkSize),
         chunkY: Math.floor(tileY / world.chunkSize),
-        light: '— (M3)',
+        light: this.lightText(tileX, tileY),
         biome: '— (M4)',
         gloam: '— (M7)',
       },

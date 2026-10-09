@@ -44,6 +44,13 @@ export interface SimEvents {
     readonly x: number;
     readonly y: number;
   };
+  /** The light grid was rewritten in this rectangle (tiles, absolute). */
+  lightUpdated: {
+    readonly x0: number;
+    readonly y0: number;
+    readonly width: number;
+    readonly height: number;
+  };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
 }

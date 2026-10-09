@@ -1,4 +1,4 @@
-import { PLAYER } from '../../config';
+import { LUMEN, PLAYER } from '../../config';
 import type { Body } from '../physics/tileCollision';
 
 export interface Player {
@@ -14,6 +14,11 @@ export interface Player {
   jumping: boolean;
   /** Running total of pixels climbed by auto step-up; the renderer smooths over increases. */
   steppedUpTotal: number;
+  /** Lantern fuel, 0..LUMEN.max (plan 1.4). */
+  lumen: number;
+  lanternOn: boolean;
+  /** Active lens key (src/data/lenses.ts). */
+  lens: string;
 }
 
 /** Spawn is the FEET-CENTER in pixels. */
@@ -30,5 +35,8 @@ export function createPlayer(spawnX: number, spawnY: number): Player {
     jumpBufferTimer: 0,
     jumping: false,
     steppedUpTotal: 0,
+    lumen: LUMEN.start,
+    lanternOn: true,
+    lens: 'amber',
   };
 }

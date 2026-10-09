@@ -1,10 +1,13 @@
 /**
  * Debug URL parameters, so screenshots are repeatable (CLAUDE.md "Visual checks").
- * Examples: ?seed=42&scene=game&x=2100&y=300&ui=0   ?scene=art-test&id=soil&time=night
+ * Examples: ?seed=42&scene=game&x=2100&y=300&time=sunset&ui=0   ?scene=art-test&id=soil&time=night
  * More parameters (biome) arrive with the systems that use them.
  */
+import { NAMED_TIMES, type NamedTime } from './data/dayCycle';
+
 export type StartScene = 'title' | 'game' | 'art-test';
-export type TimeOfDay = 'day' | 'night';
+
+export type Quality = 'low' | 'medium' | 'high';
 
 export interface DebugParams {
   seed: number | null;
@@ -19,8 +22,10 @@ export interface DebugParams {
   debugOverlay: boolean;
   /** Art-test scene: the manifest id of the asset to show. */
   assetId: string | null;
-  /** Art-test lighting until the real day–night cycle exists (M3). */
-  time: TimeOfDay;
+  /** Start at a named time of day (`?time=noon`, `dawn`, `sunset`, `night`...); `day` = noon. */
+  time: NamedTime | null;
+  /** `?quality=low|medium|high` overrides the saved quality setting. */
+  quality: Quality | null;
   /** Art-test scene: load a different pack folder (e.g. a demo pack built by the shot script). */
   pack: string | null;
 }
@@ -36,6 +41,11 @@ function nameParam(params: URLSearchParams, name: string): string | null {
   return text !== null && /^[\w-]+$/.test(text) ? text : null;
 }
 
+function namedTime(text: string | null): NamedTime | null {
+  if (text === 'day') return 'noon';
+  return text !== null && Object.hasOwn(NAMED_TIMES, text) ? (text as NamedTime) : null;
+}
+
 const SCENES: readonly StartScene[] = ['title', 'game', 'art-test'];
 
 export function parseDebugParams(search: string): DebugParams {
@@ -49,7 +59,8 @@ export function parseDebugParams(search: string): DebugParams {
     y: intParam(params, 'y'),
     debugOverlay: params.get('debug') === '1',
     assetId: nameParam(params, 'id'),
-    time: params.get('time') === 'night' ? 'night' : 'day',
+    time: namedTime(params.get('time')),
+    quality: (['low', 'medium', 'high'] as const).find((q) => q === params.get('quality')) ?? null,
     pack: nameParam(params, 'pack'),
   };
 }

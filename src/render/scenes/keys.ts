@@ -3,6 +3,7 @@ export const SceneKey = {
   Title: 'Title',
   Game: 'Game',
   ArtTest: 'ArtTest',
+  Sky: 'Sky',
 } as const;
 
 export const TextureKey = {
@@ -16,6 +17,10 @@ export const TextureKey = {
   sprites: 'sprites',
   /** 2×2 white pixel, tinted per particle. */
   particle: 'particle-pixel',
+  sun: 'sun',
+  moon: 'moon',
+  /** Soft white radial falloff for the additive glow pass (linear filtering). */
+  glow: 'glow',
 } as const;
 
 export const DataKey = {

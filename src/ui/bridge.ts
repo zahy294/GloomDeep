@@ -22,6 +22,16 @@ export interface DebugInfo {
   gloam: string;
 }
 
+/** Heads-up display values, refreshed a few times per second. */
+export interface HudView {
+  lumen: number;
+  lumenMax: number;
+  lanternOn: boolean;
+  lensName: string;
+  /** Clock text, e.g. "18:05". */
+  clock: string;
+}
+
 /** Read-only snapshot of the player's inventory for the UI (rebuilt when it changes). */
 export interface InventoryView {
   slots: readonly ({ itemId: number; count: number; name: string } | null)[];
@@ -38,6 +48,8 @@ export interface UiState {
   inventory: InventoryView | null;
   /** The full inventory panel (E) is open. */
   inventoryOpen: boolean;
+  /** Null outside the game scene. */
+  hud: HudView | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
   packDir: string;
 }

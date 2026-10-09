@@ -70,3 +70,22 @@ describe('findOpenFeetRow', () => {
     expect(findOpenFeetRow(world, 3, 10, 3)).toBe(6);
   });
 });
+
+describe('World skyline', () => {
+  it('tracks the first solid row per column through placing and mining', () => {
+    const world = new World({ width: 4, height: 10, chunkSize: 4 });
+    for (let x = 0; x < 4; x++) for (let y = 6; y < 10; y++) world.fg[y * 4 + x] = STONE;
+    world.touchAll();
+    expect([...world.skyline]).toEqual([6, 6, 6, 6]);
+
+    world.set(1, 2, STONE);
+    expect(world.skyline[1]).toBe(2);
+    world.set(1, 2, AIR);
+    expect(world.skyline[1]).toBe(6);
+    world.set(2, 6, AIR);
+    expect(world.skyline[2]).toBe(7);
+    for (let y = 7; y < 10; y++) world.set(3, y, AIR);
+    world.set(3, 6, AIR);
+    expect(world.skyline[3]).toBe(10);
+  });
+});

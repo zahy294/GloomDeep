@@ -110,6 +110,37 @@ function framePixel(
   return c.base;
 }
 
+/** A wall torch: wooden stick with a flame, on a transparent background (same in every frame). */
+function drawTorch(data: Uint8Array, width: number, ox: number, oy: number): void {
+  const stick = PALETTE.bark;
+  const flame = PALETTE.ember;
+  const core = PALETTE.honey;
+  for (let y = 8; y < 15; y++) {
+    put(data, width, ox + 7, oy + y, stick[1]);
+    put(data, width, ox + 8, oy + y, stick[y === 8 ? 3 : 2]);
+  }
+  for (const [x, y, c] of [
+    [7, 2, flame[2]],
+    [8, 3, flame[2]],
+    [6, 4, flame[1]],
+    [7, 4, flame[3]],
+    [8, 4, flame[3]],
+    [9, 4, flame[1]],
+    [6, 5, flame[2]],
+    [7, 5, core[3]],
+    [8, 5, core[3]],
+    [9, 5, flame[2]],
+    [6, 6, flame[1]],
+    [7, 6, core[2]],
+    [8, 6, core[3]],
+    [9, 6, flame[1]],
+    [7, 7, flame[2]],
+    [8, 7, flame[2]],
+  ] as const) {
+    put(data, width, ox + x, oy + y, c);
+  }
+}
+
 function atlasSize(frames: number, opts: AtlasOptions) {
   const rows = Math.max(1, Math.ceil(frames / opts.columns));
   return { width: opts.columns * opts.tileSize, height: rows * opts.tileSize };
@@ -146,6 +177,10 @@ export function buildPlaceholderAtlas(
         const frame = frameBase(tile.id) + shape * AUTOTILE.variations + variation;
         const ox = (frame % columns) * tileSize;
         const oy = Math.floor(frame / columns) * tileSize;
+        if (tile.placeholderShape === 'torch') {
+          if (kind === 'tiles') drawTorch(data, width, ox, oy);
+          continue;
+        }
         for (let py = 0; py < tileSize; py++) {
           for (let px = 0; px < tileSize; px++) {
             const color = framePixel(colors, mask, px, py, tile.id, variation, opts);

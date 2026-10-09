@@ -12,6 +12,7 @@ export const DEFAULT_BINDINGS: Readonly<Partial<Record<Action, readonly string[]
   moveDown: ['S', 'DOWN'],
   jump: ['SPACE', 'W', 'UP'],
   wallMode: ['SHIFT'],
+  toggleLantern: ['F'],
 };
 
 export const MOUSE_BINDINGS: Readonly<Partial<Record<Action, 'left' | 'right'>>> = {
@@ -36,6 +37,8 @@ export const HOTBAR_KEYS = [
 /** Keys outside the action system. */
 export const DEBUG_KEYS = {
   toggleOverlay: 'F3',
+  /** Jumps to the next named time of day (dawn, noon, sunset, night...). */
+  cycleTime: 'T',
 } as const;
 
 export const UI_KEYS = {

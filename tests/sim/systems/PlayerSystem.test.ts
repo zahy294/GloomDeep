@@ -185,3 +185,14 @@ describe('updatePlayer', () => {
     expect(p.body.x).toBeGreaterThan(x0);
   });
 });
+
+describe('ActionState.press', () => {
+  it('latches a tap that was released before the simulation looked', async () => {
+    const { ActionState } = await import('../../../src/sim/input');
+    const input = new ActionState();
+    input.press('jump');
+    input.setHeld('jump', false);
+    expect(input.consumePressed('jump')).toBe(true);
+    expect(input.consumePressed('jump')).toBe(false);
+  });
+});

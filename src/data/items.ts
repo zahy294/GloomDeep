@@ -43,6 +43,7 @@ export const ITEMS: readonly ItemDef[] = [
     maxStack: BLOCK_STACK,
     placesTile: 'moonstone_crystal',
   },
+  { id: 7, key: 'torch', name: 'Torch', maxStack: BLOCK_STACK, placesTile: 'torch' },
 ];
 
 export function itemById(id: number): ItemDef | undefined {
@@ -60,4 +61,5 @@ export function itemId(key: string): number {
 export const STARTING_INVENTORY: readonly { item: string; count: number }[] = [
   { item: 'elderwood_planks', count: 99 },
   { item: 'stone', count: 50 },
+  { item: 'torch', count: 30 },
 ];

@@ -34,6 +34,11 @@ export class World {
   readonly lightG: Uint8Array;
   readonly lightB: Uint8Array;
   readonly gloam: Uint8Array;
+  /**
+   * Per column: the first row with a solid foreground tile (sunlight falls straight down to it).
+   * `height` when the column is open all the way down. Kept current on every foreground write.
+   */
+  readonly skyline: Int32Array;
   /** Mining progress, only for tiles currently being mined. */
   readonly damage = new Map<number, number>();
   readonly chunks: readonly Chunk[];
@@ -71,6 +76,7 @@ export class World {
       for (let cx = 0; cx < this.chunksX; cx++) chunks.push(new Chunk(cx, cy, size.chunkSize));
     }
     this.chunks = chunks;
+    this.skyline = new Int32Array(size.width).fill(size.height);
   }
 
   inBounds(x: number, y: number): boolean {
@@ -120,9 +126,25 @@ export class World {
     return this.chunks[cy * this.chunksX + cx];
   }
 
-  /** Marks every chunk changed (after bulk generation, which writes the arrays directly). */
+  /** Marks every chunk changed and rebuilds derived data (after bulk generation). */
   touchAll(): void {
     for (const chunk of this.chunks) chunk.markChanged();
+    for (let x = 0; x < this.width; x++) this.rescanSkyline(x, 0);
+  }
+
+  private updateSkyline(x: number, y: number, id: number): void {
+    const top = this.skyline[x] ?? this.height;
+    if (SOLID[id] === 1) {
+      if (y < top) this.skyline[x] = y;
+    } else if (y === top) {
+      this.rescanSkyline(x, y);
+    }
+  }
+
+  private rescanSkyline(x: number, fromY: number): void {
+    let y = fromY;
+    while (y < this.height && SOLID[this.fg[y * this.width + x] ?? AIR] !== 1) y++;
+    this.skyline[x] = y;
   }
 
   private write(data: Uint16Array, layer: TileLayer, x: number, y: number, id: number): void {
@@ -132,6 +154,7 @@ export class World {
     if (previous === id) return;
     data[i] = id;
     this.touch(x, y);
+    if (layer === 'fg') this.updateSkyline(x, y, id);
     const payload = this.tileChangedPayload;
     payload.x = x;
     payload.y = y;

@@ -11,6 +11,8 @@ export const ACTIONS = [
   'useAlt',
   /** Held modifier (Shift): mine/place background walls instead of blocks. */
   'wallMode',
+  /** Lights or snuffs the lantern (F). */
+  'toggleLantern',
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -25,15 +27,31 @@ export class ActionState {
   /** Cursor position in world pixels. */
   aimX = 0;
   aimY = 0;
+  /** Centre of the player's view in world pixels (the light grid is computed around it). */
+  focusX = Number.NaN;
+  focusY = Number.NaN;
 
   setHeld(action: Action, down: boolean): void {
     if (down && !this.held.get(action)) this.pressed.add(action);
     this.held.set(action, down);
   }
 
+  /**
+   * Latches a press even if the key is released before the next poll (a tap shorter than a frame
+   * would otherwise be missed by `setHeld`).
+   */
+  press(action: Action): void {
+    this.pressed.add(action);
+  }
+
   setAim(x: number, y: number): void {
     this.aimX = x;
     this.aimY = y;
+  }
+
+  setFocus(x: number, y: number): void {
+    this.focusX = x;
+    this.focusY = y;
   }
 
   isHeld(action: Action): boolean {
