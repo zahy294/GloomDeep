@@ -1,4 +1,296 @@
 {
   "version": 1,
-  "assets": []
+  "assets": [
+    {
+      "id": "parallax-elderglade-0",
+      "category": "parallax",
+      "raw": "parallax/parallax-elderglade-0.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "ancient broad-crowned oak and elder trees with a few enormous distant trunks, warm green and gold palette; far layer: very far away, faint, the lightest and bluest of the set, low contrast, tree line reaching high in the frame; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-elderglade-1",
+      "category": "parallax",
+      "raw": "parallax/parallax-elderglade-1.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "ancient broad-crowned oak and elder trees with a few enormous distant trunks, warm green and gold palette; far-mid layer: far away, light and hazy, slightly more detail than the farthest layer; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-elderglade-2",
+      "category": "parallax",
+      "raw": "parallax/parallax-elderglade-2.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "ancient broad-crowned oak and elder trees with a few enormous distant trunks, warm green and gold palette; near-mid layer: middle distance, more saturated and darker than the far layers; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-elderglade-3",
+      "category": "parallax",
+      "raw": "parallax/parallax-elderglade-3.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "ancient broad-crowned oak and elder trees with a few enormous distant trunks, warm green and gold palette; near layer: closest background layer, darkest and most saturated, large detailed trees reaching the bottom edge; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-moonpetal_vale-0",
+      "category": "parallax",
+      "raw": "parallax/parallax-moonpetal_vale-0.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "slender silver-barked birches and tall narrow conifers with airy crowns, cool silver-blue and mint palette; far layer: very far away, faint, the lightest and bluest of the set, low contrast, tree line reaching high in the frame; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-moonpetal_vale-1",
+      "category": "parallax",
+      "raw": "parallax/parallax-moonpetal_vale-1.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "slender silver-barked birches and tall narrow conifers with airy crowns, cool silver-blue and mint palette; far-mid layer: far away, light and hazy, slightly more detail than the farthest layer; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-moonpetal_vale-2",
+      "category": "parallax",
+      "raw": "parallax/parallax-moonpetal_vale-2.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "slender silver-barked birches and tall narrow conifers with airy crowns, cool silver-blue and mint palette; near-mid layer: middle distance, more saturated and darker than the far layers; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-moonpetal_vale-3",
+      "category": "parallax",
+      "raw": "parallax/parallax-moonpetal_vale-3.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "slender silver-barked birches and tall narrow conifers with airy crowns, cool silver-blue and mint palette; near layer: closest background layer, darkest and most saturated, large detailed trees reaching the bottom edge; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-weeping_mire-0",
+      "category": "parallax",
+      "raw": "parallax/parallax-weeping_mire-0.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "drooping weeping willows, dead snags and reeds over still marsh, muted grey-green palette; far layer: very far away, faint, the lightest and bluest of the set, low contrast, tree line reaching high in the frame; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-weeping_mire-1",
+      "category": "parallax",
+      "raw": "parallax/parallax-weeping_mire-1.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "drooping weeping willows, dead snags and reeds over still marsh, muted grey-green palette; far-mid layer: far away, light and hazy, slightly more detail than the farthest layer; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-weeping_mire-2",
+      "category": "parallax",
+      "raw": "parallax/parallax-weeping_mire-2.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "drooping weeping willows, dead snags and reeds over still marsh, muted grey-green palette; near-mid layer: middle distance, more saturated and darker than the far layers; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "parallax-weeping_mire-3",
+      "category": "parallax",
+      "raw": "parallax/parallax-weeping_mire-3.png",
+      "targetSize": {
+        "width": 480,
+        "height": 240
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "drooping weeping willows, dead snags and reeds over still marsh, muted grey-green palette; near layer: closest background layer, darkest and most saturated, large detailed trees reaching the bottom edge; seamless left to right; sky area solid #FF00FF magenta; final size 480\u00d7240 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "fg-canopy",
+      "category": "parallax",
+      "raw": "parallax/fg-canopy.png",
+      "targetSize": {
+        "width": 480,
+        "height": 120
+      },
+      "anchor": "top-left",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "parallax-layer.md",
+        "specifics": "dark foreground leaf clusters and a few branches hanging down from the top edge, very dark green-teal near-silhouettes, ragged bottom edge, lower half mostly empty; seamless left to right; empty area solid #FF00FF magenta; final size 480\u00d7120 pixels"
+      },
+      "status": "raw",
+      "tileable": "x"
+    },
+    {
+      "id": "flora",
+      "category": "foliage",
+      "raw": "foliage/flora.png",
+      "targetSize": {
+        "width": 16,
+        "height": 32
+      },
+      "grid": {
+        "columns": 13,
+        "rows": 1
+      },
+      "anchor": "bottom-center",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "object-sheet.md",
+        "specifics": "13 small forest plants in a single row, each in its own 16\u00d732 cell, in this exact order: short grass tuft, fern, golden wildflower, glowing silver-violet moonpetal flower, tall silver grass blades, marsh reeds with a brown cattail, rose-capped toadstool with pale spots, tiny glowing pink mushroom, hanging moss strands (hanging DOWN from the TOP of its cell), leafy hanging vine (hanging DOWN from the TOP of its cell), glowing mint moss tuft, cyan crystal cluster, ember-orange flower on a dark stem; ground plants stand on the bottom edge of their cell"
+      },
+      "status": "raw"
+    },
+    {
+      "id": "saplings",
+      "category": "tree",
+      "raw": "tree/saplings.png",
+      "targetSize": {
+        "width": 48,
+        "height": 80
+      },
+      "grid": {
+        "columns": 3,
+        "rows": 1
+      },
+      "anchor": "bottom-center",
+      "source": {
+        "kind": "nano-banana"
+      },
+      "prompt": {
+        "template": "object-sheet.md",
+        "specifics": "3 small young trees in a single row, each in its own 48\u00d780 cell, trunk base centred on the bottom edge: an elder sapling with a brown trunk and broad round leafy crown; a moonbirch sapling with a slender pale trunk with dark marks and a mint-silver crown; a small weeping willow with drooping moss-green strands"
+      },
+      "status": "raw"
+    }
+  ]
 }

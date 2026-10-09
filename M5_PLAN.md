@@ -37,6 +37,11 @@ Working file for M5; delete it when M5 is committed. Plan sections: 2.0, 2.2, 2.
    - Colour grade, underwater and heat haze: camera filters, blended over ~2 s.
 8. **Visual data per biome** lives in `src/data/biomeVisuals.ts`, keyed by surface biome / depth layer key: parallax, mist, motes, grade, ambient particles, ambience and music.
 
+9. **Parallax art is coloured.** Real parallax art is generated fully coloured, with distance haze painted in.
+   - The white silhouettes are placeholders that the game tints with the biome colours.
+   - For an approved layer (pack.json `sprites[id] === 'approved'`), the renderer skips the biome colour/haze tint and applies only time-of-day light.
+   - Prompts are in `art/prompts/batches/m5-forest-look.md`.
+
 ## Tasks (in order; ✅ when done)
 
 - [x] **A1** ✅ Tile properties: platforms, blocksSun, lightFalloff, decor + support rule; skyline; light worker per-tile falloff; tests (collision: platforms, drop-through; support; skyline; light).
