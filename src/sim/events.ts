@@ -37,6 +37,19 @@ export interface SimEvents {
     readonly id: number;
     readonly layer: TileLayer;
   };
+  /**
+   * The player tried to mine something they can't: `tier` — the tile needs a pickaxe of at least
+   * `tier`; `support` — it holds up a station standing on it. Once per attempt.
+   */
+  miningBlocked: {
+    readonly x: number;
+    readonly y: number;
+    readonly layer: TileLayer;
+    readonly tier: number;
+    readonly reason: 'tier' | 'support';
+  };
+  /** Items were crafted (`count` = total output items). */
+  crafted: { readonly itemId: number; readonly count: number };
   /** An item drop was collected; x/y is where it was picked up (pixels). */
   itemPickedUp: {
     readonly itemId: number;

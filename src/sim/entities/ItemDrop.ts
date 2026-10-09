@@ -10,6 +10,8 @@ export interface ItemDrop {
   count: number;
   age: number;
   magnetized: boolean;
+  /** Age (seconds) before it can be picked up; longer for items the player threw away. */
+  pickupAfter: number;
 }
 
 /** Spawns centred on the point with a small random upward pop. */
@@ -33,5 +35,6 @@ export function createItemDrop(
     count,
     age: 0,
     magnetized: false,
+    pickupAfter: ITEM_DROP.pickupDelay,
   };
 }

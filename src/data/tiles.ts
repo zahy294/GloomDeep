@@ -6,8 +6,13 @@ export interface TileDef {
   readonly key: string;
   readonly name: string;
   readonly solid: boolean;
-  /** Seconds to mine at base mining power (tool tiers scale this in M6). */
+  /** Seconds to mine at mining power 1 (an elderwood pickaxe); stronger tools divide it. */
   readonly hardness: number;
+  /**
+   * Lowest pickaxe tier that can mine it (src/data/items.ts `tool.tier`): 0 = bare hands,
+   * 1 elderwood, 2 copper, 3 iron, 4 moonsilver. Default 0.
+   */
+  readonly tier?: number;
   /** Item key dropped when mined, or null for nothing. */
   readonly drop: string | null;
   /**
@@ -22,7 +27,16 @@ export interface TileDef {
   /** false for objects like torches: one fixed look instead of blob autotiling. Default true. */
   readonly autotile?: boolean;
   /** Placeholder art shape for non-terrain tiles. */
-  readonly placeholderShape?: 'torch' | 'platform';
+  readonly placeholderShape?: 'torch' | 'platform' | 'workbench' | 'furnace' | 'anvil';
+  /** A crafting station (src/data/recipes.ts): recipes that need it work within reach of it. */
+  readonly station?: string;
+  /** Must stand on a solid block or platform; the block under it can't be mined while it stands. */
+  readonly needsGround?: true;
+  /**
+   * Tree trunks: as a background wall with nothing in front, a plain click mines it (no wall
+   * mode), so wood is the first thing anyone can gather.
+   */
+  readonly choppable?: true;
   /** Placeholder ore: the base ramp with clusters of this ramp's colours. */
   readonly placeholderOre?: RampName;
   /** One-way platform (branches): stand on its top, jump up through it, drop through with Down. */
@@ -102,6 +116,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Stone',
     solid: true,
     hardness: 0.9,
+    tier: 1,
     drop: 'stone',
     mergesWith: ['forest_soil'],
     placeholderRamp: 'stone',
@@ -132,6 +147,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Lumen Crystal',
     solid: true,
     hardness: 1.4,
+    tier: 1,
     drop: 'lumen_crystal',
     mergesWith: [],
     placeholderRamp: 'cyan',
@@ -143,6 +159,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Moonstone Crystal',
     solid: true,
     hardness: 1.6,
+    tier: 2,
     drop: 'moonstone_crystal',
     mergesWith: [],
     placeholderRamp: 'moonSilver',
@@ -154,6 +171,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Gloam-veined Stone',
     solid: true,
     hardness: 1.2,
+    tier: 3,
     drop: 'stone',
     mergesWith: ['stone'],
     placeholderRamp: 'gloam',
@@ -227,6 +245,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Runestone',
     solid: true,
     hardness: 1.3,
+    tier: 1,
     drop: 'runestone',
     mergesWith: [],
     placeholderRamp: 'moonSilver',
@@ -268,6 +287,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Basalt',
     solid: true,
     hardness: 1.1,
+    tier: 3,
     drop: 'basalt',
     mergesWith: [],
     placeholderRamp: 'tealShadow',
@@ -278,6 +298,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Obsidian',
     solid: true,
     hardness: 2.2,
+    tier: 4,
     drop: 'obsidian',
     mergesWith: [],
     placeholderRamp: 'tealShadow',
@@ -288,6 +309,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Copper Ore',
     solid: true,
     hardness: 1,
+    tier: 1,
     drop: 'copper_ore',
     mergesWith: ['stone'],
     placeholderRamp: 'stone',
@@ -299,6 +321,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Iron Ore',
     solid: true,
     hardness: 1.2,
+    tier: 2,
     drop: 'iron_ore',
     mergesWith: ['stone'],
     placeholderRamp: 'stone',
@@ -310,6 +333,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Moonsilver Ore',
     solid: true,
     hardness: 1.6,
+    tier: 3,
     drop: 'moonsilver_ore',
     mergesWith: ['stone'],
     placeholderRamp: 'stone',
@@ -321,6 +345,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Gold Ore',
     solid: true,
     hardness: 1.4,
+    tier: 2,
     drop: 'gold_ore',
     mergesWith: ['stone'],
     placeholderRamp: 'stone',
@@ -332,6 +357,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Emberite Ore',
     solid: true,
     hardness: 1.8,
+    tier: 4,
     drop: 'emberite_ore',
     mergesWith: ['basalt'],
     placeholderRamp: 'tealShadow',
@@ -347,6 +373,7 @@ export const TILES: readonly TileDef[] = [
     drop: 'living_wood',
     mergesWith: ['rootwood'],
     placeholderRamp: 'bark',
+    choppable: true,
   },
   {
     id: 28,
@@ -403,6 +430,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Carved Runestone',
     solid: true,
     hardness: 1.3,
+    tier: 1,
     drop: 'runestone',
     mergesWith: ['runestone'],
     placeholderRamp: 'moonSilver',
@@ -601,6 +629,51 @@ export const TILES: readonly TileDef[] = [
     mergesWith: [],
     placeholderRamp: 'cyan',
     waterfall: true,
+  },
+  // Crafting stations (src/data/recipes.ts). One tile each until furniture art arrives.
+  {
+    id: 50,
+    key: 'workbench',
+    name: 'Workbench',
+    solid: false,
+    hardness: 0.4,
+    drop: 'workbench',
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'workbench',
+    station: 'workbench',
+    needsGround: true,
+    platform: true,
+  },
+  {
+    id: 51,
+    key: 'furnace',
+    name: 'Furnace',
+    solid: false,
+    hardness: 0.8,
+    drop: 'furnace',
+    mergesWith: [],
+    placeholderRamp: 'stone',
+    light: 'furnace',
+    autotile: false,
+    placeholderShape: 'furnace',
+    station: 'furnace',
+    needsGround: true,
+  },
+  {
+    id: 52,
+    key: 'anvil',
+    name: 'Anvil',
+    solid: false,
+    hardness: 0.8,
+    drop: 'anvil',
+    mergesWith: [],
+    placeholderRamp: 'moonSilver',
+    autotile: false,
+    placeholderShape: 'anvil',
+    station: 'anvil',
+    needsGround: true,
   },
 ];
 

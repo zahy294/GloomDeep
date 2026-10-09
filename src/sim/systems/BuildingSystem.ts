@@ -30,6 +30,10 @@ const NEIGHBOURS = [
   [0, -1],
 ] as const;
 
+/** Tiles that must stand on a block or platform (stations), and the tiles that count as ground. */
+const NEEDS_GROUND = Uint8Array.from(TILES, (t) => (t.needsGround ? 1 : 0));
+const GROUND = Uint8Array.from(TILES, (t) => (t.solid || t.platform ? 1 : 0));
+
 /** Per id: foreground tiles a new block can be built against (not flowers, vines or waterfalls). */
 const HOLDS = Uint8Array.from(TILES, (t) => (t.id !== AIR && !t.decor && !t.waterfall ? 1 : 0));
 
@@ -40,6 +44,7 @@ const HOLDS = Uint8Array.from(TILES, (t) => (t.id !== AIR && !t.decor && !t.wate
 export function hasSupport(world: World, layer: TileLayer, x: number, y: number, id = -1): boolean {
   // Decorations need their own anchor (ground under a flower, a ceiling over a vine).
   if (layer === 'fg' && isDecor(id)) return decorSupported(world, x, y, id);
+  if (layer === 'fg' && NEEDS_GROUND[id] === 1) return GROUND[world.get(x, y + 1)] === 1;
   if (layer === 'fg' && world.getBg(x, y) !== AIR) return true;
   for (const [dx, dy] of NEIGHBOURS) {
     if (HOLDS[world.get(x + dx, y + dy)] === 1 || world.getBg(x + dx, y + dy) !== AIR) return true;

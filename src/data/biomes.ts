@@ -89,6 +89,8 @@ export const DEPTH_LAYERS: readonly DepthLayerDef[] = [
     caveThreshold: 0.67,
     ores: [
       { tile: 'copper_ore', density: 0.05, size: 5 },
+      // A little shallow iron so the copper → iron step doesn't need a dig to Rootdeep.
+      { tile: 'iron_ore', density: 0.012, size: 4 },
       { tile: 'lumen_crystal', density: 0.015, size: 3 },
     ],
     liquid: 'water',

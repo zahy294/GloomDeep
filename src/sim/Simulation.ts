@@ -1,5 +1,5 @@
-import { SIM, TIME, WORLD } from '../config';
-import { itemId, STARTING_INVENTORY } from '../data/items';
+import { ITEM_DROP, SIM, TIME, WORLD } from '../config';
+import { itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
 import type { SimCommand } from './commands';
@@ -13,6 +13,8 @@ import { Inventory } from './inventory/Inventory';
 import { Mulberry32 } from './random';
 import { Weather } from './weather';
 import { DecorSupport } from './world/decor';
+import { craft, nearbyStations, recipeByKey } from './systems/CraftingSystem';
+import { updateHealth } from './systems/HealthSystem';
 import { createBuildingState, updateBuilding, type BuildingState } from './systems/BuildingSystem';
 import { updateItemDrops } from './systems/ItemDropSystem';
 import { updateLantern } from './systems/LanternSystem';
@@ -81,6 +83,9 @@ export class Simulation {
   readonly spawnDrop = (item: number, count: number, x: number, y: number) => {
     this.drops.push(createItemDrop(item, count, x, y, this.random));
   };
+  /** Crafting stations in reach, refreshed when a craft is requested (and by `stationsNearby`). */
+  private readonly stations = new Set<string>();
+  private readonly craftedPayload = { itemId: 0, count: 0 };
 
   constructor(options: SimulationOptions) {
     this.world = new World(options.size, this.events);
@@ -98,9 +103,7 @@ export class Simulation {
       this.events,
       options.lightBackend ?? new InlineLightBackend(),
     );
-    if (options.startingInventory !== false) {
-      for (const { item, count } of STARTING_INVENTORY) this.inventory.add(itemId(item), count);
-    }
+    if (options.startingInventory !== false) this.giveItems(STARTING_INVENTORY);
     this.loop = new FixedStepLoop(
       options.stepsPerSecond ?? SIM.stepsPerSecond,
       options.maxStepsPerFrame ?? SIM.maxStepsPerFrame,
@@ -156,6 +159,9 @@ export class Simulation {
       sim.inventory.slots[i] = slot ? { itemId: slot.itemId, count: slot.count } : null;
     });
     sim.inventory.select(save.inventory.selected);
+    const cursor = save.inventory.cursor;
+    sim.inventory.cursor = cursor ? { itemId: cursor.itemId, count: cursor.count } : null;
+    p.health = save.player.health;
     sim.elapsed = save.elapsed;
     for (const d of save.drops) {
       const drop = createItemDrop(d.itemId, d.count, d.x, d.y, () => 0.5);
@@ -163,6 +169,7 @@ export class Simulation {
       drop.body.vy = d.vy;
       drop.age = d.age;
       drop.magnetized = d.magnetized;
+      drop.pickupAfter = d.pickupAfter;
       sim.drops.push(drop);
     }
     sim.rng.state = save.randomState >>> 0;
@@ -192,10 +199,14 @@ export class Simulation {
         lumen: p.lumen,
         lanternOn: p.lanternOn,
         lens: p.lens,
+        health: p.health,
       },
       inventory: {
         slots: this.inventory.slots.map((s) => (s ? { itemId: s.itemId, count: s.count } : null)),
         selected: this.inventory.selected,
+        cursor: this.inventory.cursor
+          ? { itemId: this.inventory.cursor.itemId, count: this.inventory.cursor.count }
+          : null,
       },
       dayFraction: this.dayFraction,
       elapsed: this.elapsed,
@@ -208,6 +219,7 @@ export class Simulation {
         vy: d.body.vy,
         age: d.age,
         magnetized: d.magnetized,
+        pickupAfter: d.pickupAfter,
       })),
       randomState: this.rng.state,
       spawnX: this.spawnX,
@@ -229,6 +241,20 @@ export class Simulation {
   setDayFraction(fraction: number): void {
     this.dayFraction = ((fraction % 1) + 1) % 1;
     sampleDayCycle(this.dayFraction, this.day);
+  }
+
+  /** Adds items to the inventory (starting inventory, debug kits); what doesn't fit is dropped. */
+  giveItems(items: readonly ItemCount[]): void {
+    for (const { item, count } of items) {
+      const left = this.inventory.add(itemId(item), count);
+      if (left > 0) this.dropAtPlayer(itemId(item), left, false);
+    }
+    this.events.emit('inventoryChanged', NO_PAYLOAD);
+  }
+
+  /** Crafting stations within reach of the player right now (for the crafting screen). */
+  stationsNearby(): ReadonlySet<string> {
+    return nearbyStations(this.world, this.player.body, this.stations);
   }
 
   /** Queues a command from the UI/input layer; applied at the start of the next step. */
@@ -259,7 +285,16 @@ export class Simulation {
     this.stepCount++;
     this.applyCommands();
     updatePlayer(this.player, this.input, this.world, dt);
-    updateMining(this.mining, this.player, this.input, this.world, this.events, this.spawnDrop, dt);
+    updateMining(
+      this.mining,
+      this.player,
+      this.input,
+      this.inventory,
+      this.world,
+      this.events,
+      this.spawnDrop,
+      dt,
+    );
     updateBuilding(
       this.building,
       this.player,
@@ -272,6 +307,7 @@ export class Simulation {
     this.decorSupport.update(this.spawnDrop);
     updateItemDrops(this.drops, this.player, this.inventory, this.world, this.events, dt);
     updateLantern(this.player, this.input, this.inventory, this.events, dt);
+    updateHealth(this.player, dt);
     this.elapsed += dt;
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
     this.weather.update(this.elapsed, this.dayFraction, this.events);
@@ -279,6 +315,32 @@ export class Simulation {
     this.light.update(dt, this.elapsed, this.sunNow, this.player, this.input);
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
+  }
+
+  private craft(key: string, times: number): void {
+    const recipe = recipeByKey(key);
+    if (!recipe) return;
+    const { crafted, overflow } = craft(recipe, times, this.inventory, this.stationsNearby());
+    if (crafted === 0) return;
+    if (overflow > 0) this.dropAtPlayer(recipe.output.itemId, overflow, false);
+    this.craftedPayload.itemId = recipe.output.itemId;
+    this.craftedPayload.count = recipe.output.count * crafted;
+    this.events.emit('crafted', this.craftedPayload);
+  }
+
+  /**
+   * Drops items at the player's hands. `thrown` items fly off in the facing direction and can't be
+   * picked up again straight away (ITEM_DROP.throwPickupDelay).
+   */
+  private dropAtPlayer(item: number, count: number, thrown: boolean): void {
+    const b = this.player.body;
+    const drop = createItemDrop(item, count, b.x + b.width / 2, b.y + b.height / 3, this.random);
+    if (thrown) {
+      drop.body.vx = this.player.facing * ITEM_DROP.throwSpeedX;
+      drop.body.vy = -ITEM_DROP.throwSpeedY;
+      drop.pickupAfter = ITEM_DROP.throwPickupDelay;
+    }
+    this.drops.push(drop);
   }
 
   private applyCommands(): void {
@@ -296,6 +358,26 @@ export class Simulation {
           break;
         case 'setDayFraction':
           this.setDayFraction(command.value);
+          break;
+        case 'slotClick':
+          if (command.quick) this.inventory.quickMove(command.slot);
+          else this.inventory.click(command.slot, command.button);
+          break;
+        case 'sortInventory':
+          this.inventory.sortBag();
+          break;
+        case 'dropCursor': {
+          const held = this.inventory.takeCursor();
+          if (held) this.dropAtPlayer(held.itemId, held.count, true);
+          break;
+        }
+        case 'stowCursor': {
+          const left = this.inventory.stowCursor();
+          if (left) this.dropAtPlayer(left.itemId, left.count, true);
+          break;
+        }
+        case 'craft':
+          this.craft(command.recipe, command.times);
           break;
       }
     }

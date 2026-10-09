@@ -44,7 +44,7 @@ export function updateItemDrops(
     let distSq = dx * dx + dy * dy;
 
     drop.magnetized =
-      drop.age >= ITEM_DROP.pickupDelay && distSq <= magnetSq && inventory.canAccept(drop.itemId);
+      drop.age >= drop.pickupAfter && distSq <= magnetSq && inventory.canAccept(drop.itemId);
 
     if (drop.magnetized) {
       const dist = Math.sqrt(distSq);

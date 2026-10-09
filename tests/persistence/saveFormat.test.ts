@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HEALTH, ITEM_DROP } from '../../src/config';
 import { gunzip, gzip } from '../../src/persistence/compression';
 import {
   SAVE_VERSION,
@@ -59,11 +60,28 @@ export function makeState(width: number, height: number, fill?: (i: number) => n
       jumpBufferTimer: 0,
       jumping: false,
       lens: 'amber',
+      health: 64.5,
     },
-    inventory: { slots: [{ itemId: 3, count: 12 }, null, { itemId: 9, count: 1 }], selected: 2 },
+    inventory: {
+      slots: [{ itemId: 3, count: 12 }, null, { itemId: 9, count: 1 }],
+      selected: 2,
+      cursor: { itemId: 5, count: 7 },
+    },
     dayFraction: 0.375,
     elapsed: 123.456,
-    drops: [{ itemId: 4, count: 2, x: 10, y: 20, vx: -3, vy: 40, age: 12.5, magnetized: true }],
+    drops: [
+      {
+        itemId: 4,
+        count: 2,
+        x: 10,
+        y: 20,
+        vx: -3,
+        vy: 40,
+        age: 12.5,
+        magnetized: true,
+        pickupAfter: 2,
+      },
+    ],
     randomState: 0xdeadbeef,
     spawnX: 100,
     spawnY: 200,
@@ -164,6 +182,26 @@ describe('saveFormat', () => {
     expect(() =>
       decodeWith(encodeSave(state), { 0: ({ header }) => ({ header, arrays: {} }) }, 1),
     ).toThrow(/missing array/);
+  });
+});
+
+describe('MIGRATIONS', () => {
+  it('upgrades a v1 save: full health, empty cursor, default pickup delay', () => {
+    const state = makeState(4, 4);
+    state.version = 1;
+    const { health: _health, ...v1Player } = state.player;
+    const { cursor: _cursor, ...v1Inventory } = state.inventory;
+    const v1 = {
+      ...state,
+      player: v1Player,
+      inventory: v1Inventory,
+      drops: state.drops.map(({ pickupAfter: _p, ...d }) => d),
+    } as unknown as SaveState; // a v1 header lacks the v2 fields on purpose
+    const out = decodeSave(encodeSave(v1));
+    expect(out.version).toBe(SAVE_VERSION);
+    expect(out.player.health).toBe(HEALTH.max);
+    expect(out.inventory.cursor).toBeNull();
+    expect(out.drops[0]?.pickupAfter).toBe(ITEM_DROP.pickupDelay);
   });
 });
 

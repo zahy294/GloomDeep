@@ -1,7 +1,8 @@
+import { HEALTH, ITEM_DROP } from '../config';
 import type { SaveState, WorldArrays } from '../sim/world/worldData';
 
 /** Bump when the layout or header fields change, and add a migration for the old version. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 const MAGIC = [0x47, 0x4c, 0x44, 0x50]; // "GLDP"
 const PREAMBLE_BYTES = 8; // magic + uint32 header length
@@ -38,8 +39,21 @@ export interface RawSave {
 
 export type MigrationTable = Record<number, (save: RawSave) => RawSave>;
 
-/** MIGRATIONS[n] upgrades a version-n save to version n+1. Empty until the format changes. */
-export const MIGRATIONS: MigrationTable = {};
+/** MIGRATIONS[n] upgrades a version-n save to version n+1. */
+export const MIGRATIONS: MigrationTable = {
+  // v2 (M6): player health, the stack held by the inventory cursor, per-drop pickup delay.
+  1: (save) => {
+    const h = save.header as SaveHeader & {
+      player?: Record<string, unknown>;
+      inventory?: Record<string, unknown>;
+      drops?: Record<string, unknown>[];
+    };
+    if (h.player) h.player.health = HEALTH.max;
+    if (h.inventory) h.inventory.cursor = null;
+    for (const d of h.drops ?? []) d.pickupAfter = ITEM_DROP.pickupDelay;
+    return save;
+  },
+};
 
 const ARRAY_TYPES: Record<ArrayName, ArrayType> = {
   fg: 'u16',

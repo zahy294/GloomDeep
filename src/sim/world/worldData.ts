@@ -58,6 +58,7 @@ export interface SavedPlayer {
   lumen: number;
   lanternOn: boolean;
   lens: string;
+  health: number;
 }
 
 export interface SavedDrop {
@@ -71,6 +72,7 @@ export interface SavedDrop {
   /** Seconds since it dropped (despawn timer). */
   age: number;
   magnetized: boolean;
+  pickupAfter: number;
 }
 
 /** Everything needed to restore a world exactly (plan 3.5). */
@@ -80,7 +82,12 @@ export interface SaveState {
   meta: WorldMeta;
   arrays: WorldArrays;
   player: SavedPlayer;
-  inventory: { slots: ({ itemId: number; count: number } | null)[]; selected: number };
+  inventory: {
+    slots: ({ itemId: number; count: number } | null)[];
+    selected: number;
+    /** The stack held by the mouse when the world was saved. */
+    cursor: { itemId: number; count: number } | null;
+  };
   dayFraction: number;
   /** Simulated seconds (drives flicker etc.). */
   elapsed: number;

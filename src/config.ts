@@ -240,8 +240,9 @@ export const PLAYER_VIEW = {
 export const MINING = {
   /** Max distance (tiles) from the player's centre to the target tile's centre. */
   reachTiles: 6,
-  /** Hardness units removed per second at base power (tool tiers multiply this in M6). */
-  basePower: 1,
+  /** Bare hands (no pickaxe carried): mines tier-0 tiles (soil, wood, plants) at this power. */
+  handTier: 0,
+  handPower: 0.6,
   /** Visible crack stages drawn over a tile while it is mined. */
   crackStages: 4,
 } as const;
@@ -256,6 +257,22 @@ export const INVENTORY = {
   slots: 40,
   /** The first N slots are the hotbar. */
   hotbarSlots: 10,
+} as const;
+
+/** Crafting (plan 3.4 CraftingSystem). */
+export const CRAFTING = {
+  /** A station counts when its tile centre is within this many tiles of the player's centre. */
+  stationReach: 5,
+  /** Most crafts one "craft all" request may make (keeps a held click from emptying the bag). */
+  maxBatch: 99,
+} as const;
+
+/** Player health (plan 5 HUD). Damage sources arrive with combat (M8). */
+export const HEALTH = {
+  max: 100,
+  /** Health regained per second, after `regenDelay` seconds without damage. */
+  regenPerSecond: 1,
+  regenDelay: 6,
 } as const;
 
 /** Dropped item entities (plan 2.8: "item flies to the player"). Pixels and seconds. */
@@ -279,6 +296,10 @@ export const ITEM_DROP = {
   magnetMaxSpeed: 420,
   /** ...and within this distance it is collected. */
   pickupRadius: 14,
+  /** Items thrown out of the inventory: launch speed and the wait before they can be picked up. */
+  throwSpeedX: 160,
+  throwSpeedY: 120,
+  throwPickupDelay: 2,
   /** Drops left lying around longer than this vanish (keeps entity counts bounded). */
   despawnAfter: 600,
 } as const;

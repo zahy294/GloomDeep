@@ -1,4 +1,4 @@
-import { LUMEN, PLAYER } from '../../config';
+import { HEALTH, LUMEN, PLAYER } from '../../config';
 import type { Body } from '../physics/tileCollision';
 
 export interface Player {
@@ -19,6 +19,10 @@ export interface Player {
   lanternOn: boolean;
   /** Active lens key (src/data/lenses.ts). */
   lens: string;
+  /** 0..HEALTH.max. */
+  health: number;
+  /** Seconds since the player last took damage (regeneration waits for HEALTH.regenDelay). */
+  sinceDamage: number;
 }
 
 /** Spawn is the FEET-CENTER in pixels. */
@@ -38,5 +42,7 @@ export function createPlayer(spawnX: number, spawnY: number): Player {
     lumen: LUMEN.start,
     lanternOn: true,
     lens: 'amber',
+    health: HEALTH.max,
+    sinceDamage: HEALTH.regenDelay,
   };
 }

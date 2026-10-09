@@ -1,5 +1,16 @@
 /** Item registry. Ids are array indices (like tiles); keys are what other data refers to. */
 
+/** Inventory sorting groups, in sort order. */
+export const ITEM_CATEGORIES = ['tool', 'station', 'light', 'material', 'block'] as const;
+export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+/** A pickaxe: mines tiles up to `tier` (src/data/tiles.ts), `power` × faster than power 1. */
+export interface ToolDef {
+  readonly kind: 'pickaxe';
+  readonly tier: number;
+  readonly power: number;
+}
+
 export interface ItemDef {
   readonly id: number;
   readonly key: string;
@@ -7,9 +18,17 @@ export interface ItemDef {
   readonly maxStack: number;
   /** Tile key this item places (as a block, or as a background wall), or null. */
   readonly placesTile: string | null;
+  readonly category: ItemCategory;
+  /** Tooltip flavour line. */
+  readonly description?: string;
+  /** Frame in the `items` sprite sheet; items without one show their tile's icon. */
+  readonly icon?: number;
+  readonly tool?: ToolDef;
 }
 
 const BLOCK_STACK = 999;
+const MATERIAL_STACK = 999;
+const STATION_STACK = 99;
 
 export const ITEMS: readonly ItemDef[] = [
   {
@@ -18,16 +37,32 @@ export const ITEMS: readonly ItemDef[] = [
     name: 'Forest Soil',
     maxStack: BLOCK_STACK,
     placesTile: 'forest_soil',
+    category: 'block',
   },
-  { id: 1, key: 'moss', name: 'Moss', maxStack: BLOCK_STACK, placesTile: 'moss' },
-  { id: 2, key: 'stone', name: 'Stone', maxStack: BLOCK_STACK, placesTile: 'stone' },
-  { id: 3, key: 'mud', name: 'Mud', maxStack: BLOCK_STACK, placesTile: 'mud' },
+  {
+    id: 1,
+    key: 'moss',
+    name: 'Moss',
+    maxStack: BLOCK_STACK,
+    placesTile: 'moss',
+    category: 'block',
+  },
+  {
+    id: 2,
+    key: 'stone',
+    name: 'Stone',
+    maxStack: BLOCK_STACK,
+    placesTile: 'stone',
+    category: 'block',
+  },
+  { id: 3, key: 'mud', name: 'Mud', maxStack: BLOCK_STACK, placesTile: 'mud', category: 'block' },
   {
     id: 4,
     key: 'elderwood_planks',
     name: 'Elderwood Planks',
     maxStack: BLOCK_STACK,
     placesTile: 'elderwood_planks',
+    category: 'block',
   },
   {
     id: 5,
@@ -35,6 +70,7 @@ export const ITEMS: readonly ItemDef[] = [
     name: 'Lumen Crystal',
     maxStack: BLOCK_STACK,
     placesTile: 'lumen_crystal',
+    category: 'material',
   },
   {
     id: 6,
@@ -42,45 +78,120 @@ export const ITEMS: readonly ItemDef[] = [
     name: 'Moonstone Crystal',
     maxStack: BLOCK_STACK,
     placesTile: 'moonstone_crystal',
+    category: 'material',
   },
-  { id: 7, key: 'torch', name: 'Torch', maxStack: BLOCK_STACK, placesTile: 'torch' },
-  { id: 8, key: 'peat', name: 'Peat', maxStack: BLOCK_STACK, placesTile: 'peat' },
-  { id: 9, key: 'silt', name: 'Silt', maxStack: BLOCK_STACK, placesTile: 'silt' },
-  { id: 10, key: 'gravel', name: 'Gravel', maxStack: BLOCK_STACK, placesTile: 'gravel' },
-  { id: 11, key: 'runestone', name: 'Runestone', maxStack: BLOCK_STACK, placesTile: 'runestone' },
+  {
+    id: 7,
+    key: 'torch',
+    name: 'Torch',
+    maxStack: BLOCK_STACK,
+    placesTile: 'torch',
+    category: 'light',
+  },
+  {
+    id: 8,
+    key: 'peat',
+    name: 'Peat',
+    maxStack: BLOCK_STACK,
+    placesTile: 'peat',
+    category: 'block',
+  },
+  {
+    id: 9,
+    key: 'silt',
+    name: 'Silt',
+    maxStack: BLOCK_STACK,
+    placesTile: 'silt',
+    category: 'block',
+  },
+  {
+    id: 10,
+    key: 'gravel',
+    name: 'Gravel',
+    maxStack: BLOCK_STACK,
+    placesTile: 'gravel',
+    category: 'block',
+  },
+  {
+    id: 11,
+    key: 'runestone',
+    name: 'Runestone',
+    maxStack: BLOCK_STACK,
+    placesTile: 'runestone',
+    category: 'block',
+  },
   {
     id: 12,
     key: 'glowcap_flesh',
     name: 'Glowcap Flesh',
     maxStack: BLOCK_STACK,
     placesTile: 'glowcap_flesh',
+    category: 'block',
   },
-  { id: 13, key: 'rootwood', name: 'Rootwood', maxStack: BLOCK_STACK, placesTile: 'rootwood' },
-  { id: 14, key: 'ash', name: 'Ash', maxStack: BLOCK_STACK, placesTile: 'ash' },
-  { id: 15, key: 'basalt', name: 'Basalt', maxStack: BLOCK_STACK, placesTile: 'basalt' },
-  { id: 16, key: 'obsidian', name: 'Obsidian', maxStack: BLOCK_STACK, placesTile: 'obsidian' },
+  {
+    id: 13,
+    key: 'rootwood',
+    name: 'Rootwood',
+    maxStack: BLOCK_STACK,
+    placesTile: 'rootwood',
+    category: 'block',
+  },
+  { id: 14, key: 'ash', name: 'Ash', maxStack: BLOCK_STACK, placesTile: 'ash', category: 'block' },
+  {
+    id: 15,
+    key: 'basalt',
+    name: 'Basalt',
+    maxStack: BLOCK_STACK,
+    placesTile: 'basalt',
+    category: 'block',
+  },
+  {
+    id: 16,
+    key: 'obsidian',
+    name: 'Obsidian',
+    maxStack: BLOCK_STACK,
+    placesTile: 'obsidian',
+    category: 'block',
+  },
   {
     id: 17,
     key: 'copper_ore',
     name: 'Copper Ore',
     maxStack: BLOCK_STACK,
     placesTile: 'copper_ore',
+    category: 'material',
   },
-  { id: 18, key: 'iron_ore', name: 'Iron Ore', maxStack: BLOCK_STACK, placesTile: 'iron_ore' },
+  {
+    id: 18,
+    key: 'iron_ore',
+    name: 'Iron Ore',
+    maxStack: BLOCK_STACK,
+    placesTile: 'iron_ore',
+    category: 'material',
+  },
   {
     id: 19,
     key: 'moonsilver_ore',
     name: 'Moonsilver Ore',
     maxStack: BLOCK_STACK,
     placesTile: 'moonsilver_ore',
+    category: 'material',
   },
-  { id: 20, key: 'gold_ore', name: 'Gold Ore', maxStack: BLOCK_STACK, placesTile: 'gold_ore' },
+  {
+    id: 20,
+    key: 'gold_ore',
+    name: 'Gold Ore',
+    maxStack: BLOCK_STACK,
+    placesTile: 'gold_ore',
+    category: 'material',
+  },
   {
     id: 21,
     key: 'emberite_ore',
     name: 'Emberite Ore',
     maxStack: BLOCK_STACK,
     placesTile: 'emberite_ore',
+    category: 'material',
   },
   {
     id: 22,
@@ -88,6 +199,106 @@ export const ITEMS: readonly ItemDef[] = [
     name: 'Living Wood',
     maxStack: BLOCK_STACK,
     placesTile: 'living_wood',
+    category: 'block',
+  },
+  // Tools (M6). Power 1 = an elderwood pickaxe; hands are MINING.handPower.
+  {
+    id: 23,
+    key: 'elderwood_pickaxe',
+    name: 'Elderwood Pickaxe',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Breaks stone and copper.',
+    icon: 0,
+    tool: { kind: 'pickaxe', tier: 1, power: 1 },
+  },
+  {
+    id: 24,
+    key: 'copper_pickaxe',
+    name: 'Copper Pickaxe',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Strong enough for iron.',
+    icon: 1,
+    tool: { kind: 'pickaxe', tier: 2, power: 1.35 },
+  },
+  {
+    id: 25,
+    key: 'iron_pickaxe',
+    name: 'Iron Pickaxe',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Cuts through basalt and moonsilver.',
+    icon: 2,
+    tool: { kind: 'pickaxe', tier: 3, power: 1.75 },
+  },
+  {
+    id: 26,
+    key: 'moonsilver_pickaxe',
+    name: 'Moonsilver Pickaxe',
+    maxStack: 1,
+    placesTile: null,
+    category: 'tool',
+    description: 'Cold and bright. Breaks obsidian and emberite.',
+    icon: 3,
+    tool: { kind: 'pickaxe', tier: 4, power: 2.2 },
+  },
+  {
+    id: 27,
+    key: 'copper_bar',
+    name: 'Copper Bar',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    icon: 4,
+  },
+  {
+    id: 28,
+    key: 'iron_bar',
+    name: 'Iron Bar',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    icon: 5,
+  },
+  {
+    id: 29,
+    key: 'moonsilver_bar',
+    name: 'Moonsilver Bar',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    icon: 6,
+  },
+  {
+    id: 30,
+    key: 'workbench',
+    name: 'Workbench',
+    maxStack: STATION_STACK,
+    placesTile: 'workbench',
+    category: 'station',
+    description: 'Crafting station for wooden tools and furniture.',
+  },
+  {
+    id: 31,
+    key: 'furnace',
+    name: 'Furnace',
+    maxStack: STATION_STACK,
+    placesTile: 'furnace',
+    category: 'station',
+    description: 'Smelts ore into bars.',
+  },
+  {
+    id: 32,
+    key: 'anvil',
+    name: 'Anvil',
+    maxStack: STATION_STACK,
+    placesTile: 'anvil',
+    category: 'station',
+    description: 'Forges metal tools.',
   },
 ];
 
@@ -102,9 +313,33 @@ export function itemId(key: string): number {
   return item.id;
 }
 
-/** What a new player starts with (until crafting exists in M6): enough to test building. */
-export const STARTING_INVENTORY: readonly { item: string; count: number }[] = [
-  { item: 'elderwood_planks', count: 99 },
-  { item: 'stone', count: 50 },
-  { item: 'torch', count: 30 },
-];
+/** One entry of a starting inventory or debug kit. */
+export interface ItemCount {
+  readonly item: string;
+  readonly count: number;
+}
+
+/** What a new player starts with: everything else is mined and crafted (M6 "Done when"). */
+export const STARTING_INVENTORY: readonly ItemCount[] = [{ item: 'torch', count: 10 }];
+
+/**
+ * Debug kits added on top of the starting inventory with `?kit=<key>` (screenshots and testing).
+ * `build` is the M2–M5 building kit.
+ */
+export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
+  build: [
+    { item: 'copper_pickaxe', count: 1 },
+    { item: 'elderwood_planks', count: 99 },
+    { item: 'stone', count: 50 },
+    { item: 'torch', count: 20 },
+  ],
+  crafting: [
+    { item: 'elderwood_pickaxe', count: 1 },
+    { item: 'living_wood', count: 20 },
+    { item: 'stone', count: 40 },
+    { item: 'copper_ore', count: 30 },
+    { item: 'iron_ore', count: 24 },
+    { item: 'workbench', count: 1 },
+    { item: 'furnace', count: 1 },
+  ],
+};

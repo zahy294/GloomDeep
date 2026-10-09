@@ -168,6 +168,24 @@ describe('giant trees (medium world)', () => {
     for (let y = ground - 3; y < ground; y++) expect(world.isSolid(spawnX, y)).toBe(false);
   });
 
+  it('has the wood, copper and iron for the first tools near the spawn (M6)', () => {
+    const count = (key: string, x0: number, x1: number, dy0: number, dy1: number, bg = false) => {
+      const id = tileId(key);
+      let n = 0;
+      for (let x = x0; x < x1; x++) {
+        const ground = world.groundRow(x);
+        for (let y = ground + dy0; y < ground + dy1; y++) {
+          if ((bg ? world.getBg(x, y) : world.get(x, y)) === id) n++;
+        }
+      }
+      return n;
+    };
+    // Trunk walls within jumping height, choppable by hand.
+    expect(count('living_wood', spawnX - 100, spawnX + 100, -12, 0, true)).toBeGreaterThan(50);
+    expect(count('copper_ore', spawnX - 150, spawnX + 150, 0, 80)).toBeGreaterThan(150);
+    expect(count('iron_ore', spawnX - 150, spawnX + 150, 0, 120)).toBeGreaterThan(40);
+  });
+
   it('every surface biome has giant trees', () => {
     const biomes = new Set(trunks().map((x) => world.surfaceBiome[x]));
     expect(biomes.size).toBe(SURFACE_BIOMES.length);
