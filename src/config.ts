@@ -816,6 +816,65 @@ export const FESTIVAL = {
   endsAt: 0.25,
 } as const;
 
+/** Boss fights in general (src/sim/systems/BossSystem.ts; each boss's own numbers: src/data/bosses.ts). */
+export const BOSS = {
+  /** Seconds of the intro (camera zoom and title card): the boss holds still and can't be hurt. */
+  introSeconds: 2.8,
+  /** The tile that seals an arena's doorways while the fight is on. */
+  sealTile: 'arena_seal',
+  /** Fight state is re-checked (arena left, lures, braziers) this often. */
+  checkSeconds: 0.25,
+  /** Hostile shots: collision radius (px) by default, and the longest any shot lives (s). */
+  shotRadius: 4,
+  shotLife: 6,
+  /** Right-clicking an arena fixture (lever, prism, root-lamp) works within this many tiles. */
+  useReach: 4,
+  /** Minions appear within this many tiles of the boss. */
+  minionSpread: 6,
+  /** The fight ends if the player is this many tiles outside the arena rectangle. */
+  leaveMargin: 2,
+} as const;
+
+/**
+ * Dimming nights (plan 1.4: "every few in-game days the sun dims further ... the Gloam spreads
+ * faster, and waves of shades attack"). Days count from 0 at the world's start; the night that
+ * begins on day `firstDay` is the first Dimming night, then every `everyDays` days.
+ */
+export const DIMMING = {
+  firstDay: 2,
+  everyDays: 3,
+  /** Day fractions: the warning, when it starts deepening, full strength, and fading at dawn. */
+  warnAt: 0.62,
+  startsAt: 0.76,
+  fullAt: 0.82,
+  fadeAt: 0.2,
+  endsAt: 0.26,
+  /** Sunlight × this at full strength on the first Dimming night; each survived one dims it by `deepenBy`, down to `minSun`. */
+  sun: 0.45,
+  deepenBy: 0.07,
+  minSun: 0.2,
+  /** Sky colours mixed this far towards the Dimming sky (src/data/dayCycle.ts DIMMING_SKY). */
+  skyMix: 0.75,
+  /** The Gloam grows this many times faster. */
+  gloamGrowth: 4,
+  /** Shade waves: seconds between waves, shades per wave (+1 per survived night, up to `waveMax`). */
+  waveSeconds: 55,
+  waveSize: 3,
+  waveMax: 7,
+  /** Wave shades rise where the light is at most this, this far (tiles) from the player. */
+  waveDarkLight: 60,
+  waveMinTiles: 14,
+  waveMaxTiles: 26,
+  waveAttempts: 60,
+  /** At most this many shades at once during a wave night. */
+  maxShades: 12,
+  /** A town at least this bright keeps a vigil instead of hiding; its lamps burn this much faster. */
+  vigilLight: 0.75,
+  lampBurnScale: 2,
+  /** Dawn after a Dimming night leaves this many Lumen crystals at your feet. */
+  dawnGift: { item: 'lumen_crystal', count: 3 },
+} as const;
+
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
 export const LIGHT_FX = {
   /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */

@@ -75,6 +75,8 @@ export function updateEnemyAI(
     case 'shade':
       drift(enemy, def, world, aggro, dx, dy, dist, dt);
       break;
+    case 'boss':
+      break; // moved by its boss script (src/sim/systems/bosses/)
   }
 }
 

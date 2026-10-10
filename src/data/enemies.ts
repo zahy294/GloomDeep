@@ -5,7 +5,8 @@
  */
 import type { RampName } from './palette';
 
-export type EnemyAi = 'walker' | 'hopper' | 'flyer' | 'burrower' | 'shade';
+/** `boss`: no AI of its own — its boss script (src/sim/systems/bosses/) moves it (M12). */
+export type EnemyAi = 'walker' | 'hopper' | 'flyer' | 'burrower' | 'shade' | 'boss';
 
 export interface EnemyDrop {
   readonly item: string;
@@ -41,7 +42,7 @@ export interface EnemyDef {
   readonly aggroRange: number;
   /** Multiplies the knockback it takes (0 = immovable). */
   readonly knockbackTaken: number;
-  /** First of its two frames in the `enemies` sprite sheet. */
+  /** First of its two frames in the `enemies` sprite sheet (bosses: in the `bosses` sheet). */
   readonly frame: number;
   /** Colour ramp for its hit and death particles. */
   readonly ramp: RampName;
@@ -51,7 +52,12 @@ export interface EnemyDef {
   readonly lightDamage?: number;
   /** Turns away from bright light (bats scatter, shades shrink back). */
   readonly fleesLight?: true;
+  /** A boss's body or a boss's creature: never despawns by distance (the fight ends it). */
+  readonly bound?: true;
 }
+
+/** Boss-summoned creatures only (no natural spawns). */
+const NOWHERE: EnemySpawn = { places: [], time: 'any', weight: 0 };
 
 const SURFACE = ['elderglade', 'moonpetal_vale', 'weeping_mire'] as const;
 
@@ -212,7 +218,145 @@ export const ENEMIES: readonly EnemyDef[] = [
     lightDamage: 40,
     fleesLight: true,
   },
+  // M12 — creatures of the boss fights, and the Mire's own lurkers.
+  {
+    key: 'lumen_moth',
+    name: 'Lumen Moth',
+    ai: 'flyer',
+    maxHealth: 10,
+    contactDamage: 8,
+    width: 12,
+    height: 10,
+    speed: 105,
+    aggroRange: 30,
+    knockbackTaken: 1.5,
+    frame: 18,
+    ramp: 'rose',
+    drops: [{ item: 'lumen_petal', chance: 0.3, min: 1, max: 1 }],
+    spawn: NOWHERE,
+    bound: true,
+  },
+  {
+    key: 'mire_lurker',
+    name: 'Mire Lurker',
+    ai: 'hopper',
+    maxHealth: 34,
+    contactDamage: 13,
+    width: 16,
+    height: 12,
+    speed: 80,
+    jump: 320,
+    aggroRange: 16,
+    knockbackTaken: 0.9,
+    frame: 20,
+    ramp: 'mud',
+    drops: [{ item: 'mud', chance: 0.8, min: 2, max: 4 }],
+    spawn: { places: ['weeping_mire'], time: 'night', weight: 2 },
+  },
+  {
+    // The Gloam Heart's reaching roots: they crawl to a lit root-lamp and choke it.
+    key: 'gloam_tendril',
+    name: 'Gloam Tendril',
+    ai: 'boss',
+    maxHealth: 24,
+    contactDamage: 10,
+    width: 12,
+    height: 12,
+    speed: 46,
+    aggroRange: 0,
+    knockbackTaken: 0,
+    frame: 22,
+    ramp: 'gloam',
+    drops: [],
+    spawn: NOWHERE,
+    lightDamage: 6,
+    bound: true,
+  },
+  {
+    key: 'moth_matriarch',
+    name: 'The Moth Matriarch',
+    ai: 'boss',
+    maxHealth: 700,
+    contactDamage: 22,
+    width: 44,
+    height: 30,
+    speed: 0,
+    aggroRange: 0,
+    knockbackTaken: 0,
+    frame: 0,
+    ramp: 'rose',
+    drops: [
+      { item: 'glimmer', chance: 1, min: 120, max: 160 },
+      { item: 'lumen_crystal', chance: 1, min: 8, max: 12 },
+    ],
+    spawn: NOWHERE,
+    bound: true,
+  },
+  {
+    key: 'mire_sovereign',
+    name: 'The Mire Sovereign',
+    ai: 'boss',
+    maxHealth: 900,
+    contactDamage: 26,
+    width: 44,
+    height: 40,
+    speed: 0,
+    aggroRange: 0,
+    knockbackTaken: 0,
+    frame: 2,
+    ramp: 'mud',
+    drops: [
+      { item: 'glimmer', chance: 1, min: 160, max: 220 },
+      { item: 'peat', chance: 1, min: 20, max: 30 },
+    ],
+    spawn: NOWHERE,
+    bound: true,
+  },
+  {
+    key: 'hollow_warden',
+    name: 'The Hollow Warden',
+    ai: 'boss',
+    maxHealth: 1100,
+    contactDamage: 28,
+    width: 34,
+    height: 48,
+    speed: 0,
+    aggroRange: 0,
+    knockbackTaken: 0,
+    frame: 4,
+    ramp: 'moonSilver',
+    drops: [
+      { item: 'glimmer', chance: 1, min: 200, max: 260 },
+      { item: 'moonsilver_bar', chance: 1, min: 6, max: 10 },
+      { item: 'moonstone_crystal', chance: 1, min: 10, max: 16 },
+    ],
+    spawn: NOWHERE,
+    bound: true,
+  },
+  {
+    key: 'gloam_heart',
+    name: 'The Gloam Heart',
+    ai: 'boss',
+    maxHealth: 1500,
+    contactDamage: 34,
+    width: 60,
+    height: 60,
+    speed: 0,
+    aggroRange: 0,
+    knockbackTaken: 0,
+    frame: 6,
+    ramp: 'gloam',
+    drops: [{ item: 'glimmer', chance: 1, min: 400, max: 500 }],
+    spawn: NOWHERE,
+    bound: true,
+  },
 ];
+
+export function enemyIndex(key: string): number {
+  const i = ENEMIES.findIndex((e) => e.key === key);
+  if (i < 0) throw new Error(`Unknown enemy "${key}"`);
+  return i;
+}
 
 export function enemyByKey(key: string): EnemyDef {
   const def = ENEMIES.find((e) => e.key === key);

@@ -26,6 +26,10 @@ export interface Enemy {
   burn: number;
   /** Seconds since the player was last near (despawning). */
   idleTime: number;
+  /** Multiplies the damage it takes (bosses: shells, murk, exposure); 1 for most creatures. */
+  damageTaken: number;
+  /** Touching it does no harm right now (a stunned or rising boss). */
+  harmless: boolean;
 }
 
 /** Spawned with its feet at (feetX, feetY), pixels. */
@@ -49,5 +53,7 @@ export function createEnemy(id: number, type: number, feetX: number, feetY: numb
     stunned: 0,
     burn: 0,
     idleTime: 0,
+    damageTaken: 1,
+    harmless: false,
   };
 }

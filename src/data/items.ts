@@ -589,6 +589,15 @@ export const ITEMS: readonly ItemDef[] = [
     category: 'light',
     description: 'A Canopyhold lantern. Hangs anywhere, even in mid-air.',
   },
+  {
+    id: 56,
+    key: 'moth_lure',
+    name: 'Moth Lure',
+    maxStack: STATION_STACK,
+    placesTile: 'moth_lure',
+    category: 'light',
+    description: 'Sweet glowcap light. Moths cannot resist it, and neither can their mother.',
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {
@@ -659,6 +668,18 @@ export const DEBUG_KITS: Readonly<Record<string, readonly ItemCount[]>> = {
     { item: 'iron_pickaxe', count: 1 },
     { item: 'glass_jar', count: 5 },
     { item: 'beacon', count: 2 },
+  ],
+  // M12: enough to try any boss at once.
+  boss: [
+    { item: 'iron_sword', count: 1 },
+    { item: 'elderwood_bow', count: 1 },
+    { item: 'wooden_arrow', count: 199 },
+    { item: 'lumen_staff', count: 1 },
+    { item: 'moth_lure', count: 8 },
+    { item: 'lumen_crystal', count: 30 },
+    { item: 'crimson_lens', count: 1 },
+    { item: 'iron_pickaxe', count: 1 },
+    { item: 'torch', count: 20 },
   ],
   crafting: [
     { item: 'elderwood_pickaxe', count: 1 },

@@ -22,6 +22,17 @@ export interface ShopDef {
 }
 
 export const SHOPS: readonly ShopDef[] = [
+  // M12: Hulda, once the Mire Sovereign has fallen.
+  {
+    npc: 'ferrywoman',
+    buys: true,
+    offers: [
+      { item: 'moth_lure', count: 2, price: 20 },
+      { item: 'lumen_crystal', count: 3, price: 45 },
+      { item: 'water_bucket', count: 1, price: 40 },
+      { item: 'flare', count: 5, price: 22 },
+    ],
+  },
   // Your village.
   {
     npc: 'tinker',

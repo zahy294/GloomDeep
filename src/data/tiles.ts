@@ -39,7 +39,24 @@ export interface TileDef {
     | 'beacon_dormant'
     | 'lamp'
     | 'lift'
-    | 'hanging_lantern';
+    | 'hanging_lantern'
+    | 'lure'
+    | 'lever'
+    | 'lever_open'
+    | 'brazier'
+    | 'prism_left'
+    | 'prism_right'
+    | 'node';
+  /**
+   * M12 wards: no pickaxe breaks it until this story flag is set (a boss beaten); after that it
+   * mines like any tile of its `tier`.
+   */
+  readonly sealedUntil?: string;
+  /**
+   * M12 prisms: a light beam entering the cell turns like off a mirror — `slash` is "/", `back`
+   * is "\". Right-clicking it turns it into `flipsTo` (the other way round).
+   */
+  readonly mirror?: { readonly kind: 'slash' | 'back'; readonly flipsTo: string };
   /**
    * A town street lamp (M11): as its fuel runs low it becomes `next` (lit → dim → out); refuelling
    * turns it back into the first lamp tile. Lamps are tracked by the TownSystem.
@@ -1033,6 +1050,184 @@ export const TILES: readonly TileDef[] = [
     placeholderShape: 'beacon',
     needsGround: true,
     beacon: { radius: 44 },
+  },
+  // M12 — wards across the way down (each breaks when its boss falls) and boss arenas.
+  {
+    id: 73,
+    key: 'ward_stone_hollows',
+    name: 'Warded Stone',
+    solid: true,
+    hardness: 3,
+    tier: 3,
+    drop: 'stone',
+    mergesWith: ['ward_stone_heart'],
+    placeholderRamp: 'gloam',
+    light: 'ward',
+    sealedUntil: 'boss:moth_matriarch',
+  },
+  {
+    id: 74,
+    key: 'ward_stone_heart',
+    name: 'Deep-warded Stone',
+    solid: true,
+    hardness: 4,
+    tier: 4,
+    drop: 'obsidian',
+    mergesWith: [],
+    placeholderRamp: 'gloam',
+    light: 'ward',
+    sealedUntil: 'boss:hollow_warden',
+  },
+  {
+    // Roots that close an arena's doorways while its boss fights (BossSystem).
+    id: 75,
+    key: 'arena_seal',
+    name: 'Grasping Roots',
+    solid: true,
+    hardness: 9,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'bark',
+  },
+  {
+    id: 76,
+    key: 'moth_lure',
+    name: 'Moth Lure',
+    solid: false,
+    hardness: 0.2,
+    drop: 'moth_lure',
+    mergesWith: [],
+    placeholderRamp: 'rose',
+    light: 'moth_lure',
+    autotile: false,
+    placeholderShape: 'lure',
+    needsGround: true,
+  },
+  {
+    id: 77,
+    key: 'sluice_lever',
+    name: 'Sluice Lever',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'lever',
+  },
+  {
+    id: 78,
+    key: 'sluice_lever_open',
+    name: 'Sluice Lever (open)',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'lever_open',
+  },
+  {
+    id: 79,
+    key: 'mire_brazier',
+    name: 'Mire Brazier',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'ember',
+    light: 'brazier',
+    autotile: false,
+    placeholderShape: 'brazier',
+  },
+  {
+    id: 80,
+    key: 'mire_brazier_out',
+    name: 'Drowned Brazier',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'stone',
+    autotile: false,
+    placeholderShape: 'brazier',
+  },
+  {
+    id: 81,
+    key: 'prism_slash',
+    name: 'Prism',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'prism',
+    autotile: false,
+    placeholderShape: 'prism_left',
+    mirror: { kind: 'slash', flipsTo: 'prism_back' },
+  },
+  {
+    id: 82,
+    key: 'prism_back',
+    name: 'Prism',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'prism',
+    autotile: false,
+    placeholderShape: 'prism_right',
+    mirror: { kind: 'back', flipsTo: 'prism_slash' },
+  },
+  {
+    id: 83,
+    key: 'heart_node',
+    name: 'Choked Root-lamp',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'gloam',
+    autotile: false,
+    placeholderShape: 'node',
+  },
+  {
+    id: 84,
+    key: 'heart_node_lit',
+    name: 'Root-lamp',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'gold',
+    light: 'heart_node',
+    autotile: false,
+    placeholderShape: 'node',
+  },
+  {
+    // Where the Gloam Heart was: the World Tree's light, burning again.
+    id: 85,
+    key: 'heartlight',
+    name: 'The Heartlight',
+    solid: false,
+    hardness: 2,
+    tier: TOWN_FIXTURE_TIER,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'gold',
+    light: 'heartlight',
+    autotile: false,
+    placeholderShape: 'beacon',
   },
 ];
 

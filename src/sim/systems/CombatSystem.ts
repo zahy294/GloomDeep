@@ -278,7 +278,8 @@ export function hitEnemy(
   if (enemy.health <= 0 || (source !== 'light' && enemy.invuln > 0)) return;
   const def = ENEMIES[enemy.type];
   if (!def) return;
-  const dealt = Math.min(enemy.health, amount);
+  const dealt = Math.min(enemy.health, amount * enemy.damageTaken);
+  if (dealt <= 0) return;
   enemy.health -= dealt;
   if (source === 'hazard') {
     enemy.invuln = COMBAT.hazardInvuln;
@@ -360,7 +361,7 @@ function contactDamage(ctx: CombatContext): void {
   const pb = player.body;
   for (const enemy of ctx.enemies) {
     const def = ENEMIES[enemy.type];
-    if (!def || enemy.health <= 0 || !overlaps(pb, enemy.body)) continue;
+    if (!def || enemy.health <= 0 || enemy.harmless || !overlaps(pb, enemy.body)) continue;
     const dir = pb.x + pb.width / 2 >= enemy.body.x + enemy.body.width / 2 ? 1 : -1;
     hurtPlayer(ctx, def.contactDamage, dir);
     return;

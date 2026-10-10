@@ -104,6 +104,40 @@ export const LIGHTS: readonly LightDef[] = [
   { key: 'player_aura', color: [120, 128, 160], radius: 4, flicker: 0 },
   /** Soft light around the player while the lantern burns, so they're never blind (plan 2.1). */
   { key: 'lantern_glow', color: [255, 196, 120], radius: 5, flicker: 0.05 },
+  /** M12: ward runes, boss-arena fixtures, the bosses' own glow and the Heartlight. */
+  { key: 'ward', color: [120, 80, 190], radius: 2, flicker: 0, pulse: { period: 5, depth: 0.4 } },
+  {
+    key: 'moth_lure',
+    color: [255, 170, 190],
+    radius: 9,
+    flicker: 0,
+    pulse: { period: 1.4, depth: 0.25 },
+  },
+  { key: 'brazier', color: [255, 160, 80], radius: 11, flicker: 0.15 },
+  { key: 'prism', color: [140, 220, 240], radius: 2, flicker: 0 },
+  {
+    key: 'heart_node',
+    color: [255, 214, 140],
+    radius: 13,
+    flicker: 0,
+    pulse: { period: 3, depth: 0.1 },
+  },
+  {
+    key: 'heartlight',
+    color: [255, 240, 200],
+    radius: 30,
+    flicker: 0,
+    pulse: { period: 6, depth: 0.08 },
+  },
+  {
+    key: 'moth_glow',
+    color: [240, 170, 200],
+    radius: 7,
+    flicker: 0,
+    pulse: { period: 1.1, depth: 0.3 },
+  },
+  { key: 'warden_glow', color: [150, 190, 230], radius: 6, flicker: 0 },
+  { key: 'reflected_beam', color: [170, 230, 255], radius: 3, flicker: 0 },
 ];
 
 export function lightByKey(key: string): LightDef {

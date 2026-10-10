@@ -39,14 +39,16 @@ export interface SimEvents {
   };
   /**
    * The player tried to mine something they can't: `tier` — the tile needs a pickaxe of at least
-   * `tier`; `support` — it holds up a station standing on it. Once per attempt.
+   * `tier`; `support` — it holds up a station standing on it; `sealed` — a ward that holds until
+   * the story flag `flag` is set (M12). Once per attempt.
    */
   miningBlocked: {
     readonly x: number;
     readonly y: number;
     readonly layer: TileLayer;
     readonly tier: number;
-    readonly reason: 'tier' | 'support';
+    readonly reason: 'tier' | 'support' | 'sealed';
+    readonly flag: string;
   };
   /** Items were crafted (`count` = total output items). */
   crafted: { readonly itemId: number; readonly count: number };

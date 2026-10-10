@@ -1,3 +1,4 @@
+import { BOSSES, bossFlag } from '../data/bosses';
 import { ITEMS } from '../data/items';
 import { TILES } from '../data/tiles';
 import { RESOLVED_RECIPES, type ResolvedRecipe } from '../sim/systems/CraftingSystem';
@@ -94,6 +95,12 @@ export function itemTooltip(itemId: number): string[] {
 /** "a Copper Pickaxe" / "an Elderwood Pickaxe". */
 export function withArticle(name: string): string {
   return `${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`;
+}
+
+/** Why a ward won't break (M12): the boss whose fall opens it. */
+export function sealedText(flag: string): string {
+  const boss = BOSSES.find((b) => bossFlag(b.key) === flag);
+  return boss ? `The ward holds while ${boss.name} lives` : 'Something holds this fast';
 }
 
 /** Name of the weakest pickaxe that mines a tier (for "Needs a ..." notices). */

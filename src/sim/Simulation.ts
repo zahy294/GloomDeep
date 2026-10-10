@@ -219,6 +219,8 @@ export class Simulation {
   /** Crafting stations in reach, refreshed when a craft is requested (and by `stationsNearby`). */
   private readonly stations = new Set<string>();
   private readonly craftedPayload = { itemId: 0, count: 0 };
+  /** Story flags, for systems that only read them. */
+  private readonly hasFlag = (flag: string): boolean => this.progression.has(flag);
 
   constructor(options: SimulationOptions) {
     this.world = new World(options.size, this.events);
@@ -590,6 +592,7 @@ export class Simulation {
       this.spawnDrop,
       dt,
       armed || this.player.dead,
+      this.hasFlag,
     );
     if (!this.player.dead && !interacting) {
       updateBuilding(

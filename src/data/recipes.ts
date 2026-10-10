@@ -229,6 +229,16 @@ export const RECIPES: readonly RecipeDef[] = [
     ],
     station: 'workbench',
   },
+  // M12: bait for the Moth Matriarch (and any moth).
+  {
+    key: 'moth_lure',
+    output: { item: 'moth_lure', count: 2 },
+    inputs: [
+      { item: 'glowcap_flesh', count: 4 },
+      { item: 'lumen_petal', count: 1 },
+    ],
+    station: 'workbench',
+  },
   // M11: learned from Rowan at Canopyhold's inn (the Glowcap Stew quest).
   {
     key: 'hanging_lantern',

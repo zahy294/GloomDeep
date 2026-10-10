@@ -93,6 +93,15 @@ export const TOWNSFOLK: readonly NpcDef[] = [
     ramp: 'moonSilver',
     accent: 'cyan',
   },
+  {
+    // M12: once the Mire Sovereign falls, the ferrywoman comes up out of the Mire to your village.
+    key: 'ferrywoman',
+    name: 'Hulda',
+    role: 'Mire Ferrywoman',
+    ramp: 'mud',
+    accent: 'mint',
+    village: { homesNeeded: 5, requires: 'boss:mire_sovereign' },
+  },
 ];
 
 /** Everyone with a sprite, in `folk` sheet order (two frames each: standing, mid-step). */

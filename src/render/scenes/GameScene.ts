@@ -39,7 +39,7 @@ import { Simulation, type SimulationRuntimeOptions } from '../../sim/Simulation'
 import { findOpenFeetRow } from '../../sim/world/queries';
 import type { GameProbe } from '../../types/window';
 import type { IconRect, InventoryView, UiBridge } from '../../ui/bridge';
-import { pickaxeForTier, withArticle } from '../../ui/craftingHelpers';
+import { pickaxeForTier, sealedText, withArticle } from '../../ui/craftingHelpers';
 import { generateWorld } from '../../workers/worldgen/generateWorld';
 import type { GameStart } from '../../flow/WorldFlow';
 import { SAVE_VERSION } from '../../persistence/saveFormat';
@@ -463,9 +463,10 @@ export class GameScene extends Phaser.Scene {
     ];
     this.listenToVillage();
     sim.events.on('inventoryChanged', () => this.publishInventory());
-    sim.events.on('miningBlocked', ({ reason, tier }) => {
+    sim.events.on('miningBlocked', ({ reason, tier, flag }) => {
       const pick = pickaxeForTier(tier);
       if (reason === 'support') this.notify('Something stands on that block');
+      else if (reason === 'sealed') this.notify(sealedText(flag));
       else this.notify(pick ? `Needs ${withArticle(pick)}` : 'Too hard to mine');
     });
     sim.events.on('crafted', ({ itemId, count }) =>

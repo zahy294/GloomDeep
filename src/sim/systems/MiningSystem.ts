@@ -74,6 +74,8 @@ export type SpawnDrop = (itemId: number, count: number, x: number, y: number) =>
 /** Item id dropped by each tile id, or -1. Resolved once so typos in tile data fail at startup. */
 const DROP_ITEM = TILES.map((t) => (t.drop ? itemId(t.drop) : -1));
 const TIER = TILES.map((t) => t.tier ?? 0);
+/** Wards (M12): the story flag that must be set before the tile can be mined at all ('' = none). */
+const SEALED_UNTIL = TILES.map((t) => t.sealedUntil ?? '');
 /** Tiles that stand on the block below them (stations): that block can't be mined from under them. */
 const NEEDS_GROUND = Uint8Array.from(TILES, (t) => (t.needsGround ? 1 : 0));
 const CHOPPABLE = Uint8Array.from(TILES, (t) => (t.choppable ? 1 : 0));
@@ -90,13 +92,29 @@ function damageKey(world: World, layer: TileLayer, x: number, y: number): number
 const PROGRESS_EPSILON = 1e-9;
 
 const damagedPayload = { x: 0, y: 0, layer: 'fg' as TileLayer, stage: 0 };
-const blockedPayload = { x: 0, y: 0, layer: 'fg' as TileLayer, tier: 0, reason: 'tier' as const };
+const blockedPayload = {
+  x: 0,
+  y: 0,
+  layer: 'fg' as TileLayer,
+  tier: 0,
+  reason: 'tier' as const,
+  flag: '',
+};
 const supportingPayload = {
   x: 0,
   y: 0,
   layer: 'fg' as TileLayer,
   tier: 0,
   reason: 'support' as const,
+  flag: '',
+};
+const sealedPayload = {
+  x: 0,
+  y: 0,
+  layer: 'fg' as TileLayer,
+  tier: 0,
+  reason: 'sealed' as const,
+  flag: '',
 };
 const brokenPayload = { x: 0, y: 0, id: 0, layer: 'fg' as TileLayer };
 
@@ -135,6 +153,8 @@ export function updateMining(
   dt: number,
   /** True while the left button does something else (a weapon is selected, or the player is dead). */
   blocked = false,
+  /** Story flags (wards open when their boss has fallen). */
+  hasFlag: (flag: string) => boolean = () => false,
 ): void {
   if (blocked || !input.isHeld('useItem')) {
     stopMining(state, world, events);
@@ -171,10 +191,13 @@ export function updateMining(
   const tile = TILES[id];
   const key = damageKey(world, layer, tx, ty);
   const holdsStation = layer === 'fg' && NEEDS_GROUND[world.get(tx, ty - 1)] === 1;
-  if ((TIER[id] ?? 0) > state.toolTier || holdsStation) {
+  const seal = SEALED_UNTIL[id] ?? '';
+  const sealed = seal !== '' && !hasFlag(seal);
+  if ((TIER[id] ?? 0) > state.toolTier || holdsStation || sealed) {
     if (state.blockedKey !== key) {
       state.blockedKey = key;
-      const p = holdsStation ? supportingPayload : blockedPayload;
+      const p = sealed ? sealedPayload : holdsStation ? supportingPayload : blockedPayload;
+      p.flag = seal;
       p.x = tx;
       p.y = ty;
       p.layer = layer;
