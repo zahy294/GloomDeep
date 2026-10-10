@@ -137,6 +137,13 @@ export const LIGHTS: readonly LightDef[] = [
     pulse: { period: 1.1, depth: 0.3 },
   },
   { key: 'warden_glow', color: [150, 190, 230], radius: 6, flicker: 0 },
+  {
+    key: 'heart_glow',
+    color: [200, 70, 120],
+    radius: 10,
+    flicker: 0,
+    pulse: { period: 1.5, depth: 0.35 },
+  },
   { key: 'reflected_beam', color: [170, 230, 255], radius: 3, flicker: 0 },
 ];
 

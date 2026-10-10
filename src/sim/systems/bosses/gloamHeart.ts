@@ -2,11 +2,13 @@ import { BOSS, TILE_SIZE } from '../../../config';
 import type { HeartDef } from '../../../data/bosses';
 import { ENEMIES } from '../../../data/enemies';
 import { ITEMS, itemId } from '../../../data/items';
+import { lightByKey } from '../../../data/lights';
 import { tileId } from '../../../data/tiles';
 import type { Enemy } from '../../entities/Enemy';
 import type { Arena, BossContext, BossRun } from './types';
 
 const T = TILE_SIZE;
+const GLOW = lightByKey('heart_glow');
 /** The Heart's slow breathing bob (px, rad/s). */
 const BOB_PX = 6;
 const BOB_RATE = 1.3;
@@ -42,6 +44,7 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
   let minionT = 0;
   let time = 0;
   let homeY = 0;
+  const glow = { x: 0, y: 0, light: GLOW };
 
   const litLamps = (): number[] => {
     const out: number[] = [];
@@ -198,7 +201,13 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
       // The Heartlight where the Heart hung.
       ctx.world.set(arena.bossX, arena.bossY, heartlight);
     },
-    lights() {},
+    lights(out) {
+      const body = arena.boss?.body;
+      if (!body) return;
+      glow.x = body.x + body.width / 2;
+      glow.y = body.y + body.height / 2;
+      out.push(glow);
+    },
     status() {
       return `${view.lit} of ${view.lamps} root-lamps lit`;
     },

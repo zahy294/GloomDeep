@@ -337,6 +337,7 @@ export function mothArena(): PrefabCanvas {
   c.area('arena', 'nest', 2, 2, W - 3, FLOOR - 1);
   c.area('trigger', 'nest', 16, 4, W - 17, FLOOR - 1);
   c.point('boss', 'matriarch', 36, 8);
+  c.point('start', 'start', 22, FLOOR - 1);
   return c;
 }
 
@@ -389,6 +390,7 @@ export function mireArena(): PrefabCanvas {
   c.area('arena', 'pool', 4, 0, W - 5, BOTTOM);
   c.area('trigger', 'pool', 8, G + 1, W - 9, BOTTOM);
   c.point('boss', 'sovereign', 42, BOTTOM - 2);
+  c.point('start', 'start', 20, 21);
   return c;
 }
 
@@ -440,6 +442,7 @@ export function wardenArena(): PrefabCanvas {
   c.area('arena', 'hall', 3, 3, W - 4, FLOOR - 1);
   c.area('trigger', 'hall', 14, 3, W - 15, FLOOR - 1);
   c.point('boss', 'warden', 35, FLOOR - 1);
+  c.point('start', 'start', 20, FLOOR - 1);
   return c;
 }
 
@@ -484,6 +487,7 @@ export function heartArena(): PrefabCanvas {
   c.area('trigger', 'heart', 22, 4, W - 23, FLOOR - 1);
   c.area('gloam', 'heart', 0, 0, W - 1, H - 1, { gloam: 230 });
   c.point('boss', 'heart', 50, 25);
+  c.point('start', 'start', 34, 27);
   return c;
 }
 

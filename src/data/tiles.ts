@@ -1197,6 +1197,8 @@ export const TILES: readonly TileDef[] = [
     drop: null,
     mergesWith: [],
     placeholderRamp: 'gloam',
+    // A faint shimmer, so a dark root-lamp can be found in the dark.
+    light: 'ward',
     autotile: false,
     placeholderShape: 'node',
   },

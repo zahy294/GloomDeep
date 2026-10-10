@@ -888,7 +888,7 @@ async function talkTo(page: Page, key: string): Promise<GameProbe> {
 
 /** Waits for a boss fight to be in a state, then reports it. */
 async function waitForBoss(page: Page, state: string): Promise<GameProbe> {
-  return waitForProbe(page, (q) => q.boss?.state === state, `the boss fight (${state})`);
+  return waitForProbe(page, (q) => q?.boss?.state === state, `the boss fight (${state})`);
 }
 
 const BEATEN_THREE = 'moth_matriarch,mire_sovereign,hollow_warden';
@@ -958,7 +958,7 @@ const BOSS_SHOTS: Shot[] = [
   {
     // After the end: the Heartlight burning in the chamber, every root-lamp lit.
     name: 'heartlight',
-    query: `?scene=game&ui=0&arena=gloam_heart&beaten=${BEATEN_THREE},gloam_heart`,
+    query: `?scene=game&ui=0&boss=gloam_heart&beaten=${BEATEN_THREE},gloam_heart`,
     prepare: async (page) => {
       await waitForLight(page);
       await page.waitForTimeout(2500);

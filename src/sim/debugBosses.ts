@@ -1,6 +1,7 @@
 import { DIMMING, TILE_SIZE } from '../config';
 import { DEPTH_LAYERS } from '../data/biomes';
 import { WARDS } from '../data/wards';
+import { prefabByKey } from '../data/prefabs';
 import { AIR } from './world/World';
 import { BOSSES, bossFlag } from '../data/bosses';
 import { ENEMIES } from '../data/enemies';
@@ -31,6 +32,9 @@ export function arenaSpot(
   const arena = sim.bosses.arenaOf(key);
   if (!arena) return null;
   if (inside) {
+    // The prefab's `start` point (a debug stand-point in the thick of it), else in the trigger.
+    const start = prefabByKey(arena.def.arena).objects.find((o) => o.kind === 'start');
+    if (start) return { x: arena.place.x0 + start.x0, y: arena.place.y0 + start.y0 + 1 };
     const t = arena.trigger;
     const x = Math.floor((t.x0 + t.x1) / 2) - Math.floor((t.x1 - t.x0) / 4);
     return { x, y: t.y1 + 1 };
