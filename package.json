@@ -18,7 +18,8 @@
     "art:palette": "tsx tools/extract-palette.ts",
     "art:autotiles": "tsx tools/gen-autotiles.ts",
     "art:pack": "tsx tools/pack-atlases.ts",
-    "art:import": "tsx tools/import-art.ts"
+    "art:import": "tsx tools/import-art.ts",
+    "prefabs": "tsx tools/prefabs.ts"
   },
   "dependencies": {
     "idb": "^8.0.4",

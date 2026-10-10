@@ -28,7 +28,25 @@ export interface TileDef {
   readonly autotile?: boolean;
   /** Placeholder art shape for non-terrain tiles. */
   readonly placeholderShape?:
-    'torch' | 'platform' | 'workbench' | 'furnace' | 'anvil' | 'door' | 'jar' | 'beacon';
+    | 'torch'
+    | 'platform'
+    | 'workbench'
+    | 'furnace'
+    | 'anvil'
+    | 'door'
+    | 'jar'
+    | 'beacon'
+    | 'beacon_dormant'
+    | 'lamp'
+    | 'lift'
+    | 'hanging_lantern';
+  /**
+   * A town street lamp (M11): as its fuel runs low it becomes `next` (lit → dim → out); refuelling
+   * turns it back into the first lamp tile. Lamps are tracked by the TownSystem.
+   */
+  readonly lamp?: { readonly next: string | null };
+  /** A dormant beacon (Rootdeep Citadel): relighting it with Lumen turns it into this tile. */
+  readonly relights?: string;
   /** A crafting station (src/data/recipes.ts): recipes that need it work within reach of it. */
   readonly station?: string;
   /** Must stand on a solid block or platform; the block under it can't be mined while it stands. */
@@ -880,6 +898,136 @@ export const TILES: readonly TileDef[] = [
     placeholderShape: 'beacon',
     needsGround: true,
     beacon: { radius: 30 },
+  },
+  // M11: towns and folk. Street lamps burn fuel and step down lit → dim → out (TownSystem).
+  {
+    id: 64,
+    key: 'street_lamp',
+    name: 'Street Lamp',
+    solid: false,
+    hardness: 2,
+    tier: 2,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'gold',
+    light: 'street_lamp',
+    autotile: false,
+    placeholderShape: 'lamp',
+    needsGround: true,
+    lamp: { next: 'street_lamp_dim' },
+  },
+  {
+    id: 65,
+    key: 'street_lamp_dim',
+    name: 'Street Lamp (dim)',
+    solid: false,
+    hardness: 2,
+    tier: 2,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'gold',
+    light: 'street_lamp_dim',
+    autotile: false,
+    placeholderShape: 'lamp',
+    needsGround: true,
+    lamp: { next: 'street_lamp_out' },
+  },
+  {
+    id: 66,
+    key: 'street_lamp_out',
+    name: 'Street Lamp (out)',
+    solid: false,
+    hardness: 2,
+    tier: 2,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'stone',
+    autotile: false,
+    placeholderShape: 'lamp',
+    needsGround: true,
+    lamp: { next: null },
+  },
+  {
+    id: 67,
+    key: 'rope_bridge',
+    name: 'Rope Bridge',
+    solid: false,
+    hardness: 0.4,
+    drop: 'elderwood_planks',
+    mergesWith: [],
+    placeholderRamp: 'honey',
+    platform: true,
+    autotile: false,
+    placeholderShape: 'platform',
+    flammable: { seconds: 5, becomes: null },
+  },
+  {
+    id: 68,
+    key: 'lift_post',
+    name: 'Lift Basket',
+    solid: false,
+    hardness: 2,
+    tier: 2,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'bark',
+    autotile: false,
+    placeholderShape: 'lift',
+  },
+  {
+    id: 69,
+    key: 'beacon_dormant',
+    name: 'Dormant Beacon',
+    solid: false,
+    hardness: 4,
+    tier: 5,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'tealShadow',
+    autotile: false,
+    placeholderShape: 'beacon_dormant',
+    needsGround: true,
+    relights: 'great_beacon',
+  },
+  {
+    id: 70,
+    key: 'carved_brick',
+    name: 'Carved Stone Bricks',
+    solid: true,
+    hardness: 1.4,
+    tier: 1,
+    drop: 'carved_brick',
+    mergesWith: [],
+    placeholderRamp: 'stone',
+  },
+  {
+    id: 71,
+    key: 'hanging_lantern',
+    name: 'Hanging Lantern',
+    solid: false,
+    hardness: 0.2,
+    drop: 'hanging_lantern',
+    mergesWith: [],
+    placeholderRamp: 'honey',
+    light: 'hanging_lantern',
+    autotile: false,
+    placeholderShape: 'hanging_lantern',
+  },
+  {
+    id: 72,
+    key: 'great_beacon',
+    name: 'Great Beacon',
+    solid: false,
+    hardness: 4,
+    tier: 5,
+    drop: null,
+    mergesWith: [],
+    placeholderRamp: 'cyan',
+    light: 'beacon',
+    autotile: false,
+    placeholderShape: 'beacon',
+    needsGround: true,
+    beacon: { radius: 44 },
   },
 ];
 

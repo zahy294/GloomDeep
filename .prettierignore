@@ -6,3 +6,4 @@ art/raw/
 art/clean/
 package-lock.json
 *.md
+src/data/prefabs/*.json

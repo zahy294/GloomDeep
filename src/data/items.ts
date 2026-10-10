@@ -551,6 +551,44 @@ export const ITEMS: readonly ItemDef[] = [
     category: 'light',
     description: 'Keeps shades and the Gloam away nearby. Right-click to travel between beacons.',
   },
+  // M11: towns and folk.
+  {
+    id: 52,
+    key: 'glimmer',
+    name: 'Glimmer',
+    maxStack: MATERIAL_STACK,
+    placesTile: null,
+    category: 'material',
+    description: 'Little coins of hardened light. The forest folk trade in them.',
+    icon: 23,
+  },
+  {
+    id: 53,
+    key: 'carved_brick',
+    name: 'Carved Stone Bricks',
+    maxStack: BLOCK_STACK,
+    placesTile: 'carved_brick',
+    category: 'block',
+  },
+  {
+    id: 54,
+    key: 'lost_locket',
+    name: "Pip's Locket",
+    maxStack: 1,
+    placesTile: null,
+    category: 'material',
+    description: 'A little silver locket with a pressed moonpetal inside.',
+    icon: 24,
+  },
+  {
+    id: 55,
+    key: 'hanging_lantern',
+    name: 'Hanging Lantern',
+    maxStack: STATION_STACK,
+    placesTile: 'hanging_lantern',
+    category: 'light',
+    description: 'A Canopyhold lantern. Hangs anywhere, even in mid-air.',
+  },
 ];
 
 export function itemById(id: number): ItemDef | undefined {

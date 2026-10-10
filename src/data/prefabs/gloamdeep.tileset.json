@@ -1,0 +1,747 @@
+{
+ "type": "tileset",
+ "version": "1.10",
+ "tiledversion": "1.11.0",
+ "name": "gloamdeep",
+ "tilewidth": 16,
+ "tileheight": 16,
+ "tilecount": 73,
+ "columns": 16,
+ "margin": 0,
+ "spacing": 0,
+ "image": "gloamdeep.tileset.png",
+ "imagewidth": 256,
+ "imageheight": 80,
+ "tiles": [
+  {
+   "id": 0,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "air"
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "forest_soil"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "elderglade_grass"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moss"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "stone"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "mud"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "elderwood_planks"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "lumen_crystal"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonstone_crystal"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "gloam_veined_stone"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "torch"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonpetal_grass"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "mire_grass"
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "peat"
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "silt"
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "gravel"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "runestone"
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "glowcap_flesh"
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "rootwood"
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "ash"
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "basalt"
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "obsidian"
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "copper_ore"
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "iron_ore"
+    }
+   ]
+  },
+  {
+   "id": 24,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonsilver_ore"
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "gold_ore"
+    }
+   ]
+  },
+  {
+   "id": 26,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "emberite_ore"
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "living_wood"
+    }
+   ]
+  },
+  {
+   "id": 28,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "elder_leaves"
+    }
+   ]
+  },
+  {
+   "id": 29,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonbirch_leaves"
+    }
+   ]
+  },
+  {
+   "id": 30,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "willow_leaves"
+    }
+   ]
+  },
+  {
+   "id": 31,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "branch"
+    }
+   ]
+  },
+  {
+   "id": 32,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "carved_runestone"
+    }
+   ]
+  },
+  {
+   "id": 33,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "grass_tuft"
+    }
+   ]
+  },
+  {
+   "id": 34,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "fern"
+    }
+   ]
+  },
+  {
+   "id": 35,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "wildflower"
+    }
+   ]
+  },
+  {
+   "id": 36,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonpetal_bloom"
+    }
+   ]
+  },
+  {
+   "id": 37,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "silver_grass"
+    }
+   ]
+  },
+  {
+   "id": 38,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "mire_reed"
+    }
+   ]
+  },
+  {
+   "id": 39,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "toadstool"
+    }
+   ]
+  },
+  {
+   "id": 40,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "glowcap_sprout"
+    }
+   ]
+  },
+  {
+   "id": 41,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "hanging_moss"
+    }
+   ]
+  },
+  {
+   "id": 42,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "hanging_vine"
+    }
+   ]
+  },
+  {
+   "id": 43,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "glowmoss_tuft"
+    }
+   ]
+  },
+  {
+   "id": 44,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "crystal_shard"
+    }
+   ]
+  },
+  {
+   "id": 45,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "ember_bloom"
+    }
+   ]
+  },
+  {
+   "id": 46,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "elder_sapling"
+    }
+   ]
+  },
+  {
+   "id": 47,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moonbirch_sapling"
+    }
+   ]
+  },
+  {
+   "id": 48,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "willow_sapling"
+    }
+   ]
+  },
+  {
+   "id": 49,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "waterfall"
+    }
+   ]
+  },
+  {
+   "id": 50,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "workbench"
+    }
+   ]
+  },
+  {
+   "id": 51,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "furnace"
+    }
+   ]
+  },
+  {
+   "id": 52,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "anvil"
+    }
+   ]
+  },
+  {
+   "id": 53,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "veiled_lumen"
+    }
+   ]
+  },
+  {
+   "id": 54,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "veiled_moonsilver"
+    }
+   ]
+  },
+  {
+   "id": 55,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "veiled_spirit_platform"
+    }
+   ]
+  },
+  {
+   "id": 56,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "spirit_platform"
+    }
+   ]
+  },
+  {
+   "id": 57,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "door_closed"
+    }
+   ]
+  },
+  {
+   "id": 58,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "door_open"
+    }
+   ]
+  },
+  {
+   "id": 59,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "firefly_jar"
+    }
+   ]
+  },
+  {
+   "id": 60,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "lumen_bloom"
+    }
+   ]
+  },
+  {
+   "id": 61,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "lumen_bloom_open"
+    }
+   ]
+  },
+  {
+   "id": 62,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "fairy_mushroom"
+    }
+   ]
+  },
+  {
+   "id": 63,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "beacon"
+    }
+   ]
+  },
+  {
+   "id": 64,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "street_lamp"
+    }
+   ]
+  },
+  {
+   "id": 65,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "street_lamp_dim"
+    }
+   ]
+  },
+  {
+   "id": 66,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "street_lamp_out"
+    }
+   ]
+  },
+  {
+   "id": 67,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "rope_bridge"
+    }
+   ]
+  },
+  {
+   "id": 68,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "lift_post"
+    }
+   ]
+  },
+  {
+   "id": 69,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "beacon_dormant"
+    }
+   ]
+  },
+  {
+   "id": 70,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "carved_brick"
+    }
+   ]
+  },
+  {
+   "id": 71,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "hanging_lantern"
+    }
+   ]
+  },
+  {
+   "id": 72,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "great_beacon"
+    }
+   ]
+  }
+ ]
+}

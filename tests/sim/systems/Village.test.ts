@@ -5,7 +5,7 @@ import { tileId } from '../../../src/data/tiles';
 import { decodeSave, encodeSave, SAVE_VERSION } from '../../../src/persistence/saveFormat';
 import { Simulation } from '../../../src/sim/Simulation';
 import { findRoom } from '../../../src/sim/world/rooms';
-import { COTTAGE } from '../../../src/data/prefabs/houses';
+import { prefabByKey } from '../../../src/data/prefabs';
 import { stampPrefab } from '../../../src/sim/world/prefabs';
 import { AIR, type World } from '../../../src/sim/world/World';
 
@@ -171,7 +171,7 @@ describe('prefabs', () => {
     // A bump and a dip under the footprint: cleared and filled.
     w.set(32, 39, STONE);
     for (let y = 40; y < 43; y++) w.set(35, y, AIR);
-    stampPrefab(w, COTTAGE, 30, 40, 4);
+    stampPrefab(w, prefabByKey('cottage'), 30, 40, 4);
     for (let y = 41; y < 43; y++) expect(w.isSolid(35, y)).toBe(true);
     sim.input.setFocus(35 * T, 36 * T);
     step(sim, 1); // light the grid around it

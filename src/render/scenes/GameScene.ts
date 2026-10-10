@@ -17,7 +17,7 @@ import {
   LIFE_VIEW,
 } from '../../config';
 import { CRITTERS } from '../../data/critters';
-import { COTTAGE } from '../../data/prefabs/houses';
+import { prefabByKey } from '../../data/prefabs';
 import { stampPrefab } from '../../sim/world/prefabs';
 import { ENEMIES } from '../../data/enemies';
 import { createEnemy } from '../../sim/entities/Enemy';
@@ -974,12 +974,13 @@ export class GameScene extends Phaser.Scene {
 
   /** `?spot=village`: four cottages in a row right of the spawn; stand in the middle gap. */
   private stampVillage(sim: Simulation, spawnX: number): { x: number; y: number } {
-    const width = Math.max(...COTTAGE.rows.map((r) => r.length));
+    const cottage = prefabByKey('cottage');
+    const width = cottage.width;
     const step = width + DEBUG.villageGap;
     const x0 = spawnX + DEBUG.villageOffset;
     for (let k = 0; k < DEBUG.villageHouses; k++) {
       const x = x0 + k * step;
-      stampPrefab(sim.world, COTTAGE, x, sim.world.groundRow(x), DEBUG.villageHeadroom);
+      stampPrefab(sim.world, cottage, x, sim.world.groundRow(x), DEBUG.villageHeadroom);
     }
     const fx = x0 + Math.floor(DEBUG.villageHouses / 2) * step - Math.ceil(DEBUG.villageGap / 2);
     const tall = Math.ceil(PLAYER.height / TILE_SIZE);

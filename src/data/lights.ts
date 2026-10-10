@@ -46,6 +46,10 @@ export const LIGHTS: readonly LightDef[] = [
     pulse: { period: 4, depth: 0.12 },
   },
   { key: 'wisp', color: [170, 230, 255], radius: 5, flicker: 0.1 },
+  /** M11: town street lamps (full and running low) and lanterns hung among the leaves. */
+  { key: 'street_lamp', color: [255, 196, 120], radius: 11, flicker: 0.05 },
+  { key: 'street_lamp_dim', color: [200, 130, 70], radius: 5, flicker: 0.18 },
+  { key: 'hanging_lantern', color: [255, 186, 110], radius: 8, flicker: 0.06 },
   /** Lava (a liquid, lit through the light job's liquid cells) and burning tiles. */
   { key: 'lava', color: [255, 110, 40], radius: 7, flicker: 0.06 },
   { key: 'fire', color: [255, 150, 60], radius: 8, flicker: 0.3 },
