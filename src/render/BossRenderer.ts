@@ -33,7 +33,8 @@ const HALO: Record<string, number> = {
   moth: PALETTE.rose[3],
   mire: PALETTE.mint[2],
   warden: PALETTE.cyan[3],
-  heart: PALETTE.rose[1],
+  // Brighter than the rest: the Heart is darkness itself, set against its own Gloam.
+  heart: PALETTE.rose[3],
 };
 const BOSS_BODIES = new Set(BOSSES.map((b) => b.enemy));
 

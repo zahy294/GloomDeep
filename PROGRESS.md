@@ -4,6 +4,84 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M12 — Bosses and Dimming nights ✅ (2026-10-10)
+
+### Built
+
+- **The way down** (plan 1.3 "bosses unlock depths"):
+  - **Wards** (`src/data/wards.ts`): two bands of warded stone, 3 rows thick across the whole width, at the top of the Moonstone Hollows and of the Gloam Heart. A ward tile carries `sealedUntil: boss:<key>`; no pickaxe breaks it until that boss has fallen ("The ward holds while … lives"). After that it mines like tier-3/4 stone. Later worldgen steps (cave features, spirit-bridge pits) never replace ward cells.
+  - **Order:** the Moth Matriarch (Grottos) breaks the Hollows ward; the Mire Sovereign (Weeping Mire, on the surface) sends **Hulda the ferrywoman** to your village (she trades lures, crystals, water, flares); the Hollow Warden (Hollows) breaks the Heart ward; the Gloam Heart ends it: the **Heartlight** burns where it hung, the Gloam stops growing for good, Dimming nights end, and an ending card shows.
+  - **Festivals:** one per boss, all in Canopyhold (Lanterns, Still Water, Prism Night, the Heartlight), held one night at a time in order. A town now has a festival list and the festivals it has held.
+  - **Journal: "The Way Down"** lists every boss whose ward is open, how to fight it, and where its arena is from you ("212 tiles east, 140 down"); beaten bosses show what changed.
+- **Arenas** (`src/data/prefabs/*_arena.json`, Tiled maps bootstrapped from `tools/lib/prefabSketches.ts`): objects `arena` (leaving it ends the fight), `trigger`, `boss`, `door` (sealed with roots in a fight), `gate`, `start` (debug stand point), `pool`, `gloam`.
+  - **World generation** (`src/workers/worldgen/arenas.ts`): the Heart's chamber is centred under the spawn near the bottom; the Mire pool sits in the middle of the Weeping Mire (ground levelled); the nest and the hall are placed at a distance from the spawn in their layers. Candidates are retried until neither the arena nor its tunnel's column band runs into a town, another arena, another tunnel or the spawn glade.
+  - **Ways down:** each underground arena gets a switchback tunnel from the surface into its gate (the Citadel's tunnel code, now shared). The Warden's and the Heart's run straight into the wards.
+  - Arenas are protected like towns: no caves, pools, flora or starting Gloam inside (the Heart's chamber brings its own Gloam; the Mire pool starts filled to the Sovereign's resting depth).
+- **Boss fights** (`BossSystem`, scripts in `src/sim/systems/bosses/`, numbers in `src/data/bosses.ts`):
+  - **Life cycle:** step into the trigger → doorways seal with roots, the boss appears and holds still for the 2.8 s intro (camera zoom ×2 and a title card) → the fight runs through three phases by health → it falls (flag set, roots fall away, festival due) **or** you die or leave the arena (boss and its creatures vanish, the arena resets: lures put back, water drained, root-lamps dark). Fights aren't saved; a loaded world resets every unbeaten arena.
+  - Bosses are creatures with `ai: 'boss'` (moved by their script, never despawned). Creatures gained `damageTaken` (shells, murk, exposure) and `harmless`.
+  - Hostile shots (dust, water bolts, waves, shockwaves, crystal shards, Gloam orbs) live in the BossSystem.
+  - **The Moth Matriarch:** circles the brightest thing she can see and dives at it. A **lure** (new item, workbench: 4 glowcap flesh + 1 Lumen petal → 2) beats everything; then your lantern; with the lantern out she loses you beyond 4 tiles. Diving into a lure bursts it and stuns her for 3.5 s, harmless and taking double damage. Phase 2: falling dust and lumen moths; phase 3: faster and more dust.
+  - **The Mire Sovereign:** sinks (can't be hurt) and rises (water bolts in arcs, and a wave along the water from phase 2). The pool floods every 16/11/7 s; braziers under water go out and relight when uncovered. It only takes full damage when the light on it is ≥ 70, otherwise ×0.2. **Sluice levers** (right-click) drain 4 rows, then rest 9 s. Mire lurkers (a new Mire night creature) join from phase 2.
+  - **The Hollow Warden:** blades do ×0.15 to its shell. The lantern beam is traced through the hall; **prisms** ("/" and "\", right-click to turn) reflect it. A beam that has bounced at least once and touches the Warden burns it (30/s) and cracks the shell for 3 s (×1.6). It walks and slams shockwaves; from phase 2 it hovers and throws shard fans; crystal mites in phase 3.
+  - **The Gloam Heart:** stationary over the taproot. Six dark **root-lamps** (right-click with a Lumen crystal) light the chamber; the Heart takes damage × (1.2 × lit / 6). It sends **tendrils** to lit lamps (they choke a lamp on arrival; kill them or burn them with light), rings of Gloam orbs, shades, and on each new phase a surge that chokes two lamps.
+- **Dimming nights** (`DimmingSystem`): days are counted (saved). The night of day 2 is the first, then every 3 days, until the Heart falls.
+  - **Strength:** deepens after dusk, holds, fades at dawn. The sun is ×0.45, 0.07 deeper for each night survived (floor 0.2).
+  - **Effects:** the sky darkens towards violet, auroras ripple (SkyScene) and the camera grade turns cold violet. The Gloam grows ×4 faster. Waves of shades (3 + nights survived, up to 7) rise in the dark around you every 55 s.
+  - **Towns:** a town lit to 75% keeps a **vigil** at the plaza; a dimmer one hides. Lamps burn twice as fast.
+  - **Warnings and dialogue:** notices warn in the afternoon. New lines cover vigils, fear, the Dryad and Hulda.
+  - **Dawn** counts as surviving: the flag `dimming:<n>` and 3 Lumen crystals at your feet. The Dryad's lines move on.
+- **On screen and UI:**
+  - **BossRenderer:** the `bosses` sheet with two poses (the Matriarch tumbles when stunned, the Sovereign dims under water, the Warden tints when cracked, the Heart pulses), halos, hit flash, shots, and the Warden's beam as a polyline.
+  - **UI:** a boss bar (health with an easing trail, phase pips, a status hint like "Stunned! Strike now" or "3 of 6 root-lamps lit"), the title card, the ending card, the HUD Dimming badge ("Dimming night in 2 days") and journal story. Screen shakes on slams, phases and the fall.
+  - **Sounds:** 14 new procedural sounds.
+  - **Placeholder art:** four 80×80 bosses, the lumen moth, mire lurker and tendril, lure, lever, brazier, prism and root-lamp tiles, and shot particles.
+- **Debug starts:**
+  - `?boss=<key>` stands in the arena (the fight and intro begin), and `&bossphase=n` starts the fight at once in phase n.
+  - `?arena=<key>` stands outside the door.
+  - `?beaten=a,b` marks bosses beaten, with their arenas as a win leaves them.
+  - `?dimming=1` starts a full-strength Dimming night now.
+  - `?spot=ward` opens a pocket on the first ward.
+  - `kit=boss` gives weapons, lures and crystals.
+- **New shots:** `boss-moth-intro`, `boss-moth-fight`, `boss-mire-fight`, `boss-warden-beam`, `boss-heart-fight`, `heartlight`, `ward-band`, `dimming-night`, `dimming-canopyhold`.
+- **Saving:** format v5 with a migration (day, Dimming nights survived, arenas, festivals held). Older worlds have no arenas or wards: start a new world for M12.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| You can play from a new world to defeating the Gloam Heart | ✅ `tests/sim/bossProgression.test.ts` takes a generated world through the whole chain: the Hollows ward holds → beat the Matriarch → it breaks, the festival is due → beat the Sovereign → the Heart ward holds → beat the Warden → it breaks → beat the Heart → the Heartlight, no Gloam growth, no more Dimming nights. `tests/workers/worldgen/arenas.test.ts`: all four arenas placed apart, in their layers, and each reachable from the surface through its tunnel (the deep ones only through their wards). Each fight's rules are tested on its own (`Bosses.test.ts`), and so are Dimming nights (`DimmingSystem.test.ts`) |
+| typecheck, test, lint, build | ✅ (see below) |
+
+### Decisions and deviations
+
+- **What each boss unlocks:** the plan says "the next depth, a lens or an NPC". The Matriarch and the Warden open depths (wards), the Sovereign brings an NPC (Hulda). No boss gives a lens: all four lenses were already craftable from M7, and gating them now would undo M7's balance.
+- **Wards only at two depths:** the Hollows and the Gloam Heart. Rootdeep stays open because the M11 Citadel lives there, with its own tunnel from the surface.
+- **Tunnels from the surface to every underground arena**, so a new player can find them; the journal also gives the direction and distance.
+- **Arena shells are ordinary rock:** digging out ends the fight (you left), so it can't be cheesed by tunnelling.
+- **Mire water is set by the script** (rows of full cells in the pool), not by pumping liquid: deterministic and leak-free. The liquid simulation still moves it around the platforms.
+- **The Warden's beam is a line along the cursor** (the cone's axis), traced in quarter-tile steps; prisms reflect at their centre.
+- **Surviving a Dimming night = reaching its dawn**, alive or not (you respawn anyway). The reward is Lumen crystals and the story flag the Dryad reads, rather than a gate on the bosses.
+- **The intro zooms the World and Glow cameras to ×2** (integer, so pixels stay crisp); the Front scene is screen-space.
+
+### Reviewer pass
+
+(see below)
+
+### Known issues
+
+- The two "4200×1200 save encodes quickly" timing tests can fail when the whole suite runs in parallel on this machine (≈3.4 s); they pass on their own in about 1 s.
+- **Placeholder art:** the bosses are simple shape sprites and the Hollow Warden's and Gloam Heart's chambers are very dark; the aurora is blocky ribbons.
+- **Bosses don't collide with tiles:** the Matriarch and the Heart's tendrils fly through rock; the Warden walks.
+- Old (pre-v5) worlds can't reach the bosses.
+
+### Next step
+
+**M13 — Polish and release:** photo mode, settings, the performance pass, the art check, loading/title/credits and the itch.io build. Waiting for the user's go-ahead.
+
+---
+
+
 ## M11 — Towns & Folk ✅ (2026-10-10)
 
 ### Built
