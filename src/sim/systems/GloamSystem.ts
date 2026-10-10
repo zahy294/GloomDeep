@@ -48,6 +48,8 @@ export class GloamSystem {
   initial = 0;
   /** Beacons burn the Gloam in their circle as if it were lit (set by the Simulation). */
   covered: ((x: number, y: number) => boolean) | null = null;
+  /** Multiplies the growth rate: Dimming nights speed it up, the Heartlight stops it (M12). */
+  growScale = 1;
 
   constructor(
     private readonly world: World,
@@ -162,8 +164,8 @@ export class GloamSystem {
             dt;
         } else if (light <= GLOAM.darkLight) {
           const source = Math.max(g, at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1));
-          if (source < GLOAM.spreadMin || g >= MAX) continue;
-          delta = GLOAM.growPerSecond * (source / MAX) * dt;
+          if (source < GLOAM.spreadMin || g >= MAX || this.growScale <= 0) continue;
+          delta = GLOAM.growPerSecond * this.growScale * (source / MAX) * dt;
         } else {
           continue;
         }

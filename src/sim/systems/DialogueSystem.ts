@@ -9,6 +9,8 @@ export interface DialogueContext {
   night: boolean;
   /** The speaker's town festival is on. */
   festival: boolean;
+  /** A Dimming night is on (M12). */
+  dimming: boolean;
 }
 
 export function conditionHolds(
@@ -23,6 +25,7 @@ export function conditionHolds(
   if (when.night !== undefined && when.night !== ctx.night) return false;
   if (when.scared !== undefined && when.scared !== npc.scared) return false;
   if (when.festival !== undefined && when.festival !== ctx.festival) return false;
+  if (when.dimming !== undefined && when.dimming !== ctx.dimming) return false;
   return true;
 }
 

@@ -1,4 +1,4 @@
-import { SPAWN, TILE_SIZE } from '../../config';
+import { DIMMING, SPAWN, TILE_SIZE } from '../../config';
 import { ENEMIES, type EnemyDef } from '../../data/enemies';
 import { createEnemy, type Enemy } from '../entities/Enemy';
 import type { Player } from '../entities/Player';
@@ -8,6 +8,7 @@ import type { World } from '../world/World';
 import type { TileRect } from './GloamSystem';
 
 const GROUND_AI = new Set(['walker', 'hopper']);
+const SHADE = ENEMIES.findIndex((e) => e.key === 'shade');
 const spawnedPayload = { id: 0, type: 0, x: 0, y: 0 };
 
 export interface SpawnContext {
@@ -65,6 +66,44 @@ export class SpawnSystem {
     for (let a = 0; a < SPAWN.attemptsPerTick; a++) {
       if (this.tryOnce(ctx)) return; // at most one per tick
     }
+  }
+
+  /**
+   * A Dimming night's wave (M12): up to `count` shades rise in dark open air in a ring
+   * DIMMING.waveMinTiles–waveMaxTiles around the player (never inside a safe circle), up to
+   * DIMMING.maxShades at once. Returns how many rose.
+   */
+  wave(ctx: SpawnContext, count: number): number {
+    const { world, random, player, enemies } = ctx;
+    const def = ENEMIES[SHADE];
+    if (!def) return 0;
+    let shades = 0;
+    for (const e of enemies) if (e.type === SHADE) shades++;
+    const px = (player.body.x + player.body.width / 2) / TILE_SIZE;
+    const py = (player.body.y + player.body.height / 2) / TILE_SIZE;
+    let risen = 0;
+    for (let a = 0; a < DIMMING.waveAttempts && risen < count; a++) {
+      if (shades + risen >= DIMMING.maxShades) break;
+      const angle = random() * Math.PI * 2;
+      const r = DIMMING.waveMinTiles + random() * (DIMMING.waveMaxTiles - DIMMING.waveMinTiles);
+      const x = Math.floor(px + Math.cos(angle) * r);
+      const y = Math.floor(py + Math.sin(angle) * r);
+      if (!world.inBounds(x, y) || ctx.safe(x, y)) continue;
+      const i = y * world.width + x;
+      const light = Math.max(world.lightR[i] ?? 0, world.lightG[i] ?? 0, world.lightB[i] ?? 0);
+      if (light > DIMMING.waveDarkLight) continue;
+      const feet = findFeet(world, def, x, y);
+      if (!feet) continue;
+      const enemy = createEnemy(ctx.nextId(), SHADE, feet.x, feet.y);
+      enemies.push(enemy);
+      spawnedPayload.id = enemy.id;
+      spawnedPayload.type = SHADE;
+      spawnedPayload.x = feet.x;
+      spawnedPayload.y = feet.y;
+      ctx.events.emit('enemySpawned', spawnedPayload);
+      risen++;
+    }
+    return risen;
   }
 
   private tryOnce(ctx: SpawnContext): boolean {

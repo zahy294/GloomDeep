@@ -60,6 +60,8 @@ export interface TownDef {
    * been tending its lamps starts mostly lit.
    */
   readonly lampFuelStart: readonly number[];
+  /** On a Dimming night a bright town's folk gather here with their lanterns (a waypoint tag). */
+  readonly vigil?: string;
 }
 
 export const TOWNS: readonly TownDef[] = [
@@ -69,6 +71,7 @@ export const TOWNS: readonly TownDef[] = [
     prefab: 'canopyhold',
     placement: { kind: 'surface', minOffset: 150, maxOffset: 210 },
     lampFuelStart: [1, 0.8, 0.55, 0.3, 0.9, 0.2],
+    vigil: 'plaza',
     residents: [
       {
         npc: 'innkeeper',

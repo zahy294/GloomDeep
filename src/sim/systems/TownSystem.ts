@@ -1,4 +1,4 @@
-import { FESTIVAL, TILE_SIZE, TOWN } from '../../config';
+import { DIMMING, FESTIVAL, TILE_SIZE, TOWN } from '../../config';
 import { FESTIVALS, type FestivalDef } from '../../data/festivals';
 import { prefabByKey } from '../../data/prefabs';
 import { TILES, tileId } from '../../data/tiles';
@@ -74,8 +74,13 @@ export interface Town {
   readonly lifts: readonly Lift[];
   /** 0..1: lamps burning (or districts reclaimed, for the Citadel). */
   light: number;
-  readonly festival: FestivalDef | null;
+  /** Every festival the town holds, in order; the one up next (or on); and those held. */
+  readonly festivals: readonly FestivalDef[];
+  festival: FestivalDef | null;
   festivalPhase: FestivalPhase;
+  readonly festivalsDone: string[];
+  /** A Dimming night and the town is bright enough to keep a vigil (M12). */
+  vigil: boolean;
 }
 
 /** What a town remembers in a save (its place comes from world generation). */
@@ -87,7 +92,9 @@ export interface SavedTown {
   y1: number;
   /** [x, y, fuel] per lamp. */
   lamps: [number, number, number][];
+  /** The phase of the festival up next, and the festivals already held (M12). */
   festival: FestivalPhase;
+  festivalsDone: string[];
 }
 
 const townPayload = { town: '', name: '' };
@@ -111,6 +118,7 @@ export class TownSystem {
   private readonly byKey = new Map<string, Town>();
   private timer = 0;
   private hour = 0;
+  private dimming = false;
   private readonly unsubscribe: () => void;
 
   constructor(
@@ -202,9 +210,13 @@ export class TownSystem {
       districts,
       lifts,
       light: 1,
-      festival: FESTIVALS.find((f) => f.town === def.key) ?? null,
+      festivals: FESTIVALS.filter((f) => f.town === def.key),
+      festival: null,
       festivalPhase: 'none',
+      festivalsDone: [],
+      vigil: false,
     };
+    town.festival = town.festivals[0] ?? null;
     town.light = this.lightOf(town);
     return town;
   }
@@ -225,7 +237,10 @@ export class TownSystem {
         const lamp = town.lamps.find((l) => l.x === x && l.y === y);
         if (lamp) lamp.fuel = fuel;
       }
-      town.festivalPhase = s.festival;
+      town.festivalsDone.length = 0;
+      town.festivalsDone.push(...s.festivalsDone);
+      town.festival = town.festivals.find((f) => !town.festivalsDone.includes(f.key)) ?? null;
+      town.festivalPhase = town.festival ? s.festival : 'none';
       town.light = this.lightOf(town);
     }
   }
@@ -235,17 +250,20 @@ export class TownSystem {
       ...t.place,
       lamps: t.lamps.map((l): [number, number, number] => [l.x, l.y, l.fuel]),
       festival: t.festivalPhase,
+      festivalsDone: [...t.festivalsDone],
     }));
   }
 
   /**
-   * `dayFraction`: time of day (0 = midnight); `night`: the sun is down. Lamps burn every step;
+   * `dayFraction`: time of day (0 = midnight); `night`: the sun is down; `dimming`: 0..1, a
+   * Dimming night's strength (M12). Lamps burn every step (faster on a Dimming night);
    * schedules, lamp tiles, districts and festivals are re-checked every TOWN.checkSeconds.
    */
-  update(dt: number, dayFraction: number, night: boolean): void {
+  update(dt: number, dayFraction: number, night: boolean, dimming = 0): void {
     this.hour = dayFraction * 24;
+    this.dimming = dimming > 0;
     if (night) {
-      const burn = dt / TOWN.lampBurnSeconds;
+      const burn = (dt / TOWN.lampBurnSeconds) * (this.dimming ? DIMMING.lampBurnScale : 1);
       for (const town of this.towns) {
         if (town.festivalPhase === 'on') continue;
         for (const lamp of town.lamps) if (lamp.fuel > 0) lamp.fuel = Math.max(0, lamp.fuel - burn);
@@ -288,6 +306,12 @@ export class TownSystem {
   }
 
   private updateFestival(town: Town, dayFraction: number): void {
+    if (town.festivalPhase === 'over' && town.festival) {
+      // On to the next festival this town has earned or will earn.
+      town.festivalsDone.push(town.festival.key);
+      town.festival = town.festivals.find((k) => !town.festivalsDone.includes(k.key)) ?? null;
+      town.festivalPhase = 'none';
+    }
     const f = town.festival;
     if (!f) return;
     const evening = dayFraction >= FESTIVAL.startsAt || dayFraction < FESTIVAL.endsAt;
@@ -339,8 +363,11 @@ export class TownSystem {
     // Underground (the Citadel) there is no night: its folk fear only the Gloam, which keeps
     // them away until their district is reclaimed.
     const underground = town.def.placement.kind === 'underground';
-    const afraid =
-      !underground && night && town.light < TOWN.scaredBelow && town.festivalPhase !== 'on';
+    // A Dimming night asks more of a town: bright ones keep a vigil, the rest hide.
+    const dimming = this.dimming && !underground;
+    town.vigil = dimming && town.light >= DIMMING.vigilLight && town.def.vigil !== undefined;
+    const fearBelow = dimming ? DIMMING.vigilLight : TOWN.scaredBelow;
+    const afraid = !underground && night && town.light < fearBelow && town.festivalPhase !== 'on';
     for (const res of town.def.residents) {
       const present = this.residentPresent(town, res);
       const k = this.npcs.findIndex((n) => n.key === res.npc && n.town === town.def.key);
@@ -353,7 +380,9 @@ export class TownSystem {
         ? res.home
         : town.festivalPhase === 'on' && town.festival
           ? town.festival.gather
-          : scheduledPlace(res.schedule, this.hour);
+          : town.vigil && town.def.vigil
+            ? town.def.vigil
+            : scheduledPlace(res.schedule, this.hour);
       if (!npc) {
         this.spawnResident(town, res, place).scared = afraid;
         continue;

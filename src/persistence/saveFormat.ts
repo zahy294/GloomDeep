@@ -2,7 +2,7 @@ import { HEALTH, ITEM_DROP } from '../config';
 import type { SaveState, WorldArrays } from '../sim/world/worldData';
 
 /** Bump when the layout or header fields change, and add a migration for the old version. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 const MAGIC = [0x47, 0x4c, 0x44, 0x50]; // "GLDP"
 const PREAMBLE_BYTES = 8; // magic + uint32 header length
@@ -68,7 +68,29 @@ export const MIGRATIONS: MigrationTable = {
     h.quests = [];
     return save;
   },
+  // v5 (M12): days and Dimming nights counted, boss arenas, a town's festivals held in turn.
+  // Older worlds were generated without arenas or wards.
+  4: (save) => {
+    const h = save.header as SaveHeader & {
+      day?: number;
+      dimmingsSurvived?: number;
+      arenas?: unknown[];
+      towns?: { festival?: string; festivalsDone?: string[] }[];
+    };
+    h.day = 0;
+    h.dimmingsSurvived = 0;
+    h.arenas = [];
+    for (const t of h.towns ?? []) {
+      // v4 towns had one festival (the first); 'over' means it has been held.
+      t.festivalsDone = t.festival === 'over' ? [FIRST_FESTIVAL] : [];
+      if (t.festival === 'over') t.festival = 'none';
+    }
+    return save;
+  },
 };
+
+/** The only festival a v4 save could have held. */
+const FIRST_FESTIVAL = 'lantern_festival';
 
 const ARRAY_TYPES: Record<ArrayName, ArrayType> = {
   fg: 'u16',

@@ -90,5 +90,6 @@ export function generateWorld(
     spawnY: ctx.spawnY,
     caveMouths: [...ctx.caveMouths],
     towns: ctx.towns.map((t) => ({ ...t })),
+    arenas: ctx.arenas.map((a) => ({ ...a })),
   };
 }

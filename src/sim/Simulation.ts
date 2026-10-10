@@ -1,5 +1,6 @@
 import {
   COMBAT,
+  DIMMING,
   FIRE,
   LIGHT,
   HEALTH,
@@ -20,6 +21,8 @@ import { shopFor } from '../data/shops';
 import { VILLAGE } from '../data/roads';
 import { nextLine } from './systems/DialogueSystem';
 import { ProgressionSystem } from './systems/ProgressionSystem';
+import { DimmingSystem, dimmingFlag } from './systems/DimmingSystem';
+import { bossFlag } from '../data/bosses';
 import { TownSystem } from './systems/TownSystem';
 import { RoadSystem } from './systems/RoadSystem';
 import { QuestSystem } from './systems/QuestSystem';
@@ -118,9 +121,13 @@ export interface SimulationOptions {
   spawns?: boolean;
   /** Where world generation placed the towns (M11); none by default. */
   towns?: readonly TownPlace[];
+  /** Where world generation placed the boss arenas (M12); none by default. */
+  arenas?: readonly TownPlace[];
 }
 
 const NO_PAYLOAD: Record<string, never> = {};
+/** The last boss's flag: the Heartlight burns again, and the Gloam stops growing. */
+const HEARTLIT = bossFlag('gloam_heart');
 const GLIMMER = itemId('glimmer');
 const LAMP_FUEL = LAMP_FUEL_ITEMS.map(itemId);
 const QUEST_TITLES = new Map(QUESTS.map((q) => [q.key, q.title]));
@@ -159,6 +166,11 @@ export class Simulation {
   readonly towns: TownSystem;
   readonly roads: RoadSystem;
   readonly quests: QuestSystem;
+  /** Days and Dimming nights (M12). */
+  readonly dimming: DimmingSystem;
+  private waveTimer = 0;
+  private readonly wavePayload = { count: 0 };
+  readonly arenaPlaces: readonly TownPlace[];
   private readonly talkPayload = {
     npcId: 0,
     key: '',
@@ -239,6 +251,17 @@ export class Simulation {
     );
     this.falling = new FallingSystem(this.world, this.events);
     this.progression = new ProgressionSystem(this.events);
+    this.arenaPlaces = options.arenas ?? [];
+    this.dimming = new DimmingSystem(
+      this.events,
+      () => this.progression.has(HEARTLIT),
+      (survived) => {
+        this.progression.set(dimmingFlag(survived));
+        // The dawn's gift, at your feet.
+        const gift = DIMMING.dawnGift;
+        if (!this.player.dead) this.dropAtPlayer(itemId(gift.item), gift.count, false);
+      },
+    );
     this.settlement = new SettlementSystem(
       this.world,
       this.events,
@@ -354,6 +377,7 @@ export class Simulation {
       ...options,
       size: { width: generated.width, height: generated.height, chunkSize: WORLD.chunkSize },
       towns: generated.towns,
+      arenas: generated.arenas,
       generate: (world) => {
         world.loadArrays(generated.arrays);
         return { spawnX: generated.spawnX, spawnY: generated.spawnY };
@@ -369,6 +393,7 @@ export class Simulation {
       startDayFraction: save.dayFraction,
       size: { width: save.meta.width, height: save.meta.height, chunkSize: WORLD.chunkSize },
       towns: save.towns.map(({ key, x0, y0, x1, y1 }) => ({ key, x0, y0, x1, y1 })),
+      arenas: save.arenas,
       generate: (world) => {
         world.loadArrays(save.arrays);
         return { spawnX: save.spawnX, spawnY: save.spawnY };
@@ -430,6 +455,7 @@ export class Simulation {
     sim.progression.restore(save.flags);
     sim.towns.restore(save.towns);
     sim.quests.restore(save.quests);
+    sim.dimming.restore(save.day, save.dimmingsSurvived, save.dayFraction);
     return sim;
   }
 
@@ -498,6 +524,9 @@ export class Simulation {
       quests: this.quests.toSave(),
       spawnX: this.spawnX,
       spawnY: this.spawnY,
+      day: this.dimming.day,
+      dimmingsSurvived: this.dimming.survived,
+      arenas: this.arenaPlaces.map((a) => ({ ...a })),
     };
   }
 
@@ -646,12 +675,16 @@ export class Simulation {
     }
     this.elapsed += dt;
     this.setDayFraction(this.dayFraction + dt / TIME.dayLengthSeconds);
+    this.dimming.update(this.dayFraction);
+    this.dimming.apply(this.day);
+    // The Heartlight rekindled (M12): the Gloam can only shrink from now on.
+    this.gloam.growScale = this.progression.has(HEARTLIT) ? 0 : this.dimming.gloamGrowth;
     this.weather.update(this.elapsed, this.dayFraction, this.events);
     this.weather.applyToSun(this.day, this.sunNow);
     this.updateMaterials(dt);
     this.settlement.update(dt);
     const night = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) < SPAWN.daylightSun;
-    this.towns.update(dt, this.dayFraction, night);
+    this.towns.update(dt, this.dayFraction, night, this.dimming.strength);
     this.roads.update(dt);
     this.quests.update(dt, this.lightAtTile);
     this.wisps.quest = this.quests.lostThing();
@@ -700,6 +733,7 @@ export class Simulation {
       sc.focusY = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
       sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= SPAWN.daylightSun;
       this.spawner.update(sc, dt);
+      this.updateWaves(dt);
       const cc = this.critterContext;
       cc.region = sc.region;
       cc.focusX = sc.focusX;
@@ -709,6 +743,21 @@ export class Simulation {
     }
     this.steppedPayload.step = this.stepCount;
     this.events.emit('stepped', this.steppedPayload);
+  }
+
+  /** A Dimming night at full strength sends waves of shades (M12). */
+  private updateWaves(dt: number): void {
+    if (this.dimming.strength < 1 || this.player.dead) {
+      this.waveTimer = 0;
+      return;
+    }
+    this.waveTimer += dt;
+    if (this.waveTimer < DIMMING.waveSeconds) return;
+    this.waveTimer = 0;
+    const count = this.spawner.wave(this.spawnContext, this.dimming.waveSize);
+    if (count === 0) return;
+    this.wavePayload.count = count;
+    this.events.emit('shadeWave', this.wavePayload);
   }
 
   /**
@@ -885,6 +934,7 @@ export class Simulation {
         cleansed: this.gloam.cleansed,
         night: Math.max(this.day.sunR, this.day.sunG, this.day.sunB) < SPAWN.daylightSun,
         festival: town?.festivalPhase === 'on',
+        dimming: this.dimming.strength > 0,
       });
     if (!text) return;
     const p = this.talkPayload;

@@ -47,6 +47,8 @@ export interface GeneratedWorld {
   caveMouths?: number[];
   /** Where world generation placed each town (M11). */
   towns: TownPlace[];
+  /** Where world generation placed each boss arena (M12; key = the boss key). */
+  arenas: TownPlace[];
 }
 
 /** A town prefab's rectangle in the world (tiles, inclusive; x0/y0 = the prefab's top-left). */
@@ -120,4 +122,8 @@ export interface SaveState {
   flags: string[];
   towns: SavedTown[];
   quests: QuestProgress[];
+  /** M12: whole days since the world began, Dimming nights survived, and the boss arenas. */
+  day: number;
+  dimmingsSurvived: number;
+  arenas: TownPlace[];
 }

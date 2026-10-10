@@ -18,6 +18,8 @@ export interface DialogueCondition {
   readonly scared?: boolean;
   /** Their town's festival is on. */
   readonly festival?: boolean;
+  /** A Dimming night is on (M12). */
+  readonly dimming?: boolean;
 }
 
 export interface DialogueEntry {

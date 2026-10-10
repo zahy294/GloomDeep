@@ -210,6 +210,12 @@ export interface SimEvents {
   caravanArrived: { readonly road: string; readonly place: string };
   /** The player bought or sold something. */
   traded: { readonly npc: string; readonly glimmer: number };
+  /** M12 — tonight will be a Dimming night (late afternoon) / it began / its dawn came. */
+  dimmingWarning: Record<string, never>;
+  dimmingStarted: Record<string, never>;
+  dimmingEnded: { readonly survived: number };
+  /** A wave of shades rose around the player during a Dimming night. */
+  shadeWave: { readonly count: number };
 }
 
 type Listener<T> = (payload: T) => void;

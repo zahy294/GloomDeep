@@ -36,3 +36,6 @@ export const NAMED_TIMES = {
 } as const;
 
 export type NamedTime = keyof typeof NAMED_TIMES;
+
+/** The sky of a Dimming night (M12): Dimming mixes the night sky towards these (DIMMING.skyMix). */
+export const DIMMING_SKY = { top: 0x05030a, horizon: 0x1a0f2a } as const;

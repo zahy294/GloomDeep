@@ -31,6 +31,8 @@ export interface GenContext {
   caveMouths: number[];
   /** Towns placed by step 2 and stamped by step 7 (M11): prefab rectangles, inclusive. */
   towns: PlacedTown[];
+  /** Boss arenas (M12), planned and stamped like towns; key = the boss key. */
+  arenas: PlacedTown[];
 }
 
 /** A town prefab's place in the world (tiles; x0/y0 is the prefab's top-left cell). */
@@ -67,6 +69,7 @@ export function createContext(
     spawnY: 0,
     caveMouths: [],
     towns: [],
+    arenas: [],
   };
 }
 
