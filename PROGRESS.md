@@ -4,6 +4,13 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## After M13 — playtest tweaks (2026-10-10)
+
+- **Caves are faintly visible in total darkness:** the light map is never drawn below a faint cool ambient floor (`LIGHT_VIEW.ambientFloor`, about 15%), so cave walls, ore veins and tunnel shapes read without a light. Display only: the light grid the game reads (shade spawns at light 16 or less, Gloam growth at 24 or less, plants, veiled secrets) keeps its true darkness. Raise or lower the floor in src/config.ts.
+- **Light benchmark:** `npm run bench:light` times the light job on the game's 104×78 region with up to ~1,200 torches; `npm run perf` gained torch-field stress scenes. The worst case is under 1 ms on this machine.
+
+---
+
 ## M13 — Polish and release ✅ (2026-10-10; final art check left for later, as asked)
 
 ### Built

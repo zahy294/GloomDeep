@@ -452,6 +452,16 @@ export const LIGHT = {
   touchRadiusBoost: 1.8,
 } as const;
 
+/**
+ * The light map on screen (src/render/LightMapRenderer.ts). `ambientFloor`: the least light any
+ * tile is DRAWN with (0–255 per channel; a faint cool tone), so pitch-dark caves still show their
+ * shapes. Display only: the light grid that gameplay reads (shades, the Gloam, plants) keeps its
+ * true darkness.
+ */
+export const LIGHT_VIEW = {
+  ambientFloor: [34, 38, 52] as readonly [number, number, number],
+} as const;
+
 /** Day–night cycle (plan 2.4). Day fraction: 0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk. */
 export const TIME = {
   /** One full day in real seconds (~20 minutes). */

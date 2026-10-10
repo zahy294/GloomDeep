@@ -1,5 +1,7 @@
 import * as Phaser from 'phaser';
-import { LIGHT, TILE_SIZE } from '../config';
+import { LIGHT, LIGHT_VIEW, TILE_SIZE } from '../config';
+
+const [FLOOR_R, FLOOR_G, FLOOR_B] = LIGHT_VIEW.ambientFloor;
 import type { EventBus, SimEvents } from '../sim/events';
 import type { World } from '../sim/world/World';
 import { Depth } from './depth';
@@ -56,9 +58,10 @@ export class LightMapRenderer {
       let src = (rect.y0 + y) * world.width + rect.x0;
       let dst = y * texW * 4;
       for (let x = 0; x < rect.width && x < texW; x++, src++, dst += 4) {
-        pixels[dst] = world.lightR[src] ?? 0;
-        pixels[dst + 1] = world.lightG[src] ?? 0;
-        pixels[dst + 2] = world.lightB[src] ?? 0;
+        // Never drawn fully black: a faint ambient floor (display only, LIGHT_VIEW).
+        pixels[dst] = Math.max(world.lightR[src] ?? 0, FLOOR_R);
+        pixels[dst + 1] = Math.max(world.lightG[src] ?? 0, FLOOR_G);
+        pixels[dst + 2] = Math.max(world.lightB[src] ?? 0, FLOOR_B);
         pixels[dst + 3] = 255;
       }
     }
