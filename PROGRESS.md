@@ -4,6 +4,119 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M11 — Towns & Folk ✅ (2026-10-10)
+
+### Built
+
+- **Prefab pipeline (Tiled JSON):**
+  - Prefabs are Tiled maps in `src/data/prefabs/*.json`: tile layers `bg` and `fg`, and an object layer. The shared tileset `gloamdeep.tileset.json` (plus a swatch image) has one tile per game tile, each carrying its tile `key`, so maps survive tile-id changes.
+  - `src/sim/world/tiled.ts` parses a map into tile keys, waypoints (`tag`, `links`), districts, lifts and other objects. `src/sim/world/prefabs.ts` stamps it into the world or into worldgen's arrays, filling a foundation under it.
+  - `npm run prefabs` regenerates the tileset and writes any missing map from its code sketch (`tools/lib/prefabSketches.ts`). From now on the JSON is the source: edit it in Tiled. `-- <key> --force` overwrites a map from its sketch.
+  - The M10 cottage is now a Tiled map too; the rows-plus-legend format is gone.
+- **World generation:** step 2 plans the towns and step 7 stamps them.
+  - Canopyhold goes on the Elderglade surface, 150–210 columns from the spawn, with the ground levelled under it. The Citadel goes 30 rows into Rootdeep, 260–420 columns out on the other side.
+  - Caves, pools, waterfalls, flora, background walls and the starting Gloam keep out of town rectangles (plus a 3-tile margin). Giant trees, ruins, fairy rings and cave mouths keep clear of town columns.
+  - A switchback tunnel runs from the surface into the Citadel's west gate. The Citadel's districts start full of Gloam (220).
+  - `GeneratedWorld.towns` gives each town's rectangle.
+- **Towns at runtime** (`TownSystem`, `NavSystem`):
+  - Each town has a waypoint graph. Townsfolk walk its edges in straight lines and ride the lift where both ends are tagged `lift`. Their movement is kinematic, so building or digging in a town can't strand anyone.
+  - **Routines** are data (`src/data/towns.ts`): from an hour, go to a place tag (`shop:merchant`, `inn`, `plaza`, `home:…`).
+  - **Street lamps** burn fuel only at night (a full lamp lasts ~3 nights) and step lit → dim → out as tile swaps. A Lumen petal or crystal refuels one (right-click).
+  - **Town light** is the share of lamps burning. At night, folk in a town lit below 50% are frightened: they hurry home, say so, and won't trade. A town lit to 50% or more keeps the Gloam and creature spawns out of its streets.
+- **Canopyhold:** the market street on the ground (inn, trading post, lampwright's workshop, caravan yard); a deck of homes round a giant trunk, with a rope bridge to a second tree; an upper deck with a lookout. Branch steps lead up for players, and a lift basket on the trunk serves the three levels: right-click it to go up a level, and from the top back down. Street lamps line every level, with lanterns hung in the leaves. Eight residents with routines. The Old Dryad's grove (the spawn tree) is 150–210 columns away.
+- **Rootdeep Citadel:** a brick hall in three districts (the Gate Ward, the Lantern Market, the High Hall).
+  - Each district has a dormant beacon on its street. Right-clicking one with its cost (3, 5, or 8 Lumen crystals plus 4 moonstone) relights it as a **great beacon** (44-tile safe circle, and a fast-travel point).
+  - The beacon burns the district's Gloam away. When ≤4% of the district still holds Gloam it is **reclaimed**: its lamps light, the flag `district:<key>` is set, and its residents return (warden, root-smith, lampkeeper, scholar).
+  - The Citadel's light is the share of districts reclaimed.
+- **Dialogue** (`DialogueSystem`, `src/data/dialogue/`): for each person, the last entry whose condition holds supplies the lines (story flags, share cleansed, night, scared, festival). The M10 villager and Dryad lines moved here. Quest talk comes first.
+- **Quests** (`QuestSystem`, `src/data/quests/`), all four types, given in Canopyhold:
+  - **Deliver** (Rowan, *Glowcap Stew*: 12 glowcap flesh): rewards glimmer and hanging lanterns, and teaches the hanging-lantern recipe. Taught recipes are a new `requires` flag on recipes.
+  - **Light a route** (Wren, *Light the Canopy Road*).
+  - **Escort** (Hesper, *Through the Dark*): Juniper follows you, walking and jumping. Each second in the dark (light < 40) frightens her more; after 6 s she runs home, and you fetch her again. Bring her to the spawn glade and she moves into your village once a fifth lit home is free.
+  - **Find** (Pip, *Pip's Locket*): the locket hides on a cave floor 30–90 tiles away. Wisps for an active find come every 12 s, day or night, and lead straight to it. You pick it up by walking over it.
+  - **Markers:** a '!' over someone means they offer a quest; a '?' means one is ready to hand in.
+- **Trade** (`TradeSystem`, `src/data/shops.ts`): the currency is **glimmer** (a new item).
+  - **Traders:** the Canopyhold trader and lampwright, the Citadel root-smith, and your village's tinker, herbalist and glassblower.
+  - **Prices:** up to +50% in a dark town, −15% per lit road into it, never below ×0.6.
+  - **Selling:** traders pay `SELL_VALUE` divided by the price factor.
+  - **Festival stall:** some offers are only on sale during the festival.
+- **Lit roads and caravans** (`RoadSystem`, `src/data/roads.ts`): the Canopy Road runs along the ground from the spawn to Canopyhold's nearest gate.
+  - **When it is lit:** it is checked every 6 columns, and a point is lit with a placed light (not flora or ore) within 9 tiles. Placing or removing a light re-checks it and shows "n of m stretches lit".
+  - **Once fully lit:** it sets `road:canopy_road`, lowers prices, and a caravan (a stag-drawn wagon with a lantern that lights the road) walks it back and forth, resting at each end. It only sets out while the road stays lit.
+- **Festival** (`src/data/festivals.ts`): the night after `boss:moth_matriarch` is set (by M12; `?festival=1` for now), Canopyhold celebrates from dusk to dawn. All lamps burn full, everyone gathers at the plaza with festival lines, festival stall offers open, and sky lanterns and fireworks go up.
+- **Saving** (format v4, with a migration): story flags, each town's place, lamp fuel and festival state, and quests taken (with find hiding places). Townsfolk are rebuilt from their towns, not saved.
+- **On screen and UI:**
+  - **Dialogue:** offers a quest (Accept) and trade (Trade).
+  - **New panels:** a trader's stall (buy and sell, price terms), the quest journal (J), and banners on entering a town, finishing a quest, reclaiming a district or starting a festival.
+  - **HUD:** glimmer, a town plate (name, lamp-light bar, status) and an escort's courage bar.
+  - **Rendering:** quest markers, frightened folk shivering, lift baskets under riders, caravans, a glint where a lost thing lies, and festival sky lanterns and fireworks. These are drawn above the light map so the night doesn't hide them.
+  - **New sounds:** coin, quest, lamp, lift, relight, firework.
+  - **Placeholder art:** street lamps (lit, dim and out), lift basket, dormant beacon, hanging lantern, carved bricks, glimmer and locket icons, 12 new folk (Pip is child-sized, the warden carries a spear), the caravan wagon, and sky-lantern and spark particles.
+- **Debug starts:**
+  - `?spot=canopyhold|citadel|road` and `?near=<npc>` (beside a townsperson, where their routine has them).
+  - `?road=lit`, `?festival=1`, `?quest=<key>` and `?reclaim=<district>,<district>`.
+- **New shots:** `canopyhold-day`, `canopyhold-night`, `quest-offer`, `quest-journal`, `canopyhold-shop`, `citadel-lost`, `citadel-reclaimed`, `road-caravan`, `festival-night`.
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| Canopyhold feels lived-in: NPCs follow routines, talk, trade, hand out all four quest types | ✅ `canopyhold-day` and `-night`, `quest-offer`, `quest-journal`, `canopyhold-shop`. Tests: routines (including the lift ride home), frightened folk in a dark town, and each quest type end to end (deliver, light a route, escort with fleeing, find with wisps); buying, selling and prices |
+| At least two Citadel districts can be reclaimed | ✅ `citadel-reclaimed`: two districts relit, light 0.67, and the warden, root-smith and lampkeeper are back. A test relights the Gate Ward with crystals; its Gloam burns away and the warden returns |
+| Lighting a road makes a caravan start traveling it | ✅ `road-caravan`. A test lights the road with torches: `roadLit`, the flag, a caravan walking the ground, and a 15% discount |
+| typecheck, test, lint, build | ✅ 535 tests |
+
+### Decisions and deviations
+
+- **Prefabs were bootstrapped from code.** The plan has towns drawn in Tiled. Drawing a 112×58 town by hand wasn't possible here, so the maps were generated once from code sketches as real Tiled JSON. They are the source from now on and open in Tiled with the shared tileset. The tileset image is a colour swatch per tile; it should become the real atlas once tile art exists.
+- **Waypoint links** are a comma-separated `links` property on point objects, which is easy to edit in Tiled. A link between two `lift` waypoints is a lift ride; every other link is a straight walk.
+- **Townsfolk move kinematically along edges.** They glide through closed doors and never collide. This was chosen so player edits can't break towns.
+- **Lifts for the player teleport** to the next stop up (from the top, back to the bottom); there is no ride animation for the player. Folk do ride slowly.
+- **A town's light comes from its lamps' fuel, not the light grid.** The grid only exists around the camera, and town state has to work off-screen.
+- **Lit roads count placed lights** within 9 tiles of each road point, for the same reason. Glowing flora and ore don't count.
+- **The Citadel's districts use a new great beacon** (radius 44 instead of 30), so one beacon covers a whole district.
+- **Caravans and the escort's fear are not saved.** A lit road gets its caravan back on load. An escort in progress resets: Juniper is back home, and the quest stays active.
+- **Town residents are not saved.** They are rebuilt from their towns at their scheduled places.
+- **The festival can't be earned yet:** its trigger flag comes from the first boss in M12, so `?festival=1` sets it for now.
+- **Your village has no waypoint graph.** Villagers keep strolling in their homes; only towns run routines.
+- **Escort fear:** Juniper flees after 6 s of darkness in total, recovering at half that rate in light. The quest stays active, so she can be fetched again, rather than failing for good.
+- **No separate ScheduleSystem file.** Routines are data (`src/data/towns.ts` with `scheduledPlace`), applied by `TownSystem.updateResidents` once a second. A file of its own would only have forwarded to the TownSystem.
+- **Underground towns have no night fear.** Only surface towns frighten their folk in the dark at night.
+- **Street lamps and lift posts can't be mined** (tier 99): they belong to the town.
+- **Selling pays `value × 0.8 × min(1, price factor)`.** A dark town's markup never raises what traders pay, so trading can't make glimmer from nothing.
+- **Older saves (v3) get no towns:** towns are generated with the world, so a world from before M11 has none. Start a new world to see them.
+
+### Reviewer pass
+
+Fixed:
+- **Must-fix: taught recipes couldn't be crafted.** The Simulation didn't pass the story flags to `craft`. A test now crafts hanging lanterns after Glowcap Stew.
+- **Must-fix: the lost locket multiplied** (one drop per step) when found with a full bag, and a dropped locket re-armed the hiding place. A found thing is now found for good: the quest forgets the place, and the item is picked up from the ground if the bag was full. Test added.
+- **Must-fix: glimmer could be farmed by buying and selling back** (the sell price divided by the price factor). Traders now pay `value × 0.8 × min(1, factor)`. A test checks every shop offer at every price factor: selling back always pays less than buying.
+- **Mining a town's dark lamps made it brighter.** Street lamps and lift posts are now town fixtures that no pickaxe can mine.
+- **The Citadel's folk feared the surface night.** Underground towns ignore night; their folk fear only the Gloam, which keeps them away until their district is reclaimed. Test added. An escort no longer takes on their town's fear.
+- **Unnamed data in code:** lamp fuel items are now `LAMP_FUEL_ITEMS` (src/data/towns.ts), and the festival's gathering place is `FestivalDef.gather`.
+- **Per-step allocations:** `lostThing()` reuses one result, towns are looked up by key in a map, and nav edges and the escort lookup use plain loops.
+- **Prefab checks:** the parser rejects duplicate waypoint names; a test requires every waypoint link to go both ways; the Tiled doc names the lift properties (`line`, `level`).
+- **Flaky M10 test:** the glowmoss test now uses a seeded random.
+
+Not changed (logged): the lost thing falls back to the giver's feet if 400 tries find no cave floor; festivals run once per town (M12 needs one per boss); the quest-marker cache is indexed by list position, so a marker can sit over the wrong person for up to 0.2 s after someone leaves; the Citadel tunnel is tested on one seed.
+
+### Known issues
+
+- **Placeholder art:** the houses read as dark boxes (plank back walls under night light), and Canopyhold's trunk is a flat 12-column slab. Real tile and prop art (`art-import`) should fix both. The folk, critter and caravan sheets still have no prompts or manifest entries.
+- **Fireworks are small** (8 px placeholder sparks) and random, so a screenshot may not catch one.
+- **Townsfolk name tags overlap** when two folk stand on the same waypoint.
+- **Rope bridges** are plain one-way platforms (no sag).
+- **The Citadel is very dark:** `citadel-lost` is hard to read, and a reclaimed district is lit mainly along its street. Real art and some ambient rune light should help.
+- **From the review:** the lost-thing fallback, single-run festivals, the marker cache and the one-seed tunnel test (see above).
+
+### Next step
+
+**M12 — Bosses and Dimming nights:** the Dimming night event (towns react by their light level), the four bosses with arenas, intros and phases, and progression: each boss unlocks the next depth, a lens or an NPC, and triggers a festival (the M11 festival hook is the `boss:<key>` flag). Waiting for the user's go-ahead.
+
+---
+
+
 ## M10 — Living forest and the village ✅ (2026-10-10)
 
 ### Built
@@ -90,7 +203,7 @@ Not changed (logged as known issues): the fae buff isn't saved, critters stay fr
 
 ### Next step
 
-**M11 — Towns & Folk:** the Tiled JSON prefab pipeline, NPC routines, dialogue, quests and trade, Canopyhold, the Rootdeep Citadel districts, and caravans on lit roads. Waiting for the user's go-ahead.
+**M11 — Towns & Folk** (done: see above).
 
 ---
 

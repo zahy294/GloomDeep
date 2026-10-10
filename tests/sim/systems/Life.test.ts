@@ -1,3 +1,4 @@
+import { mulberry32 } from '../../../src/sim/random';
 import { describe, expect, it } from 'vitest';
 import { CRITTER, FLORA_FX, LIGHT, LUMEN, TILE_SIZE, WISP } from '../../../src/config';
 import { lightByKey } from '../../../src/data/lights';
@@ -184,7 +185,7 @@ describe('flora', () => {
 
   function setup() {
     const s = cave();
-    const flora = new FloraSystem(s.world, s.events, Math.random);
+    const flora = new FloraSystem(s.world, s.events, mulberry32(7));
     const run = (seconds: number, night = false) => {
       for (let t = 0; t < seconds; t += TICK) flora.update(TICK, s.region, s.player, night);
     };

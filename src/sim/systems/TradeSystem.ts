@@ -21,10 +21,14 @@ export function buyPrice(offer: ShopOffer, factor: number): number {
   return Math.max(1, Math.round(offer.price * factor));
 }
 
-/** Glimmer a trader pays for `count` of an item (0 if they don't want it). */
+/**
+ * Glimmer a trader pays for `count` of an item (0 if they don't want it). Cheap prices (factor < 1)
+ * lower what they pay too, and a dark town's markup doesn't raise it, so buying and selling back
+ * never gains glimmer (SELL_VALUE stays below every shop's price per item; tested).
+ */
 export function sellPrice(item: number, count: number, factor: number): number {
   const value = SELL_VALUE[ITEMS[item]?.key ?? ''] ?? 0;
-  return Math.floor((value * count * TRADE.sellShare) / factor);
+  return Math.floor(value * count * TRADE.sellShare * Math.min(1, factor));
 }
 
 /** The offers on sale now, with their index in the shop's list. */

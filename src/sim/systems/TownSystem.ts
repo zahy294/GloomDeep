@@ -108,6 +108,7 @@ const lampPayload = { x: 0, y: 0 };
  */
 export class TownSystem {
   readonly towns: Town[] = [];
+  private readonly byKey = new Map<string, Town>();
   private timer = 0;
   private hour = 0;
   private readonly unsubscribe: () => void;
@@ -125,6 +126,7 @@ export class TownSystem {
       const def = TOWNS.find((t) => t.key === place.key);
       if (def) this.towns.push(this.build(def, place));
     }
+    for (const t of this.towns) this.byKey.set(t.def.key, t);
     this.unsubscribe = events.on('tileChanged', ({ x, y, id, previous, layer }) => {
       if (layer !== 'fg') return;
       const wasLamp = (LAMP_STAGE[previous] ?? -1) >= 0;
@@ -256,7 +258,7 @@ export class TownSystem {
     }
     for (const npc of this.npcs) {
       if (npc.town === '' || npc.escorting) continue;
-      const town = this.towns.find((t) => t.def.key === npc.town);
+      const town = this.byKey.get(npc.town);
       if (town) stepNav(npc, town.graph, dt, this.random);
     }
   }
@@ -334,7 +336,11 @@ export class TownSystem {
 
   /** Who should be in town now arrives (at their scheduled place); who shouldn't, leaves. */
   private updateResidents(town: Town, night: boolean): void {
-    const afraid = night && town.light < TOWN.scaredBelow && town.festivalPhase !== 'on';
+    // Underground (the Citadel) there is no night: its folk fear only the Gloam, which keeps
+    // them away until their district is reclaimed.
+    const underground = town.def.placement.kind === 'underground';
+    const afraid =
+      !underground && night && town.light < TOWN.scaredBelow && town.festivalPhase !== 'on';
     for (const res of town.def.residents) {
       const present = this.residentPresent(town, res);
       const k = this.npcs.findIndex((n) => n.key === res.npc && n.town === town.def.key);
@@ -345,15 +351,16 @@ export class TownSystem {
       }
       const place = afraid
         ? res.home
-        : town.festivalPhase === 'on'
-          ? 'plaza'
+        : town.festivalPhase === 'on' && town.festival
+          ? town.festival.gather
           : scheduledPlace(res.schedule, this.hour);
       if (!npc) {
         this.spawnResident(town, res, place).scared = afraid;
         continue;
       }
+      if (npc.escorting) continue;
       npc.scared = afraid;
-      if (!npc.escorting) goTo(npc, town.graph, place);
+      goTo(npc, town.graph, place);
     }
   }
 

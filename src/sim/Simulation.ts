@@ -61,6 +61,7 @@ import { LIQUID as LIQUID_KIND } from '../data/biomes';
 import type { Body } from './physics/tileCollision';
 import { ITEMS, itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
 import { QUESTS } from '../data/quests';
+import { LAMP_FUEL_ITEMS } from '../data/towns';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
 import type { SimCommand } from './commands';
@@ -121,8 +122,7 @@ export interface SimulationOptions {
 
 const NO_PAYLOAD: Record<string, never> = {};
 const GLIMMER = itemId('glimmer');
-/** What refuels a street lamp, preferred first. */
-const LAMP_FUEL = ['lumen_petal', 'lumen_crystal'].map(itemId);
+const LAMP_FUEL = LAMP_FUEL_ITEMS.map(itemId);
 const QUEST_TITLES = new Map(QUESTS.map((q) => [q.key, q.title]));
 
 /** Owns the game state and advances it at a fixed rate. Contains no rendering code. */
@@ -1047,7 +1047,13 @@ export class Simulation {
   private craft(key: string, times: number): void {
     const recipe = recipeByKey(key);
     if (!recipe) return;
-    const { crafted, overflow } = craft(recipe, times, this.inventory, this.stationsNearby());
+    const { crafted, overflow } = craft(
+      recipe,
+      times,
+      this.inventory,
+      this.stationsNearby(),
+      this.progression.flags,
+    );
     if (crafted === 0) return;
     if (overflow > 0) this.dropAtPlayer(recipe.output.itemId, overflow, false);
     this.craftedPayload.itemId = recipe.output.itemId;

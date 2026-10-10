@@ -118,6 +118,11 @@ export interface DecorDef {
   readonly shy?: true;
 }
 
+/**
+ * Town fixtures (street lamps, lift posts) need a pickaxe beyond any made: they belong to the town.
+ */
+const TOWN_FIXTURE_TIER = 99;
+
 /** First-pass tile registry. Add tiles here; no engine code should need to change. */
 export const TILES: readonly TileDef[] = [
   {
@@ -906,7 +911,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Street Lamp',
     solid: false,
     hardness: 2,
-    tier: 2,
+    tier: TOWN_FIXTURE_TIER,
     drop: null,
     mergesWith: [],
     placeholderRamp: 'gold',
@@ -922,7 +927,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Street Lamp (dim)',
     solid: false,
     hardness: 2,
-    tier: 2,
+    tier: TOWN_FIXTURE_TIER,
     drop: null,
     mergesWith: [],
     placeholderRamp: 'gold',
@@ -938,7 +943,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Street Lamp (out)',
     solid: false,
     hardness: 2,
-    tier: 2,
+    tier: TOWN_FIXTURE_TIER,
     drop: null,
     mergesWith: [],
     placeholderRamp: 'stone',
@@ -967,7 +972,7 @@ export const TILES: readonly TileDef[] = [
     name: 'Lift Basket',
     solid: false,
     hardness: 2,
-    tier: 2,
+    tier: TOWN_FIXTURE_TIER,
     drop: null,
     mergesWith: [],
     placeholderRamp: 'bark',

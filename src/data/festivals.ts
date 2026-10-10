@@ -10,6 +10,8 @@ export interface FestivalDef {
   readonly town: string;
   /** Story flag that earns it (bosses set `boss:<key>` in M12). */
   readonly after: string;
+  /** Where the town's folk gather while it is on (a waypoint tag). */
+  readonly gather: string;
 }
 
 export const FESTIVALS: readonly FestivalDef[] = [
@@ -18,5 +20,6 @@ export const FESTIVALS: readonly FestivalDef[] = [
     name: 'the Festival of Lanterns',
     town: 'canopyhold',
     after: 'boss:moth_matriarch',
+    gather: 'plaza',
   },
 ];

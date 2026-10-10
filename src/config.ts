@@ -757,8 +757,8 @@ export const TRADE = {
   roadDiscount: 0.15,
   /** Prices never fall below this multiple of the base price. */
   minFactor: 0.6,
-  /** Traders pay this share of an item's value (divided by the price factor). */
-  sellShare: 1,
+  /** Traders pay this share of an item's value (times the price factor, if below 1). */
+  sellShare: 0.8,
   /** Shopping works within this many tiles of the trader. */
   reachTiles: 8,
 } as const;

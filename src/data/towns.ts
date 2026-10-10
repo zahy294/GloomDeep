@@ -225,6 +225,9 @@ export const TOWNS: readonly TownDef[] = [
   },
 ];
 
+/** What refuels a street lamp (right-click it holding one), preferred first. */
+export const LAMP_FUEL_ITEMS: readonly string[] = ['lumen_petal', 'lumen_crystal'];
+
 export function townByKey(key: string): TownDef | undefined {
   return TOWNS.find((t) => t.key === key);
 }

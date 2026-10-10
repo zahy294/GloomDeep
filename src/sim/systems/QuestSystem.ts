@@ -207,18 +207,26 @@ export class QuestSystem {
     return { x: cx, y: cy };
   }
 
-  /** The active find quest's hiding place while the thing is still lost (tiles), or null. */
+  /**
+   * The active find quest's hiding place while the thing is still lost (tiles), or null. Once
+   * picked up it is found for good (the quest forgets the place). The result is reused.
+   */
   lostThing(): { x: number; y: number; item: number } | null {
     for (const p of this.quests.values()) {
       if (p.state !== 'active' || p.x < 0) continue;
       const q = questByKey(p.key);
       if (q?.goal.kind !== 'find') continue;
-      const item = itemId(q.goal.item);
-      if (this.ctx.inventory.count(item) > 0) continue;
-      return { x: p.x, y: p.y, item };
+      this.lost.x = p.x;
+      this.lost.y = p.y;
+      this.lost.item = itemId(q.goal.item);
+      this.lostQuest = p;
+      return this.lost;
     }
     return null;
   }
+
+  private readonly lost = { x: 0, y: 0, item: 0 };
+  private lostQuest: QuestProgress | null = null;
 
   /** The person being escorted right now, if any. */
   escortee(): Npc | undefined {
@@ -241,6 +249,10 @@ export class QuestSystem {
     const dx = (lost.x + 0.5) * TILE_SIZE - (b.x + b.width / 2);
     const dy = (lost.y + 0.5) * TILE_SIZE - (b.y + b.height / 2);
     if (Math.hypot(dx, dy) > FIND.pickupTiles * TILE_SIZE || this.ctx.player.dead) return;
+    if (this.lostQuest) {
+      this.lostQuest.x = -1;
+      this.lostQuest.y = -1;
+    }
     const left = this.ctx.inventory.add(lost.item, 1);
     if (left > 0) this.ctx.drop(lost.item, left);
     progressPayload.key = '';
@@ -256,7 +268,8 @@ export class QuestSystem {
     lightAt: (x: number, y: number) => number | null,
   ): void {
     const { npcs, player, events } = this.ctx;
-    const npc = npcs.find((n) => n.key === key);
+    let npc: Npc | undefined;
+    for (const n of npcs) if (n.key === key) npc = n;
     if (!npc || player.dead) return;
     const b = npc.body;
     const pb = player.body;

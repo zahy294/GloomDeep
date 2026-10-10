@@ -12,6 +12,8 @@ import type { Prefab } from '../world/tiled';
 
 export type EdgeKind = 'walk' | 'lift';
 
+const NO_LINKS: NavNode['links'] = [];
+
 export interface NavNode {
   /** World tiles: the cell the feet stand in. */
   readonly x: number;
@@ -168,7 +170,8 @@ export function stepNav(npc: Npc, graph: NavGraph, dt: number, random: () => num
     nav.path.length = 0;
     return;
   }
-  const kind = from?.links.find((l) => l.to === next)?.kind ?? 'walk';
+  let kind: EdgeKind = 'walk';
+  for (const l of from?.links ?? NO_LINKS) if (l.to === next) kind = l.kind;
   nav.riding = kind === 'lift';
   const speed = kind === 'lift' ? NAV.liftSpeed : NAV.walkSpeed;
   const tx = (to.x + 0.5) * TILE_SIZE - b.width / 2;

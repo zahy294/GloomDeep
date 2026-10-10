@@ -9,7 +9,8 @@ import { Simulation } from '../../../src/sim/Simulation';
 import { nextLine, type DialogueContext } from '../../../src/sim/systems/DialogueSystem';
 import { buildNavGraph, findPath, pickNode } from '../../../src/sim/systems/NavSystem';
 import { lampStage } from '../../../src/sim/systems/TownSystem';
-import { priceFactor } from '../../../src/sim/systems/TradeSystem';
+import { buyPrice, priceFactor, sellPrice } from '../../../src/sim/systems/TradeSystem';
+import { SHOPS } from '../../../src/data/shops';
 import { createNpc } from '../../../src/sim/entities/Npc';
 import { stampPrefabAt, worldTarget } from '../../../src/sim/world/prefabs';
 import type { TownPlace } from '../../../src/sim/world/worldData';
@@ -260,6 +261,18 @@ describe('quests', () => {
     expect(sim.inventory.count(itemId('glowcap_flesh'))).toBe(3);
     expect(sim.inventory.count(itemId('glimmer'))).toBe(30);
     expect(sim.progression.has('recipe:hanging_lantern')).toBe(true);
+    // The taught recipe now crafts at an anvil.
+    const b = sim.player.body;
+    sim.world.set(Math.floor(b.x / T) + 1, Math.floor((b.y + b.height - 1) / T), tileId('anvil'));
+    sim.giveItems([
+      { item: 'copper_bar', count: 1 },
+      { item: 'glass_jar', count: 1 },
+      { item: 'torch', count: 2 },
+    ]);
+    const lanterns = sim.inventory.count(itemId('hanging_lantern'));
+    sim.enqueue({ type: 'craft', recipe: 'hanging_lantern', times: 1 });
+    step(sim, 1 / 60);
+    expect(sim.inventory.count(itemId('hanging_lantern'))).toBe(lanterns + 2);
     expect(sim.quests.marker(folk(sim, 'innkeeper'))).toBe('');
   });
 
@@ -338,10 +351,21 @@ describe('quests', () => {
     expect(lost!.y).toBeGreaterThan(GROUND + 8);
     expect(sim.world.isSolid(lost!.x, lost!.y + 1)).toBe(true);
     expect(sim.wisps.quest).toEqual(lost);
-    put(sim, lost!.x, lost!.y);
-    step(sim, 0.1);
-    expect(sim.inventory.count(itemId('lost_locket'))).toBe(1);
+    const { x: lx, y: ly } = lost!;
+    // With a full bag, the locket drops at your feet: once, however long you stand there.
+    for (let i = 0; i < sim.inventory.slots.length; i++) {
+      sim.inventory.slots[i] = { itemId: itemId('stone'), count: 999 };
+    }
+    const drops = sim.drops.length;
+    put(sim, lx, ly);
+    step(sim, 0.5);
+    expect(sim.drops.filter((d) => d.itemId === itemId('lost_locket'))).toHaveLength(1);
+    expect(sim.drops.length).toBe(drops + 1);
     expect(sim.quests.lostThing()).toBeNull();
+    // Make room; it is picked up from the ground.
+    for (let i = 0; i < sim.inventory.slots.length; i++) sim.inventory.slots[i] = null;
+    step(sim, 2);
+    expect(sim.inventory.count(itemId('lost_locket'))).toBe(1);
     talk(sim, 'child');
     expect(sim.quests.state('lost_locket')).toBe('done');
     expect(sim.inventory.count(itemId('lost_locket'))).toBe(0);
@@ -350,6 +374,18 @@ describe('quests', () => {
 });
 
 describe('trade', () => {
+  it('buying something and selling it straight back never gains glimmer, at any price factor', () => {
+    for (const shop of SHOPS) {
+      for (const offer of shop.offers) {
+        for (let f = TRADE.minFactor; f <= 1 + TRADE.darkMarkup + 1e-9; f += 0.05) {
+          const paid = buyPrice(offer, f);
+          const back = sellPrice(itemId(offer.item), offer.count, f);
+          expect(back, `${shop.npc} ${offer.item} at ×${f.toFixed(2)}`).toBeLessThan(paid);
+        }
+      }
+    }
+  });
+
   it('prices follow the town light and lit roads, and never fall below the floor', () => {
     expect(priceFactor(1, 0)).toBe(1);
     expect(priceFactor(0, 0)).toBe(1 + TRADE.darkMarkup);
@@ -378,7 +414,9 @@ describe('trade', () => {
     sim.enqueue({ type: 'sell', npc: merchant.id, item: itemId('iron_ore'), count: 10 });
     step(sim, 1 / 60);
     expect(sim.inventory.count(itemId('iron_ore'))).toBe(0);
-    expect(sim.inventory.count(itemId('glimmer'))).toBe(afterBuy + Math.floor(30 / factor));
+    expect(sim.inventory.count(itemId('glimmer'))).toBe(
+      afterBuy + Math.floor(30 * TRADE.sellShare * Math.min(1, factor)),
+    );
     // Festival stalls are closed outside the festival.
     const festivalOffer = 6;
     sim.enqueue({ type: 'buy', npc: merchant.id, offer: festivalOffer });
@@ -414,6 +452,10 @@ describe('Rootdeep Citadel', () => {
     expect(folk(sim, 'warden').town).toBe('citadel');
     expect(sim.settlement.npcs.some((n) => n.key === 'smith')).toBe(false);
     expect(town.light).toBeCloseTo(1 / 3, 5);
+    // Underground, the surface night doesn't frighten them (the town is only a third lit).
+    at(sim, 1);
+    step(sim, TOWN.checkSeconds * 1.2);
+    expect(folk(sim, 'warden').scared).toBe(false);
   });
 });
 

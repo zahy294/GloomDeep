@@ -97,6 +97,10 @@ describe('Tiled prefabs', () => {
         }
       }
       expect(seen.size, prefab.key).toBe(prefab.waypoints.length);
+      // Links go both ways (a one-way link could strand folk).
+      for (const w of prefab.waypoints) {
+        for (const l of w.links) expect(byName.get(l)?.links, `${w.name} → ${l}`).toContain(w.name);
+      }
       // Every waypoint stands in open space on something to stand on.
       for (const w of prefab.waypoints) {
         const at = (x: number, y: number) => prefab.fg[y * prefab.width + x] ?? '';

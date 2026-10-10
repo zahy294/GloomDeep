@@ -9,7 +9,7 @@
  * - tiles come from the shared tileset, whose tiles carry a `key` property (src/data/tiles.ts);
  * - object layer objects use their class (Tiled's `type`/`class`) as their kind:
  *   `waypoint` points (name, `tag`, `links` = comma-separated names), `district` rectangles,
- *   `lift` points (`to` = the other stop's name), and any other point or rectangle;
+ *   `lift` points (`line` = which lift, `level` = its stop, 0 at the bottom), and any other point or rectangle;
  * - map properties: `foundation` (tile key under the bottom row), `groundRow` (the map row that
  *   sits on the world's ground row, surface prefabs).
  */
@@ -184,6 +184,7 @@ export function parseTiledPrefab(
     }
   }
   const names = new Set(waypoints.map((w) => w.name));
+  if (names.size !== waypoints.length) throw new Error(`Prefab ${key}: duplicate waypoint names`);
   for (const w of waypoints) {
     for (const link of w.links) {
       if (!names.has(link))
