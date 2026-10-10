@@ -184,6 +184,13 @@ describe('Canopyhold', () => {
     expect(tagAt(folk(sim, 'lampwright'))).toBe('home:lampwright');
   });
 
+  it('its houses are not homes for your village', () => {
+    const sim = townWorld();
+    step(sim, 3);
+    expect(sim.settlement.homes.size).toBe(0);
+    expect(sim.settlement.npcs.some((n) => n.key === 'tinker')).toBe(false);
+  });
+
   it('lamps burn down at night; a dark town frightens its folk; refuelling relights a lamp', () => {
     const sim = townWorld();
     const town = canopy(sim);

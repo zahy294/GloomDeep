@@ -237,8 +237,13 @@ export class Simulation {
     );
     this.falling = new FallingSystem(this.world, this.events);
     this.progression = new ProgressionSystem(this.events);
-    this.settlement = new SettlementSystem(this.world, this.events, this.random, (flag) =>
-      this.progression.has(flag),
+    this.settlement = new SettlementSystem(
+      this.world,
+      this.events,
+      this.random,
+      (flag) => this.progression.has(flag),
+      // Town houses belong to their towns (the TownSystem is built next, so look it up lazily).
+      (x, y) => this.towns.townAt(x, y) !== undefined,
     );
     this.towns = new TownSystem(
       this.world,

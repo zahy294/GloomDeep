@@ -1484,7 +1484,7 @@ const SHOTS: Shot[] = [
       const row = Math.round(p.playerY / TILE_SIZE) - 1;
       // Two torches, one each side if the cave allows (else both on one side), 2–6 tiles out.
       const side = (dir: number) =>
-        [4, 3, 5, 2, 6].flatMap((d) => [0, -1, 1, -2, -3].map((dy) => [dir * d, dy] as const));
+        [4, 3, 5, 2, 1].flatMap((d) => [0, -1, 1, -2, -3].map((dy) => [dir * d, dy] as const));
       const torches: [number, number][] = [];
       for (const offsets of [side(-1), [...side(1), ...side(-1)]]) {
         const [tx, ty] = await placeableNear(page, px, row, 'fg', offsets);

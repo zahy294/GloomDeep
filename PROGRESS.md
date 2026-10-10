@@ -64,7 +64,7 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 | Canopyhold feels lived-in: NPCs follow routines, talk, trade, hand out all four quest types | ✅ `canopyhold-day` and `-night`, `quest-offer`, `quest-journal`, `canopyhold-shop`. Tests: routines (including the lift ride home), frightened folk in a dark town, and each quest type end to end (deliver, light a route, escort with fleeing, find with wisps); buying, selling and prices |
 | At least two Citadel districts can be reclaimed | ✅ `citadel-reclaimed`: two districts relit, light 0.67, and the warden, root-smith and lampkeeper are back. A test relights the Gate Ward with crystals; its Gloam burns away and the warden returns |
 | Lighting a road makes a caravan start traveling it | ✅ `road-caravan`. A test lights the road with torches: `roadLit`, the flag, a caravan walking the ground, and a 15% discount |
-| typecheck, test, lint, build | ✅ 535 tests |
+| typecheck, test, lint, build | ✅ 536 tests; full shot suite 66/66 after the fixes below |
 
 ### Decisions and deviations
 
@@ -98,6 +98,7 @@ Fixed:
 - **Per-step allocations:** `lostThing()` reuses one result, towns are looked up by key in a map, and nav edges and the escort lookup use plain loops.
 - **Prefab checks:** the parser rejects duplicate waypoint names; a test requires every waypoint link to go both ways; the Tiled doc names the lift properties (`line`, `level`).
 - **Flaky M10 test:** the glowmoss test now uses a seeded random.
+- **Found by the full shot run: your village's folk moved into Canopyhold's houses** (they are valid lit homes). Rooms inside a town no longer count as village homes; test added. The `light-cave-torches` shot no longer tries a tile at the edge of reach (the M11 worldgen changes moved the cave walls).
 
 Not changed (logged): the lost thing falls back to the giver's feet if 400 tries find no cave floor; festivals run once per town (M12 needs one per boss); the quest-marker cache is indexed by list position, so a marker can sit over the wrong person for up to 0.2 s after someone leaves; the Citadel tunnel is tested on one seed.
 

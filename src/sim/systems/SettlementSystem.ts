@@ -35,6 +35,8 @@ export class SettlementSystem {
     private readonly random: () => number,
     /** Story flags (some folk only come to the village after a quest). */
     private readonly hasFlag: (flag: string) => boolean = () => false,
+    /** Rooms here aren't the village's to give (town houses, M11). */
+    private readonly reserved: (x: number, y: number) => boolean = () => false,
   ) {
     for (let i = 0; i < world.fg.length; i++) if (isDoor(world.fg[i] ?? 0)) this.doors.add(i);
     this.unsubscribe = events.on('tileChanged', ({ x, y, id, previous, layer }) => {
@@ -93,7 +95,9 @@ export class SettlementSystem {
       if (isDoor(world.get(x, y + 1))) continue; // seed from each door's bottom cell only
       for (const side of [-1, 1]) {
         const room = findRoom(world, x + side, y);
-        if (room && room.problem === null) this.homes.set(room.id, room);
+        if (room && room.problem === null && !this.reserved(room.spotX, room.spotY)) {
+          this.homes.set(room.id, room);
+        }
       }
     }
     const taken = new Set<number>();
