@@ -3,6 +3,7 @@
  * the game always runs; `art:pack` swaps in the approved manifest asset with the same id.
  */
 import { SURFACE_BIOMES } from './biomes';
+import { FOLK } from './npcs';
 
 export interface SpriteAssetDef {
   /** Same id as the art/manifest.json entry that replaces the placeholder. */
@@ -64,7 +65,7 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frames: 3,
   },
   /** Item icons (frame = `icon` in src/data/items.ts): pickaxes, bars, lenses, flare, weapons. */
-  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 23 },
+  { id: 'items', placeholder: 'sprites/items.png', frameWidth: 16, frameHeight: 16, frames: 25 },
   /** Creatures (src/data/enemies.ts `frame`): two 24×24 frames each. */
   {
     id: 'enemies',
@@ -81,15 +82,29 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frameHeight: 16,
     frames: 14,
   },
-  /** Villagers and the Old Dryad (src/data/npcs.ts FOLK): two 24×40 frames each (M10). */
-  { id: 'folk', placeholder: 'sprites/folk.png', frameWidth: 24, frameHeight: 40, frames: 10 },
-  /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote. */
+  /** Villagers, the Old Dryad and townsfolk (src/data/npcs.ts FOLK): two 24×40 frames each. */
+  {
+    id: 'folk',
+    placeholder: 'sprites/folk.png',
+    frameWidth: 24,
+    frameHeight: 40,
+    frames: FOLK.length * 2,
+  },
+  /** The caravan (M11): a covered wagon pulled by a stag; two walking frames, ground at the bottom. */
+  {
+    id: 'caravan',
+    placeholder: 'sprites/caravan.png',
+    frameWidth: 64,
+    frameHeight: 32,
+    frames: 2,
+  },
+  /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote, sky lantern, spark. */
   {
     id: 'particles',
     placeholder: 'sprites/particles.png',
     frameWidth: 8,
     frameHeight: 8,
-    frames: 7,
+    frames: 9,
   },
   ...PARALLAX_ASSETS,
   {
@@ -115,4 +130,6 @@ export const PARTICLE_FRAME = {
   ember: 4,
   firefly: 5,
   mote: 6,
+  skyLantern: 7,
+  spark: 8,
 } as const;

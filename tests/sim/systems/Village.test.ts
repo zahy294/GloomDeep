@@ -87,7 +87,7 @@ describe('village', () => {
     const arrived: string[] = [];
     sim.events.on('npcArrived', ({ key }) => arrived.push(key));
     step(sim, SETTLEMENT.checkSeconds * 6);
-    expect(arrived).toEqual(VILLAGERS.map((v) => v.key));
+    expect(arrived).toEqual(VILLAGERS.map((v) => v.key)); // (later arrivals need story flags)
     const villagers = sim.settlement.npcs.filter((n) => n.key !== 'dryad');
     expect(new Set(villagers.map((n) => n.homeId)).size).toBe(4);
     for (const n of villagers) expect(n.homeId).toBeGreaterThanOrEqual(0);

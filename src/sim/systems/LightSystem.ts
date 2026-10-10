@@ -29,6 +29,13 @@ const SOLID_TILE = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
 const FIRE_LIGHT = lightByKey('fire');
 const WISP_LIGHT = lightByKey('wisp');
 
+/** A moving light (pixels): wisps, caravan lanterns. Without `light` it shines like a wisp. */
+export interface LightPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly light?: LightDef;
+}
+
 /** Sunlight colour and strength, 0–255 per channel. */
 export type SunLight = Pick<DaySample, 'sunR' | 'sunG' | 'sunB'>;
 
@@ -87,7 +94,7 @@ export class LightSystem {
     input: ActionState,
     flares: readonly Flare[] = [],
     fires: readonly number[] = [],
-    wisps: readonly { x: number; y: number }[] = [],
+    wisps: readonly LightPoint[] = [],
   ): void {
     this.updateTouched(dt, player);
     this.timer += dt;
@@ -109,7 +116,7 @@ export class LightSystem {
     input: ActionState,
     flares: readonly Flare[],
     fires: readonly number[],
-    wisps: readonly { x: number; y: number }[],
+    wisps: readonly LightPoint[],
   ): void {
     const { world } = this;
     const body = player.body;
@@ -208,7 +215,8 @@ export class LightSystem {
       addPoint(x + 0.5, y + 0.5, FIRE_LIGHT.color, FIRE_LIGHT.radius * k);
     }
     for (const w of wisps) {
-      addPoint(w.x / TILE_SIZE, w.y / TILE_SIZE, WISP_LIGHT.color, WISP_LIGHT.radius);
+      const def = w.light ?? WISP_LIGHT;
+      addPoint(w.x / TILE_SIZE, w.y / TILE_SIZE, def.color, def.radius);
     }
     const lens = lensByKey(player.lens);
     const dx = input.aimX - handX;

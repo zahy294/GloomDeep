@@ -23,7 +23,7 @@ import { writePng as writeImage } from './lib/image';
 import { buildPlayerParts } from './lib/placeholderSprites';
 import { buildItemIcons } from './lib/placeholderItems';
 import { buildEnemies } from './lib/placeholderEnemies';
-import { buildCritters, buildFolk } from './lib/placeholderLife';
+import { buildCaravan, buildCritters, buildFolk } from './lib/placeholderLife';
 import { buildFlora, buildParticles, buildSaplings } from './lib/placeholderFlora';
 import { buildForegroundCanopy, buildParallaxLayer } from './lib/placeholderParallax';
 import { FG_CANOPY_ID, PARALLAX_LAYERS, parallaxAssetId } from '../src/data/spriteAssets';
@@ -57,6 +57,7 @@ await writeImage(resolve(outDir, 'sprites/items.png'), buildItemIcons());
 await writeImage(resolve(outDir, 'sprites/enemies.png'), buildEnemies());
 await writeImage(resolve(outDir, 'sprites/critters.png'), buildCritters());
 await writeImage(resolve(outDir, 'sprites/folk.png'), buildFolk());
+await writeImage(resolve(outDir, 'sprites/caravan.png'), buildCaravan());
 for (const biome of SURFACE_BIOMES) {
   for (let layer = 0; layer < PARALLAX_LAYERS; layer++) {
     const id = parallaxAssetId(biome.key, layer);

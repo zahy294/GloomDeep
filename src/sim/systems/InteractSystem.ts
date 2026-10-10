@@ -1,5 +1,4 @@
 import { BUILDING, SETTLEMENT } from '../../config';
-import { DRYAD, VILLAGERS, dryadLines } from '../../data/npcs';
 import type { Npc } from '../entities/Npc';
 import type { Player } from '../entities/Player';
 import type { EventBus, SimEvents } from '../events';
@@ -28,18 +27,20 @@ export interface InteractContext {
   events: EventBus<SimEvents>;
   /** Bodies a door must not close on. */
   bodies: () => readonly Body[];
-  /** Share of the forest's Gloam cleansed, 0..1 (the Dryad's lines). */
-  cleansed: () => number;
+  /** Talks to someone: quests first, then their lines (the Simulation emits `talk`). */
+  talk: (npc: Npc) => void;
+  /** Uses a town fixture at a tile: a street lamp, a lift post, a dormant beacon (M11). */
+  useTile: (x: number, y: number) => boolean;
   /** Tries to catch a critter at the cursor with the selected item (fireflies in jars). */
   tryCatch: (x: number, y: number) => boolean;
 }
 
-const talkPayload = { npcId: 0, key: '', name: '', role: '', text: '' };
 const beaconPayload = { x: 0, y: 0, beacons: [] as { x: number; y: number }[] };
 
 /**
  * The right button's "use" on things (plan 5 interaction): talk to whoever is under the cursor,
- * catch a firefly with a jar, open or close a door, open a beacon's travel list. An interaction
+ * catch a firefly with a jar, open or close a door, refuel a lamp, ride a lift, relight a dormant
+ * beacon, open a beacon's travel list. An interaction
  * claims the press: nothing is placed until the button is released.
  * Returns true while the press is claimed.
  */
@@ -71,7 +72,9 @@ function interact(ctx: InteractContext): boolean {
     if (ax < b.x - slop || ax > b.x + b.width + slop || ay < b.y - slop || ay > b.y + b.height) {
       continue;
     }
-    talk(ctx, npc);
+    const pb = player.body;
+    npc.facing = pb.x + pb.width / 2 >= b.x + b.width / 2 ? 1 : -1;
+    ctx.talk(npc);
     return true;
   }
   if (ctx.tryCatch(ax, ay)) return true;
@@ -79,6 +82,7 @@ function interact(ctx: InteractContext): boolean {
     toggleDoor(world, tx, ty, ctx.bodies());
     return true;
   }
+  if (ctx.useTile(tx, ty)) return true;
   const beacon = ctx.beacons.at(tx, ty);
   if (beacon) {
     beaconPayload.x = beacon.x;
@@ -88,21 +92,4 @@ function interact(ctx: InteractContext): boolean {
     return true;
   }
   return false;
-}
-
-function talk(ctx: InteractContext, npc: Npc): void {
-  const villager = VILLAGERS.find((v) => v.key === npc.key);
-  const def = villager ?? DRYAD;
-  const lines = villager ? villager.lines : dryadLines(ctx.cleansed());
-  if (lines.length === 0) return;
-  const text = lines[npc.line % lines.length] ?? '';
-  npc.line++;
-  const b = ctx.player.body;
-  npc.facing = b.x + b.width / 2 >= npc.body.x + npc.body.width / 2 ? 1 : -1;
-  talkPayload.npcId = npc.id;
-  talkPayload.key = npc.key;
-  talkPayload.name = def.name;
-  talkPayload.role = def.role;
-  talkPayload.text = text;
-  ctx.events.emit('talk', talkPayload);
 }

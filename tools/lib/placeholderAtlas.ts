@@ -258,10 +258,22 @@ export function buildPlaceholderAtlas(
           tile.placeholderShape === 'anvil' ||
           tile.placeholderShape === 'door' ||
           tile.placeholderShape === 'jar' ||
-          tile.placeholderShape === 'beacon'
+          tile.placeholderShape === 'beacon' ||
+          tile.placeholderShape === 'beacon_dormant' ||
+          tile.placeholderShape === 'lamp' ||
+          tile.placeholderShape === 'lift' ||
+          tile.placeholderShape === 'hanging_lantern'
         ) {
           if (kind === 'tiles') {
-            drawStation(tile.placeholderShape, (x, y, c) => put(data, width, ox + x, oy + y, c));
+            // The dimmed street lamp keeps only the lower half of its glass lit.
+            const shape =
+              tile.placeholderShape === 'lamp' && tile.key.endsWith('_dim')
+                ? 'lamp_dim'
+                : tile.placeholderShape;
+            // Lamp glass and lantern glow take the tile's own ramp (gold lit, stone dead).
+            const glass =
+              tile.placeholderShape === 'lamp' ? (tile.placeholderRamp ?? undefined) : undefined;
+            drawStation(shape, (x, y, c) => put(data, width, ox + x, oy + y, c), glass);
           }
           continue;
         }

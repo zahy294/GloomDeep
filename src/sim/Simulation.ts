@@ -11,8 +11,22 @@ import {
   SWIM,
   TILE_SIZE,
   TIME,
+  TOWN,
+  TRADE,
   WORLD,
 } from '../config';
+import { npcDef } from '../data/npcs';
+import { shopFor } from '../data/shops';
+import { VILLAGE } from '../data/roads';
+import { nextLine } from './systems/DialogueSystem';
+import { ProgressionSystem } from './systems/ProgressionSystem';
+import { TownSystem } from './systems/TownSystem';
+import { RoadSystem } from './systems/RoadSystem';
+import { QuestSystem } from './systems/QuestSystem';
+import { buy, priceFactor, sell } from './systems/TradeSystem';
+import type { LightPoint } from './systems/LightSystem';
+import type { Npc } from './entities/Npc';
+import type { TownPlace } from './world/worldData';
 import { ENEMIES } from '../data/enemies';
 import type { Enemy } from './entities/Enemy';
 import type { Projectile } from './entities/Projectile';
@@ -46,6 +60,7 @@ import { hitEnemy, hurtPlayer } from './systems/CombatSystem';
 import { LIQUID as LIQUID_KIND } from '../data/biomes';
 import type { Body } from './physics/tileCollision';
 import { ITEMS, itemId, STARTING_INVENTORY, type ItemCount } from '../data/items';
+import { QUESTS } from '../data/quests';
 import { InlineLightBackend } from '../workers/lighting/backends';
 import type { LightBackend } from '../workers/lighting/lightJob';
 import type { SimCommand } from './commands';
@@ -100,9 +115,15 @@ export interface SimulationOptions {
   startDayFraction?: number;
   /** Creatures spawn. Off by default (tests); the game turns it on unless `?spawns=0`. */
   spawns?: boolean;
+  /** Where world generation placed the towns (M11); none by default. */
+  towns?: readonly TownPlace[];
 }
 
 const NO_PAYLOAD: Record<string, never> = {};
+const GLIMMER = itemId('glimmer');
+/** What refuels a street lamp, preferred first. */
+const LAMP_FUEL = ['lumen_petal', 'lumen_crystal'].map(itemId);
+const QUEST_TITLES = new Map(QUESTS.map((q) => [q.key, q.title]));
 
 /** Owns the game state and advances it at a fixed rate. Contains no rendering code. */
 export class Simulation {
@@ -132,7 +153,25 @@ export class Simulation {
   readonly critters = new CritterSystem();
   private readonly flora: FloraSystem;
   readonly wisps: WispSystem;
-  private readonly wispLights: { x: number; y: number }[] = [];
+  /** Moving lights for the light grid: the wisp, caravan lanterns (rebuilt every step). */
+  private readonly wispLights: LightPoint[] = [];
+  readonly progression: ProgressionSystem;
+  readonly towns: TownSystem;
+  readonly roads: RoadSystem;
+  readonly quests: QuestSystem;
+  private readonly talkPayload = {
+    npcId: 0,
+    key: '',
+    name: '',
+    role: '',
+    text: '',
+    offer: '',
+    offerTitle: '',
+    shop: false,
+  };
+  private readonly liftPayload = { x: 0, y: 0 };
+  private readonly blockedPayload = { need: '' };
+  private readonly tradedPayload = { npc: '', glimmer: 0 };
   private readonly bouncedPayload = { x: 0, y: 0 };
   private readonly critterContext: CritterContext;
   private readonly caughtPayload = { type: 0, x: 0, y: 0 };
@@ -197,7 +236,26 @@ export class Simulation {
       this.fire.ignite(x, y),
     );
     this.falling = new FallingSystem(this.world, this.events);
-    this.settlement = new SettlementSystem(this.world, this.events, this.random);
+    this.progression = new ProgressionSystem(this.events);
+    this.settlement = new SettlementSystem(this.world, this.events, this.random, (flag) =>
+      this.progression.has(flag),
+    );
+    this.towns = new TownSystem(
+      this.world,
+      this.events,
+      this.settlement.npcs,
+      this.progression,
+      () => this.settlement.nextNpcId(),
+      this.random,
+      options.towns ?? [],
+    );
+    this.roads = new RoadSystem(
+      this.world,
+      this.events,
+      this.towns,
+      this.progression,
+      Math.floor(spawn.spawnX / TILE_SIZE),
+    );
     this.beacons = new BeaconSystem(this.world, this.events);
     this.flora = new FloraSystem(this.world, this.events, this.random);
     this.wisps = new WispSystem(this.world, this.events, this.random);
@@ -219,10 +277,26 @@ export class Simulation {
       beacons: this.beacons,
       events: this.events,
       bodies: () => [this.player.body, ...this.settlement.npcs.map((n) => n.body)],
-      cleansed: () => this.gloam.cleansed,
+      talk: (npc) => this.talkTo(npc),
+      useTile: (x, y) => this.useTile(x, y),
       tryCatch: (x, y) => this.tryCatch(x, y),
     };
-    this.gloam.covered = (x, y) => this.beacons.covers(x, y);
+    this.quests = new QuestSystem({
+      world: this.world,
+      player: this.player,
+      inventory: this.inventory,
+      npcs: this.settlement.npcs,
+      towns: this.towns,
+      roads: this.roads,
+      progression: this.progression,
+      events: this.events,
+      random: this.random,
+      villageX: spawn.spawnX,
+      villageY: spawn.spawnY,
+      drop: (item, count) => this.dropAtPlayer(item, count, false),
+    });
+    // Beacons and bright towns keep the Gloam and creatures out (plan 1.4, 1.7).
+    this.gloam.covered = (x, y) => this.beacons.covers(x, y) || this.towns.protects(x, y);
     // The Old Dryad waits by the spawn tree (a loaded world replaces it with the saved folk).
     this.settlement.ensureDryad(this.dryadColumn());
     this.spawnsEnabled = options.spawns ?? false;
@@ -248,7 +322,7 @@ export class Simulation {
       random: this.random,
       nextId: () => this.nextEnemyId++,
       events: this.events,
-      safe: (x: number, y: number) => this.beacons.covers(x, y),
+      safe: (x: number, y: number) => this.beacons.covers(x, y) || this.towns.protects(x, y),
     };
     this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
@@ -272,6 +346,7 @@ export class Simulation {
     return new Simulation({
       ...options,
       size: { width: generated.width, height: generated.height, chunkSize: WORLD.chunkSize },
+      towns: generated.towns,
       generate: (world) => {
         world.loadArrays(generated.arrays);
         return { spawnX: generated.spawnX, spawnY: generated.spawnY };
@@ -286,6 +361,7 @@ export class Simulation {
       startingInventory: false,
       startDayFraction: save.dayFraction,
       size: { width: save.meta.width, height: save.meta.height, chunkSize: WORLD.chunkSize },
+      towns: save.towns.map(({ key, x0, y0, x1, y1 }) => ({ key, x0, y0, x1, y1 })),
       generate: (world) => {
         world.loadArrays(save.arrays);
         return { spawnX: save.spawnX, spawnY: save.spawnY };
@@ -344,6 +420,9 @@ export class Simulation {
     sim.settlement.ensureDryad(sim.dryadColumn());
     // An older save doesn't know the starting Gloam: count from now.
     if (save.gloamInitial >= 0) sim.gloam.initial = save.gloamInitial;
+    sim.progression.restore(save.flags);
+    sim.towns.restore(save.towns);
+    sim.quests.restore(save.quests);
     return sim;
   }
 
@@ -397,13 +476,19 @@ export class Simulation {
         ...this.falling.savedAsDrops(),
       ],
       randomState: this.rng.state,
-      npcs: this.settlement.npcs.map((n) => ({
-        key: n.key,
-        x: n.body.x + n.body.width / 2,
-        y: n.body.y + n.body.height,
-        homeId: n.homeId,
-      })),
+      // Townsfolk are rebuilt from their towns; only your village and the Dryad are saved.
+      npcs: this.settlement.npcs
+        .filter((n) => n.town === '')
+        .map((n) => ({
+          key: n.key,
+          x: n.body.x + n.body.width / 2,
+          y: n.body.y + n.body.height,
+          homeId: n.homeId,
+        })),
       gloamInitial: this.gloam.initial,
+      flags: [...this.progression.flags],
+      towns: this.towns.toSave(),
+      quests: this.quests.toSave(),
       spawnX: this.spawnX,
       spawnY: this.spawnY,
     };
@@ -474,7 +559,8 @@ export class Simulation {
       this.projectiles.length +
       this.falling.blocks.length +
       this.critters.critters.length +
-      this.settlement.npcs.length
+      this.settlement.npcs.length +
+      this.roads.roads.filter((r) => r.caravan).length
     );
   }
 
@@ -557,6 +643,10 @@ export class Simulation {
     this.updateMaterials(dt);
     this.settlement.update(dt);
     const night = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) < SPAWN.daylightSun;
+    this.towns.update(dt, this.dayFraction, night);
+    this.roads.update(dt);
+    this.quests.update(dt, this.lightAtTile);
+    this.wisps.quest = this.quests.lostThing();
     this.flora.update(dt, this.light.current, this.player, night);
     const pb = this.player.body;
     const outside =
@@ -566,6 +656,7 @@ export class Simulation {
     this.wisps.update(dt, this.player, outside && !night);
     this.wispLights.length = 0;
     if (this.wisps.wisp) this.wispLights.push(this.wisps.wisp);
+    this.roads.lights(this.wispLights);
     if (this.player.bounced) {
       this.bouncedPayload.x = pb.x + pb.width / 2;
       this.bouncedPayload.y = pb.y + pb.height;
@@ -764,6 +855,135 @@ export class Simulation {
     return trunk + Math.sign(spawn - trunk || 1) * SETTLEMENT.dryadOffset;
   }
 
+  /** Brightest light channel at a tile where the light grid is current, else null. */
+  private readonly lightAtTile = (x: number, y: number): number | null => {
+    const r = this.light.current;
+    if (!r || x < r.x0 || y < r.y0 || x >= r.x0 + r.width || y >= r.y0 + r.height) return null;
+    const w = this.world;
+    const i = w.index(x, y);
+    return Math.max(w.lightR[i] ?? 0, w.lightG[i] ?? 0, w.lightB[i] ?? 0);
+  };
+
+  /** Talking to someone: their quest talk if any, else their lines (src/data/dialogue). */
+  private talkTo(npc: Npc): void {
+    const def = npcDef(npc.key);
+    if (!def) return;
+    const town = this.towns.townOf(npc);
+    const quest = this.quests.talk(npc);
+    const text =
+      quest?.text ??
+      nextLine(npc, {
+        hasFlag: (f) => this.progression.has(f),
+        cleansed: this.gloam.cleansed,
+        night: Math.max(this.day.sunR, this.day.sunG, this.day.sunB) < SPAWN.daylightSun,
+        festival: town?.festivalPhase === 'on',
+      });
+    if (!text) return;
+    const p = this.talkPayload;
+    p.npcId = npc.id;
+    p.key = npc.key;
+    p.name = def.name;
+    p.role = def.role;
+    p.text = text;
+    p.offer = quest?.offer ?? '';
+    p.offerTitle = p.offer ? (QUEST_TITLES.get(p.offer) ?? '') : '';
+    p.shop = shopFor(npc.key) !== undefined && !npc.scared;
+    this.events.emit('talk', p);
+  }
+
+  /** Right-click on a town fixture: refuel a lamp, ride a lift, relight a dormant beacon. */
+  private useTile(x: number, y: number): boolean {
+    const lamp = this.towns.lampAt(x, y);
+    if (lamp) {
+      if (lamp.fuel >= 1) return true;
+      const fuel = LAMP_FUEL.find((id) => this.inventory.count(id) > 0);
+      if (fuel === undefined) {
+        this.blocked('a Lumen petal or crystal to refuel it');
+        return true;
+      }
+      this.inventory.remove(fuel, 1);
+      this.towns.refuel(lamp);
+      this.events.emit('inventoryChanged', NO_PAYLOAD);
+      return true;
+    }
+    const lift = this.towns.liftDestination(x, y);
+    if (lift) {
+      const b = this.player.body;
+      const px = (b.x + b.width / 2) / TILE_SIZE;
+      const py = (b.y + b.height / 2) / TILE_SIZE;
+      if (Math.hypot(x + 0.5 - px, y + 0.5 - py) > TOWN.liftReach) return true;
+      this.teleport(lift.x, lift.y);
+      this.liftPayload.x = lift.x;
+      this.liftPayload.y = lift.y;
+      this.events.emit('liftRode', this.liftPayload);
+      return true;
+    }
+    const dormant = this.towns.dormantDistrictAt(x, y);
+    if (dormant) {
+      const cost = dormant.district.def.relightCost;
+      const missing = cost.find((c) => this.inventory.count(itemId(c.item)) < c.count);
+      if (missing) {
+        this.blocked(
+          cost.map((c) => `${c.count} ${ITEMS[itemId(c.item)]?.name ?? c.item}`).join(' and '),
+        );
+        return true;
+      }
+      for (const c of cost) this.inventory.remove(itemId(c.item), c.count);
+      this.towns.relight(dormant.town, dormant.district);
+      this.events.emit('inventoryChanged', NO_PAYLOAD);
+      return true;
+    }
+    return false;
+  }
+
+  private blocked(need: string): void {
+    this.blockedPayload.need = need;
+    this.events.emit('useBlocked', this.blockedPayload);
+  }
+
+  /** Puts the player's feet in tile (x, y) (lifts). */
+  private teleport(x: number, y: number): void {
+    const b = this.player.body;
+    b.x = (x + 0.5) * TILE_SIZE - b.width / 2;
+    b.y = (y + 1) * TILE_SIZE - b.height;
+    b.vx = 0;
+    b.vy = 0;
+    this.player.prevX = b.x;
+    this.player.prevY = b.y;
+  }
+
+  /**
+   * A trader's prices right now: their town's light and lit roads (your village counts as fully
+   * lit), and whether their festival is on. Null if they don't trade, are afraid or out of reach.
+   */
+  tradeTerms(npcId: number): { npc: Npc; factor: number; festival: boolean } | null {
+    const npc = this.settlement.npcs.find((n) => n.id === npcId);
+    if (!npc || !shopFor(npc.key) || npc.scared) return null;
+    const b = this.player.body;
+    const reach = TRADE.reachTiles * TILE_SIZE;
+    const dx = npc.body.x - b.x;
+    const dy = npc.body.y - b.y;
+    if (dx * dx + dy * dy > reach * reach) return null;
+    const town = this.towns.townOf(npc);
+    const factor = priceFactor(town?.light ?? 1, this.roads.litRoadsTo(npc.town || VILLAGE));
+    return { npc, factor, festival: town?.festivalPhase === 'on' };
+  }
+
+  private trade(command: Extract<SimCommand, { type: 'buy' } | { type: 'sell' }>): void {
+    const terms = this.tradeTerms(command.npc);
+    if (!terms) return;
+    const drop = (item: number, count: number) => this.dropAtPlayer(item, count, false);
+    const before = this.inventory.count(GLIMMER);
+    const done =
+      command.type === 'buy'
+        ? buy(terms.npc.key, command.offer, terms.festival, terms.factor, this.inventory, drop)
+        : sell(terms.npc.key, command.item, command.count, terms.factor, this.inventory, drop) > 0;
+    if (!done) return;
+    this.tradedPayload.npc = terms.npc.key;
+    this.tradedPayload.glimmer = this.inventory.count(GLIMMER) - before;
+    this.events.emit('traded', this.tradedPayload);
+  }
+
   /** A glass jar (the selected item) catches a firefly at the cursor. */
   private tryCatch(x: number, y: number): boolean {
     const stack = this.inventory.selectedStack;
@@ -888,6 +1108,16 @@ export class Simulation {
           break;
         case 'travel':
           this.travel(command.x, command.y);
+          break;
+        case 'acceptQuest':
+          this.quests.accept(command.quest);
+          break;
+        case 'buy':
+        case 'sell':
+          this.trade(command);
+          break;
+        case 'setFlag':
+          this.progression.set(command.flag);
           break;
       }
     }

@@ -2,7 +2,7 @@ import { HEALTH, ITEM_DROP } from '../config';
 import type { SaveState, WorldArrays } from '../sim/world/worldData';
 
 /** Bump when the layout or header fields change, and add a migration for the old version. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 const MAGIC = [0x47, 0x4c, 0x44, 0x50]; // "GLDP"
 const PREAMBLE_BYTES = 8; // magic + uint32 header length
@@ -58,6 +58,14 @@ export const MIGRATIONS: MigrationTable = {
     const h = save.header as SaveHeader & { npcs?: unknown[]; gloamInitial?: number };
     h.npcs = [];
     h.gloamInitial = -1;
+    return save;
+  },
+  // v4 (M11): story flags, towns and quests. Older worlds were generated without towns.
+  3: (save) => {
+    const h = save.header as SaveHeader & { flags?: unknown; towns?: unknown; quests?: unknown };
+    h.flags = [];
+    h.towns = [];
+    h.quests = [];
     return save;
   },
 };

@@ -76,10 +76,10 @@ describe('placeholder sheets', () => {
     }
   });
 
-  it('particles: 7 non-empty 8x8 frames', () => {
+  it('particles: 9 non-empty 8x8 frames', () => {
     const sheet = buildParticles();
-    expect([sheet.width, sheet.height]).toEqual([56, 8]);
-    for (let f = 0; f < 7; f++) {
+    expect([sheet.width, sheet.height]).toEqual([72, 8]);
+    for (let f = 0; f < 9; f++) {
       const px = frameOf(sheet, 8, 8, f);
       expect(px.length).toBeGreaterThan(3);
       for (const p of px) expect(palette.has(p.rgb)).toBe(true);

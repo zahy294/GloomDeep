@@ -2,6 +2,8 @@
  * Plain-data shapes for a whole world: what world generation produces, what a save file holds and
  * what the Simulation is built from. Typed arrays only, so they cross worker boundaries cheaply.
  */
+import type { QuestProgress } from '../systems/QuestSystem';
+import type { SavedTown } from '../systems/TownSystem';
 
 export type WorldSizeKey = 'small' | 'medium' | 'large';
 
@@ -114,4 +116,8 @@ export interface SaveState {
   npcs: { key: string; x: number; y: number; homeId: number }[];
   /** Sum of the Gloam when the world began (the Dryad's "how much is cleansed"); -1 = unknown. */
   gloamInitial: number;
+  /** M11: story flags, towns (place, lamp fuel, festival) and quests taken. */
+  flags: string[];
+  towns: SavedTown[];
+  quests: QuestProgress[];
 }

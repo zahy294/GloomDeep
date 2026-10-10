@@ -93,6 +93,23 @@ function villager(s: Sprite, npc: NpcDef, f: 0 | 1): void {
   s.outline().set(10, 10, 'bark', 0, true).set(14, 10, 'bark', 0, true);
 }
 
+/** Pip: a small hooded child (about 26 px tall) standing on the bottom edge. */
+function child(s: Sprite, npc: NpcDef, f: 0 | 1): void {
+  const { ramp, accent } = npc;
+  s.rect(f ? 9 : 10, 35, 2, 5, 'bark', 1).rect(f ? 13 : 12, 35, 2, 5, 'bark', 1);
+  s.rect(8, 25, 8, 11, ramp, 2).rect(8, 30, 8, 1, accent, 2); // body and belt
+  s.blob(12, 21, 3.5, 3.5, 'honey'); // face
+  s.rect(8, 14, 8, 3, ramp, 1).rect(8, 17, 2, 6, ramp, 1).rect(14, 17, 2, 6, ramp, 1); // hood
+  s.rect(f ? 6 : 7, 26, 2, 6, ramp, 1).rect(f ? 16 : 15, 26, 2, 6, ramp, 1); // arms
+  s.outline().set(11, 21, 'bark', 0, true).set(13, 21, 'bark', 0, true);
+}
+
+/** The Gate Warden: a villager with a spear at his side. */
+function warden(s: Sprite, npc: NpcDef, f: 0 | 1): void {
+  villager(s, npc, f);
+  s.rect(21, 8, 1, 32, 'bark', 2).set(21, 7, 'stone', 3).set(21, 6, 'stone', 2);
+}
+
 /** The Old Dryad: a bark figure with a crown of leaves, swaying (frame 1). */
 function dryad(s: Sprite, f: 0 | 1): void {
   s.rect(8, 14, 8, 26, 'bark', 2).rect(6, 34, 12, 6, 'bark', 1);
@@ -113,9 +130,62 @@ export function buildFolk(): RgbaImage {
     for (const f of [0, 1] as const) {
       const s = new Sprite(def.frameWidth, def.frameHeight);
       if (npc.key === 'dryad') dryad(s, f);
+      else if (npc.key === 'child') child(s, npc, f);
+      else if (npc.key === 'warden') warden(s, npc, f);
       else villager(s, npc, f);
       s.draw(out, (i * 2 + f) * def.frameWidth);
     }
   });
+  return out;
+}
+
+/** A covered wagon (frame 0/1: wheel spokes turn) pulled by a stag facing right. */
+function caravan(s: Sprite, f: 0 | 1): void {
+  // Wagon bed and canvas cover (moonSilver) with honey stripes.
+  s.blob(19, 15, 14, 8, 'moonSilver');
+  s.rect(5, 16, 29, 8, 'bark', 2).rect(5, 16, 29, 1, 'bark', 3);
+  for (const x of [11, 18, 25]) s.rect(x, 9, 1, 7, 'honey', 2);
+  // Lantern hanging at the front on a short pole.
+  s.rect(33, 12, 3, 1, 'bark', 1).rect(35, 13, 1, 3, 'gold', 1).rect(34, 16, 3, 4, 'honey', 3);
+  // Shaft to the stag.
+  s.rect(34, 22, 11, 1, 'bark', 1);
+  // The stag: body, neck, head, legs (alternate with the frame), antlers, tail.
+  s.blob(50, 19, 7, 4, 'honey').rect(55, 12, 3, 8, 'honey', 2).blob(59, 11, 3, 2.5, 'honey');
+  s.rect(f ? 44 : 45, 22, 2, 10, 'honey', 1).rect(f ? 48 : 47, 22, 2, 10, 'honey', 1);
+  s.rect(f ? 52 : 53, 22, 2, 10, 'honey', 1).rect(f ? 56 : 55, 22, 2, 10, 'honey', 1);
+  s.set(43, 17, 'honey', 3).set(43, 18, 'honey', 2);
+  s.set(58, 7, 'bark', 3).set(58, 6, 'bark', 3).set(60, 7, 'bark', 3).set(61, 6, 'bark', 3);
+  s.set(57, 8, 'bark', 3).set(59, 8, 'bark', 3).set(57, 5, 'bark', 3).set(62, 5, 'bark', 3);
+  s.outline().eye(60, 11, 'bark').eye(35, 17, 'honey');
+  // Two wheels; spokes cross as a plus in one frame and an X in the other.
+  const plus = [
+    [0, -2],
+    [0, 2],
+    [-2, 0],
+    [2, 0],
+  ] as const;
+  const cross = [
+    [-2, -2],
+    [2, -2],
+    [-2, 2],
+    [2, 2],
+  ] as const;
+  for (const cx of [11, 27]) {
+    s.blob(cx, 27.5, 4.5, 4.5, 'gold').outline();
+    s.set(cx, 27, 'gold', 3, true);
+    for (const [dx, dy] of f ? cross : plus) s.set(cx + dx, 27 + dy, 'bark', 3, true);
+  }
+}
+
+/** The `caravan` placeholder sheet: two 64×32 walking frames, ground line on the bottom row. */
+export function buildCaravan(): RgbaImage {
+  const def = spriteAsset('caravan');
+  if (!def) throw new Error('caravan is missing from SPRITE_ASSETS');
+  const out = createImage(def.frameWidth * def.frames, def.frameHeight);
+  for (const f of [0, 1] as const) {
+    const s = new Sprite(def.frameWidth, def.frameHeight);
+    caravan(s, f);
+    s.draw(out, f * def.frameWidth);
+  }
   return out;
 }

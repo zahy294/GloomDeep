@@ -10,6 +10,8 @@ export interface RecipeDef {
   readonly output: ItemCount;
   readonly inputs: readonly ItemCount[];
   readonly station: string | null;
+  /** Known only once this story flag is set (recipes taught by folk, M11). */
+  readonly requires?: string;
 }
 
 export const RECIPES: readonly RecipeDef[] = [
@@ -226,5 +228,17 @@ export const RECIPES: readonly RecipeDef[] = [
       { item: 'lumen_crystal', count: 1 },
     ],
     station: 'workbench',
+  },
+  // M11: learned from Rowan at Canopyhold's inn (the Glowcap Stew quest).
+  {
+    key: 'hanging_lantern',
+    output: { item: 'hanging_lantern', count: 2 },
+    inputs: [
+      { item: 'copper_bar', count: 1 },
+      { item: 'glass_jar', count: 1 },
+      { item: 'torch', count: 2 },
+    ],
+    station: 'anvil',
+    requires: 'recipe:hanging_lantern',
   },
 ];

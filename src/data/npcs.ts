@@ -1,23 +1,26 @@
 /**
- * Folk (plan 1.7, section 4 "NPCs"). Villagers move into lit homes in your village; the Old Dryad
- * waits by the spawn tree and talks about the forest. Dialogue is data: villagers cycle through
- * their lines; the Dryad's lines depend on how much of the forest's Gloam is cleansed.
+ * Folk (plan 1.7, section 4 "NPCs"): everyone with a name and a sprite. Villagers move into lit
+ * homes in your village; townsfolk live in towns (src/data/towns.ts); the Old Dryad waits by the
+ * spawn tree. What they say is in src/data/dialogue/, what they sell in src/data/shops.ts.
  */
 import type { RampName } from './palette';
 
 export interface NpcDef {
   readonly key: string;
   readonly name: string;
-  /** What they do (shown when talking; trading arrives with M11). */
+  /** What they do (shown when talking). */
   readonly role: string;
   /** Cloak and accent colours of the placeholder sprite. */
   readonly ramp: RampName;
   readonly accent: RampName;
-  /** Moves in once the village has at least this many valid homes (and one is free). */
-  readonly homesNeeded: number;
-  readonly lines: readonly string[];
+  /**
+   * Moves into your village once it has at least `homesNeeded` valid homes (and one is free), and
+   * only after the story flag `requires` is set, if any.
+   */
+  readonly village?: { readonly homesNeeded: number; readonly requires?: string };
 }
 
+/** Your village's folk (M10), in the order they arrive. */
 export const VILLAGERS: readonly NpcDef[] = [
   {
     key: 'tinker',
@@ -25,12 +28,7 @@ export const VILLAGERS: readonly NpcDef[] = [
     role: 'Tinker',
     ramp: 'bark',
     accent: 'gold',
-    homesNeeded: 1,
-    lines: [
-      'A lit room and a door that shuts. That is all a tinker asks.',
-      'Bring me copper and I will make it sing. Later, mind. My tools are still packed.',
-      'The roots groan at night. Something down there is hungry for the dark.',
-    ],
+    village: { homesNeeded: 1 },
   },
   {
     key: 'herbalist',
@@ -38,12 +36,7 @@ export const VILLAGERS: readonly NpcDef[] = [
     role: 'Herbalist',
     ramp: 'leaf',
     accent: 'rose',
-    homesNeeded: 2,
-    lines: [
-      'Lumen blooms only open in the light. Pick them then, or not at all.',
-      'Glowmoss creeps where it is dark and damp. A good sign, mostly.',
-      'Fairy rings at night? Stand inside one. Your feet will thank you.',
-    ],
+    village: { homesNeeded: 2 },
   },
   {
     key: 'glassblower',
@@ -51,12 +44,7 @@ export const VILLAGERS: readonly NpcDef[] = [
     role: 'Glassblower',
     ramp: 'cyan',
     accent: 'moonSilver',
-    homesNeeded: 3,
-    lines: [
-      'Silt, fire and patience: that is glass. Jars, lenses, lamps.',
-      'Catch fireflies in a jar and they will light your hall for good.',
-      'Azure glass shows what hides. Mind where you step in the deep caves.',
-    ],
+    village: { homesNeeded: 3 },
   },
   {
     key: 'archivist',
@@ -64,12 +52,7 @@ export const VILLAGERS: readonly NpcDef[] = [
     role: 'Archivist',
     ramp: 'moonSilver',
     accent: 'honey',
-    homesNeeded: 4,
-    lines: [
-      'The beacons were the old way of keeping the dark at bay. Build them again.',
-      'Four homes, four lamps. A village, at last. The Heartlight may yet remember us.',
-      'The runes wake when you pass. They remember the Lamplighters.',
-    ],
+    village: { homesNeeded: 4 },
   },
 ];
 
@@ -80,43 +63,43 @@ export const DRYAD: NpcDef = {
   role: 'Spirit of the Elder Tree',
   ramp: 'moss',
   accent: 'mint',
-  homesNeeded: 0,
-  lines: [],
 };
 
-/** The Dryad's words by the share of the forest's Gloam that has been cleansed (0..1). */
-export const DRYAD_LINES: readonly { readonly from: number; readonly lines: readonly string[] }[] =
-  [
-    {
-      from: 0,
-      lines: [
-        'Lamplighter. You came. The Heartlight is fading, and the Gloam climbs my roots.',
-        'Light is life here. Where you carry it, the Gloam must give way.',
-        'Build homes, and light them. My folk are scattered, but they will come to a warm window.',
-      ],
-    },
-    {
-      from: 0.05,
-      lines: [
-        'I felt that. A little of the dark has lifted. Keep going.',
-        'Beacons hold the dark back for good. Your folk will know how to make them.',
-      ],
-    },
-    {
-      from: 0.25,
-      lines: [
-        'The roots breathe easier. A quarter of the Gloam is gone, burned away by your light.',
-        'Deeper, Lamplighter. The heart of the dark waits at the bottom of the world.',
-      ],
-    },
-    {
-      from: 0.6,
-      lines: ['I can feel the Heartlight stirring again. You have done more than I dared hope.'],
-    },
-  ];
+/** Townsfolk (M11): Canopyhold and the Rootdeep Citadel. */
+export const TOWNSFOLK: readonly NpcDef[] = [
+  { key: 'innkeeper', name: 'Rowan', role: 'Innkeeper', ramp: 'ember', accent: 'honey' },
+  { key: 'merchant', name: 'Tamsin', role: 'Trader', ramp: 'gold', accent: 'bark' },
+  { key: 'lampwright', name: 'Wren', role: 'Lampwright', ramp: 'honey', accent: 'ember' },
+  { key: 'caravaneer', name: 'Hesper', role: 'Caravan Master', ramp: 'soil', accent: 'gold' },
+  {
+    key: 'courier',
+    name: 'Juniper',
+    role: 'Beekeeper',
+    ramp: 'honey',
+    accent: 'leaf',
+    // After you escort her through the dark, she settles in your village.
+    village: { homesNeeded: 5, requires: 'juniper_moved' },
+  },
+  { key: 'child', name: 'Pip', role: 'Lamplighter-to-be', ramp: 'rose', accent: 'moonSilver' },
+  { key: 'ropewright', name: 'Moss', role: 'Ropewright', ramp: 'moss', accent: 'bark' },
+  { key: 'weaver', name: 'Bryony', role: 'Weaver', ramp: 'emerald', accent: 'rose' },
+  { key: 'warden', name: 'Aldric', role: 'Gate Warden', ramp: 'stone', accent: 'cyan' },
+  { key: 'smith', name: 'Dorran', role: 'Root-smith', ramp: 'tealShadow', accent: 'ember' },
+  { key: 'lampkeeper', name: 'Sefa', role: 'Lampkeeper', ramp: 'mint', accent: 'gold' },
+  {
+    key: 'scholar',
+    name: 'Isolde',
+    role: 'Scholar of the Hall',
+    ramp: 'moonSilver',
+    accent: 'cyan',
+  },
+];
 
 /** Everyone with a sprite, in `folk` sheet order (two frames each: standing, mid-step). */
-export const FOLK: readonly NpcDef[] = [...VILLAGERS, DRYAD];
+export const FOLK: readonly NpcDef[] = [...VILLAGERS, DRYAD, ...TOWNSFOLK];
+
+/** Everyone who can move into your village, in arrival order. */
+export const VILLAGE_ARRIVALS: readonly NpcDef[] = FOLK.filter((n) => n.village);
 
 export function folkFrame(key: string): number {
   return (
@@ -129,10 +112,4 @@ export function folkFrame(key: string): number {
 
 export function npcDef(key: string): NpcDef | undefined {
   return FOLK.find((n) => n.key === key);
-}
-
-export function dryadLines(cleansed: number): readonly string[] {
-  let lines = DRYAD_LINES[0]?.lines ?? [];
-  for (const tier of DRYAD_LINES) if (cleansed >= tier.from) lines = tier.lines;
-  return lines;
 }

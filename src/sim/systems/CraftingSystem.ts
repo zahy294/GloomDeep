@@ -13,7 +13,11 @@ export interface ResolvedRecipe {
   readonly output: { readonly itemId: number; readonly count: number };
   readonly inputs: readonly { readonly itemId: number; readonly count: number }[];
   readonly station: string | null;
+  /** Story flag that teaches it, or null if everyone knows it. */
+  readonly requires: string | null;
 }
+
+const NO_FLAGS: ReadonlySet<string> = new Set();
 
 /** Station key per tile id, or null. */
 const STATION_OF = TILES.map((t) => t.station ?? null);
@@ -29,8 +33,14 @@ export const RESOLVED_RECIPES: readonly ResolvedRecipe[] = RECIPES.map((r, index
     output: { itemId: itemId(r.output.item), count: r.output.count },
     inputs: r.inputs.map((i) => ({ itemId: itemId(i.item), count: i.count })),
     station: r.station,
+    requires: r.requires ?? null,
   };
 });
+
+/** Is the recipe known (taught recipes need their story flag)? */
+export function recipeKnown(recipe: ResolvedRecipe, flags: ReadonlySet<string>): boolean {
+  return recipe.requires === null || flags.has(recipe.requires);
+}
 
 export function recipeByKey(key: string): ResolvedRecipe | undefined {
   return RESOLVED_RECIPES.find((r) => r.key === key);
@@ -84,8 +94,11 @@ export function craft(
   times: number,
   inventory: Inventory,
   stations: ReadonlySet<string>,
+  flags: ReadonlySet<string> = NO_FLAGS,
 ): { crafted: number; overflow: number } {
-  if (!stationAvailable(recipe, stations)) return { crafted: 0, overflow: 0 };
+  if (!stationAvailable(recipe, stations) || !recipeKnown(recipe, flags)) {
+    return { crafted: 0, overflow: 0 };
+  }
   const n = Math.min(Math.floor(times), CRAFTING.maxBatch, maxCrafts(recipe, inventory));
   if (!(n > 0)) return { crafted: 0, overflow: 0 };
   for (const input of recipe.inputs) inventory.remove(input.itemId, input.count * n);

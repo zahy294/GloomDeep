@@ -121,13 +121,19 @@ export interface SimEvents {
   tileBurned: { readonly x: number; readonly y: number; readonly layer: TileLayer };
   /** A falling block of silt or gravel landed and became a tile. */
   blockLanded: { readonly x: number; readonly y: number; readonly id: number };
-  /** Someone spoke (right-clicked): show their line. */
+  /**
+   * Someone spoke (right-clicked): show their line. `offer`: a quest they offer (key, '' = none);
+   * `shop`: they trade.
+   */
   talk: {
     readonly npcId: number;
     readonly key: string;
     readonly name: string;
     readonly role: string;
     readonly text: string;
+    readonly offer: string;
+    readonly offerTitle: string;
+    readonly shop: boolean;
   };
   /** A villager moved into a home / lost their home (it stopped being valid). */
   npcArrived: { readonly key: string; readonly name: string };
@@ -158,6 +164,50 @@ export interface SimEvents {
   wispArrived: { readonly x: number; readonly y: number };
   /** Inventory contents or the selected slot changed. */
   inventoryChanged: Record<string, never>;
+  /** M11 — a story flag was set for the first time. */
+  flagSet: { readonly flag: string };
+  /** A street lamp was refuelled (tiles). */
+  lampRefuelled: { readonly x: number; readonly y: number };
+  /** Right-clicked a lamp or dormant beacon without what it needs (`need`: what's missing). */
+  useBlocked: { readonly need: string };
+  /** A Citadel district's beacon was relit / the district was reclaimed (its folk return). */
+  beaconRelit: {
+    readonly town: string;
+    readonly district: string;
+    readonly name: string;
+    readonly x: number;
+    readonly y: number;
+  };
+  districtReclaimed: {
+    readonly town: string;
+    readonly district: string;
+    readonly name: string;
+    readonly x: number;
+    readonly y: number;
+  };
+  /** A town's festival began / ended. */
+  festivalStarted: { readonly town: string; readonly name: string };
+  festivalEnded: { readonly town: string; readonly name: string };
+  /** The player rode a lift basket to tile (x, y). */
+  liftRode: { readonly x: number; readonly y: number };
+  questStarted: { readonly key: string; readonly title: string };
+  questCompleted: { readonly key: string; readonly title: string };
+  /** Something happened on a quest worth a notice (found the lost thing, the escort joined). */
+  questProgress: { readonly key: string; readonly text: string };
+  /** The escort was too long in the dark and ran home (`text`: what they cried). */
+  escortFled: { readonly key: string; readonly text: string };
+  /** A road's lit points changed (after a light was placed or removed) / it became fully lit. */
+  roadProgress: {
+    readonly road: string;
+    readonly name: string;
+    readonly lit: number;
+    readonly total: number;
+  };
+  roadLit: { readonly road: string; readonly name: string };
+  /** A caravan reached one end of its road (`place`: a town key or 'village'). */
+  caravanArrived: { readonly road: string; readonly place: string };
+  /** The player bought or sold something. */
+  traded: { readonly npc: string; readonly glimmer: number };
 }
 
 type Listener<T> = (payload: T) => void;

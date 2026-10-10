@@ -1,5 +1,5 @@
 import { ENEMY_AI, SETTLEMENT, TILE_SIZE } from '../../config';
-import { DRYAD, VILLAGERS } from '../../data/npcs';
+import { DRYAD, VILLAGE_ARRIVALS, npcDef } from '../../data/npcs';
 import { createNpc, type Npc } from '../entities/Npc';
 import type { EventBus, SimEvents } from '../events';
 import { createCollisionResult, moveAndCollide } from '../physics/tileCollision';
@@ -16,8 +16,8 @@ const leftPayload = { key: '', name: '' };
  * valid homes next to doors (closed in, walled, lit, with room to stand — src/sim/world/rooms.ts),
  * keeps each villager in a home, and when a home is free and the village is big enough the next
  * villager moves in (`npcArrived`). A villager whose home stops being valid is homeless until
- * another one is free. Villagers stroll inside their homes (schedules and paths come in M11).
- * The Old Dryad stands by the spawn tree and never needs a home.
+ * another one is free. Villagers stroll inside their homes. The Old Dryad stands by the spawn
+ * tree and never needs a home. Townsfolk share the NPC list but are the TownSystem's (M11).
  */
 export class SettlementSystem {
   readonly npcs: Npc[] = [];
@@ -33,6 +33,8 @@ export class SettlementSystem {
     private readonly world: World,
     private readonly events: EventBus<SimEvents>,
     private readonly random: () => number,
+    /** Story flags (some folk only come to the village after a quest). */
+    private readonly hasFlag: (flag: string) => boolean = () => false,
   ) {
     for (let i = 0; i < world.fg.length; i++) if (isDoor(world.fg[i] ?? 0)) this.doors.add(i);
     this.unsubscribe = events.on('tileChanged', ({ x, y, id, previous, layer }) => {
@@ -67,11 +69,16 @@ export class SettlementSystem {
       this.timer = 0;
       this.check();
     }
-    for (const npc of this.npcs) this.move(npc, dt);
+    for (const npc of this.npcs) if (npc.town === '' && !npc.escorting) this.move(npc, dt);
+  }
+
+  /** A fresh id for any NPC (towns use it too, so ids never clash). */
+  nextNpcId(): number {
+    return this.nextId++;
   }
 
   private add(key: string, feetX: number, feetY: number): Npc {
-    const npc = createNpc(this.nextId++, key, feetX, feetY);
+    const npc = createNpc(this.nextNpcId(), key, feetX, feetY);
     this.npcs.push(npc);
     return npc;
   }
@@ -91,7 +98,7 @@ export class SettlementSystem {
     }
     const taken = new Set<number>();
     for (const npc of this.npcs) {
-      if (npc.key === DRYAD.key) continue;
+      if (npc.key === DRYAD.key || npc.town !== '') continue;
       if (npc.homeId < 0) continue;
       // A home's id is its smallest cell, so an edit in its corner renames it: match by place too.
       const home = this.homes.get(npc.homeId) ?? this.homeAround(npc, taken);
@@ -104,14 +111,14 @@ export class SettlementSystem {
       } else {
         npc.homeId = -1;
         leftPayload.key = npc.key;
-        leftPayload.name = VILLAGERS.find((v) => v.key === npc.key)?.name ?? npc.key;
+        leftPayload.name = npcDef(npc.key)?.name ?? npc.key;
         this.events.emit('npcHomeless', leftPayload);
       }
     }
     const free = [...this.homes.values()].filter((h) => !taken.has(h.id));
     // Homeless villagers move into free homes first.
     for (const npc of this.npcs) {
-      if (npc.key === DRYAD.key || npc.homeId >= 0) continue;
+      if (npc.key === DRYAD.key || npc.town !== '' || npc.homeId >= 0) continue;
       const home = free.shift();
       if (!home) break;
       this.settle(npc, home);
@@ -119,8 +126,12 @@ export class SettlementSystem {
     // Then one newcomer, if the village is big enough for them.
     const home = free[0];
     if (!home) return;
-    const next = VILLAGERS.find(
-      (v) => v.homesNeeded <= this.homes.size && !this.npcs.some((n) => n.key === v.key),
+    const next = VILLAGE_ARRIVALS.find(
+      (v) =>
+        v.village !== undefined &&
+        v.village.homesNeeded <= this.homes.size &&
+        (v.village.requires === undefined || this.hasFlag(v.village.requires)) &&
+        !this.npcs.some((n) => n.key === v.key),
     );
     if (!next) return;
     const npc = this.add(next.key, (home.spotX + 0.5) * TILE_SIZE, home.spotY * TILE_SIZE);

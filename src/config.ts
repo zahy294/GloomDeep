@@ -715,6 +715,107 @@ export const SETTLEMENT = {
   arrivePx: 2,
 } as const;
 
+/** Townsfolk moving on their town's waypoint graph (src/sim/systems/NavSystem.ts). */
+export const NAV = {
+  /** Pixels per second walking, and riding a lift basket. */
+  walkSpeed: 34,
+  liftSpeed: 40,
+  /** Standing about, they turn round every this many seconds (random in the range). */
+  idleTurnMin: 3,
+  idleTurnMax: 9,
+  /** Horizontal pixels left to walk before they bother facing that way. */
+  faceThreshold: 0.5,
+} as const;
+
+/** Towns (src/sim/systems/TownSystem.ts, plan 1.7). Shares are 0..1; times in seconds. */
+export const TOWN = {
+  /** Schedules, lamps and districts are re-checked this often. */
+  checkSeconds: 1,
+  /** Seconds of night a full street lamp burns (lamps only burn at night; ~3 nights). */
+  lampBurnSeconds: 1500,
+  /** Below this share of fuel a lamp burns dim; at 0 it goes out. */
+  lampDimBelow: 0.35,
+  /** How much a dim lamp counts towards the town's light (a lit one counts 1). */
+  dimLampWorth: 0.5,
+  /** At night, folk in a town lit less than this are afraid and go home. */
+  scaredBelow: 0.5,
+  /** A town at least this bright keeps the Gloam and creature spawns out of its streets. */
+  protectLight: 0.5,
+  /** A district counts as reclaimed when this share of its cells or less still holds Gloam... */
+  reclaimShare: 0.04,
+  /** ...at or above this level. */
+  reclaimGloam: 24,
+  /** Right-clicking a lift post works within this many tiles of the player. */
+  liftReach: 3,
+} as const;
+
+/** Trade prices (src/sim/systems/TradeSystem.ts). Multipliers on SHOPS prices. */
+export const TRADE = {
+  /** A completely dark town charges this much more (scaled by how dark it is). */
+  darkMarkup: 0.5,
+  /** Each lit road into the town takes this much off. */
+  roadDiscount: 0.15,
+  /** Prices never fall below this multiple of the base price. */
+  minFactor: 0.6,
+  /** Traders pay this share of an item's value (divided by the price factor). */
+  sellShare: 1,
+  /** Shopping works within this many tiles of the trader. */
+  reachTiles: 8,
+} as const;
+
+/** Lit trade roads and caravans (src/sim/systems/RoadSystem.ts). Tiles and seconds. */
+export const ROAD = {
+  /** The road is checked at points this many columns apart. */
+  sampleSpacing: 6,
+  /** A point is lit with a placed light (not flora) within this many tiles of it. */
+  litRadius: 9,
+  /** Look this many rows above and below the ground at a point for that light. */
+  litRows: 6,
+  /** Re-check after a light is placed or removed, at most this often. */
+  checkSeconds: 1,
+  /** Caravan: pixels per second, seconds it rests at each end, and its lantern. */
+  caravanSpeed: 26,
+  caravanRestSeconds: 40,
+  caravanLight: 'hanging_lantern',
+} as const;
+
+/** Escort quests (src/sim/systems/QuestSystem.ts). Tiles and seconds. */
+export const ESCORT = {
+  /** They join you when you come this close after accepting. */
+  joinTiles: 4,
+  /** They walk to within this distance of you, and are teleported up if left this far behind. */
+  followTiles: 2.5,
+  catchUpTiles: 18,
+  walkSpeed: 120,
+  jumpSpeed: 420,
+  /** Light at their feet (brightest channel) below which they are in the dark... */
+  fearLight: 40,
+  /** ...and after this many seconds of it (in total, it recovers in light) they run home. */
+  fearSeconds: 6,
+  /** Fear fades this many times faster than it builds, while lit. */
+  calmRate: 0.5,
+  /** Arrived: within this many tiles of the village's centre (the spawn). */
+  arriveTiles: 8,
+} as const;
+
+/** "Find" quests: something lost in a cave (src/sim/systems/QuestSystem.ts). Tiles. */
+export const FIND = {
+  /** Random tries at a hiding place in the giver's range before settling for the giver's spot. */
+  attempts: 400,
+  /** Hiding places are at least this many rows below the ground (in a cave, not on a hill). */
+  minDepth: 8,
+  /** You pick it up when you come this close. */
+  pickupTiles: 1.8,
+  /** Wisps for an active find appear this often (seconds) and always, day or night. */
+  wispInterval: 12,
+} as const;
+
+/** Festivals (src/sim/systems/TownSystem.ts): from dusk to dawn (day fractions). */
+export const FESTIVAL = {
+  startsAt: 0.8,
+  endsAt: 0.25,
+} as const;
+
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
 export const LIGHT_FX = {
   /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */

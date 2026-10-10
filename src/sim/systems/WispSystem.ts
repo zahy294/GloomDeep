@@ -1,4 +1,4 @@
-import { TILE_SIZE, WISP } from '../../config';
+import { FIND, TILE_SIZE, WISP } from '../../config';
 import { TILES } from '../../data/tiles';
 import type { Player } from '../entities/Player';
 import type { EventBus, SimEvents } from '../events';
@@ -34,6 +34,11 @@ export class WispSystem {
   private timer = 0;
   /** Secrets already led to, by coarse cell, so the same one isn't shown twice. */
   private readonly visited = new Set<number>();
+  /**
+   * Something a quest has lost (tiles), set by the Simulation: wisps lead there first, more often,
+   * day or night (M11 "find" quests: "wisps help").
+   */
+  quest: { x: number; y: number } | null = null;
 
   constructor(
     private readonly world: World,
@@ -48,6 +53,12 @@ export class WispSystem {
     const w = this.wisp;
     if (!w) {
       this.timer += dt;
+      if (this.quest) {
+        if (this.timer < FIND.wispInterval) return;
+        this.timer = 0;
+        this.lead(px, py, this.quest);
+        return;
+      }
       if (this.timer < WISP.interval || outdoorsByDay) return;
       this.timer = 0;
       if (this.random() >= WISP.chance) return;
@@ -89,12 +100,21 @@ export class WispSystem {
   summon(player: Player): void {
     const b = player.body;
     this.timer = 0;
-    this.appear(b.x + b.width / 2, b.y + b.height / 2);
+    const px = b.x + b.width / 2;
+    const py = b.y + b.height / 2;
+    if (this.quest) this.lead(px, py, this.quest);
+    else this.appear(px, py);
   }
 
   private appear(px: number, py: number): void {
     const target = this.findSecret(px / TILE_SIZE, py / TILE_SIZE);
     if (!target) return;
+    this.visited.add(this.cellKey(target.x, target.y));
+    this.lead(px, py, target);
+  }
+
+  /** A wisp appears by the player (px, py: pixels) to lead to a tile. */
+  private lead(px: number, py: number, target: { x: number; y: number }): void {
     const x = px + WISP.appearOffset * (target.x * TILE_SIZE > px ? 1 : -1);
     const y = py - WISP.appearOffset;
     this.wisp = {
@@ -106,7 +126,6 @@ export class WispSystem {
       targetY: (target.y + 0.5) * TILE_SIZE,
       age: 0,
     };
-    this.visited.add(this.cellKey(target.x, target.y));
     appearedPayload.x = x;
     appearedPayload.y = y;
     this.events.emit('wispAppeared', appearedPayload);

@@ -87,6 +87,11 @@ export function makeState(width: number, height: number, fill?: (i: number) => n
     spawnY: 200,
     npcs: [{ key: 'tinker', x: 33, y: 64, homeId: 1234 }],
     gloamInitial: 98765,
+    flags: ['road:canopy_road', 'district:gate_ward'],
+    towns: [
+      { key: 'canopyhold', x0: 5, y0: 6, x1: 7, y1: 8, lamps: [[6, 7, 0.25]], festival: 'due' },
+    ],
+    quests: [{ key: 'lost_locket', state: 'active', x: 12, y: 34 }],
   };
 }
 
@@ -98,6 +103,7 @@ describe('saveFormat', () => {
     const out = decodeSave(encodeSave(state));
     expect(out.meta).toEqual(state.meta);
     expect(out.player).toEqual(state.player);
+    expect([out.flags, out.towns, out.quests]).toEqual([state.flags, state.towns, state.quests]);
     expect(out.inventory).toEqual(state.inventory);
     expect(out.drops).toEqual(state.drops);
     expect(out.dayFraction).toBe(state.dayFraction);
@@ -214,6 +220,19 @@ describe('MIGRATIONS', () => {
     expect(out.drops[0]?.pickupAfter).toBe(ITEM_DROP.pickupDelay);
     expect(out.npcs).toEqual([]);
     expect(out.gloamInitial).toBe(-1);
+    expect([out.flags, out.towns, out.quests]).toEqual([[], [], []]);
+  });
+
+  it('upgrades a v3 save (M10) with no flags, towns or quests', () => {
+    const state = makeState(4, 4);
+    const v3: Partial<SaveState> = { ...state, version: 3 };
+    delete v3.flags;
+    delete v3.towns;
+    delete v3.quests;
+    const out = decodeSave(encodeSave(v3 as SaveState)); // the missing fields are the point
+    expect(out.version).toBe(SAVE_VERSION);
+    expect(out.npcs).toEqual(state.npcs);
+    expect([out.flags, out.towns, out.quests]).toEqual([[], [], []]);
   });
 });
 

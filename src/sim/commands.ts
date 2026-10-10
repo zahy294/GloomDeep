@@ -28,4 +28,12 @@ export type SimCommand =
   /** Crafts a recipe (src/data/recipes.ts key) up to `times` times. */
   | { readonly type: 'craft'; readonly recipe: string; readonly times: number }
   /** Debug: jump to a time of day (0..1). */
-  | { readonly type: 'setDayFraction'; readonly value: number };
+  | { readonly type: 'setDayFraction'; readonly value: number }
+  /** Takes on a quest someone offered (src/data/quests key). */
+  | { readonly type: 'acceptQuest'; readonly quest: string }
+  /** Buys one lot of a trader's offer (index into their SHOPS offers). */
+  | { readonly type: 'buy'; readonly npc: number; readonly offer: number }
+  /** Sells `count` of an item to a trader. */
+  | { readonly type: 'sell'; readonly npc: number; readonly item: number; readonly count: number }
+  /** Debug: sets a story flag (e.g. a boss kill, to see a festival). */
+  | { readonly type: 'setFlag'; readonly flag: string };
