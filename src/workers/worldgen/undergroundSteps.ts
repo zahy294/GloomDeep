@@ -3,10 +3,13 @@ import { DEPTH_LAYERS, LIQUID, SURFACE_BIOMES } from '../../data/biomes';
 import { TILES, tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
 import { fairyRings, flora } from './flora';
+import { townTunnels } from './towns';
 import { placeWaterfalls } from './waterfalls';
 import {
   AIR,
-  inSpawnArea,
+  inProtected,
+  inTown,
+  inTownColumns,
   isSolidId,
   layerAt,
   noiseSeed,
@@ -32,7 +35,7 @@ const VEILED_PLATFORM = TILES.find((t) => t.intangible && t.veiled)?.id ?? -1;
 /** Underground = below the soil (caves never cut the grass or soil near the surface). */
 function caveAllowed(ctx: GenContext, x: number, y: number): boolean {
   const surface = ctx.surface[x] ?? ctx.height;
-  return y - surface >= WORLDGEN.caveMinDepth && !inSpawnArea(ctx, x, y) && y < ctx.height - 1;
+  return y - surface >= WORLDGEN.caveMinDepth && !inProtected(ctx, x, y) && y < ctx.height - 1;
 }
 
 function carve(ctx: GenContext, cx: number, cy: number, radius: number): void {
@@ -70,6 +73,7 @@ export function caves(ctx: GenContext): void {
   }
 
   caveEntrances(ctx);
+  townTunnels(ctx, (cx, cy, r) => carveTunnel(ctx, cx, cy, r));
 
   const random = stepRandom(ctx, 4);
   const worms = Math.round((width / 1000) * WORLDGEN.wormsPerThousandColumns);
@@ -111,6 +115,7 @@ function caveEntrances(ctx: GenContext): void {
     x > margin &&
     x < width - margin &&
     Math.abs(x - centre) > WORLDGEN.spawnHalfWidth + cfg.mouthRadius &&
+    !inTownColumns(ctx, x, cfg.mouthRadius + WORLDGEN.townMargin) &&
     mouths.every((m) => Math.abs(m - x) >= cfg.spacing);
   // The one near the spawn first.
   const side = random() < 0.5 ? -1 : 1;
@@ -165,7 +170,7 @@ function carveTunnel(ctx: GenContext, cx: number, cy: number, radius: number): v
     for (let x = cx - r; x <= cx + r; x++) {
       if (x < 1 || x >= ctx.width - 1 || y < 1 || y >= ctx.height - 1) continue;
       const d2 = (x - cx) ** 2 + (y - cy) ** 2;
-      if (d2 > outer * outer || inSpawnArea(ctx, x, y)) continue;
+      if (d2 > outer * outer || inProtected(ctx, x, y)) continue;
       const i = y * ctx.width + x;
       if (d2 <= radius * radius) ctx.fg[i] = AIR;
       else if (ctx.fg[i] === T.silt || ctx.fg[i] === T.gravel) ctx.fg[i] = T.stone;
@@ -227,7 +232,7 @@ export function liquids(ctx: GenContext): void {
   for (let x = 2; x < width - 2; x++) {
     const s = ctx.surface[x] ?? 0;
     if (!((ctx.surface[x - 1] ?? 0) < s && (ctx.surface[x + 1] ?? 0) <= s)) continue;
-    if (inSpawnArea(ctx, x, s - 1)) continue;
+    if (inProtected(ctx, x, s - 1)) continue;
     const biome = SURFACE_BIOMES[ctx.surfaceBiome[x] ?? 0];
     if (!biome || random() > biome.poolChance) continue;
     let left = x;
@@ -378,6 +383,7 @@ export function initialGloam(ctx: GenContext): void {
     const strength = DEPTH_LAYERS[layerAt(ctx, y)]?.gloam ?? 0;
     if (strength <= 0) continue;
     for (let x = 0; x < width; x++) {
+      if (inTown(ctx, x, y)) continue; // a town's Gloam comes with its prefab
       const n = valueNoise2(x / WORLDGEN.gloamWavelength, y / WORLDGEN.gloamWavelength, seed);
       gloam[y * width + x] = Math.round(
         Math.min(1, strength * (WORLDGEN.gloamNoiseBase + n)) * 255,

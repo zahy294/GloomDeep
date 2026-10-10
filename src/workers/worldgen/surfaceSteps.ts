@@ -2,7 +2,8 @@ import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, SURFACE_BIOMES } from '../../data/biomes';
 import { tileId } from '../../data/tiles';
 import { valueNoise1, valueNoise2 } from '../../sim/random';
-import { layerAt, noiseSeed, stepRandom, type GenContext } from './context';
+import { inTown, layerAt, noiseSeed, stepRandom, type GenContext } from './context';
+import { planTowns, stampTowns } from './towns';
 import { ruins } from './flora';
 import { giantTrees } from './giantTrees';
 
@@ -91,6 +92,7 @@ export function biomePlacement(ctx: GenContext): void {
   DEPTH_LAYERS.forEach((layer, i) => {
     ctx.layerTops[i] = i === 0 ? 0 : Math.round(height * layer.top);
   });
+  planTowns(ctx);
 }
 
 /**
@@ -137,11 +139,11 @@ export function dirtAndStone(ctx: GenContext): void {
 }
 
 /**
- * Step 7 — structures: giant ancient trees (one at the edge of the starting glade) and small rune
- * ruins (one on the glade).
- * Ruins/shrines/arenas (M5–M12) and town prefabs (M11) plug in here.
+ * Step 7 — structures: the town prefabs (M11), giant ancient trees (one at the edge of the starting
+ * glade) and small rune ruins (one on the glade). Shrines and arenas (M12) plug in here.
  */
 export function structures(ctx: GenContext): void {
+  stampTowns(ctx);
   giantTrees(ctx);
   ruins(ctx);
 }
@@ -157,6 +159,7 @@ export function backgroundWalls(ctx: GenContext): void {
     const soilDepth = ctx.soilDepth[x] ?? 0;
     const biome = BIOME_IDS[ctx.surfaceBiome[x] ?? 0] ?? BIOME_IDS[0]!;
     for (let y = Math.max(0, surface + 1); y < height; y++) {
+      if (inTown(ctx, x, y)) continue; // towns bring their own walls
       const depth = y - surface;
       const rock = (LAYER_IDS[layerAt(ctx, y)] ?? LAYER_IDS[0]!).rock;
       bg[y * width + x] = depth <= soilDepth ? biome.soil : rock;

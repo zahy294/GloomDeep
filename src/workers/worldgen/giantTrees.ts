@@ -3,7 +3,7 @@ import { SURFACE_BIOMES } from '../../data/biomes';
 import { tileId } from '../../data/tiles';
 import { SPAWN_TREE, TREE_SPECIES, treeSpecies, type TreeSpecies } from '../../data/trees';
 import { hash2, valueNoise2 } from '../../sim/random';
-import { AIR, isSolidId, noiseSeed, stepRandom, type GenContext } from './context';
+import { AIR, inTownColumns, isSolidId, noiseSeed, stepRandom, type GenContext } from './context';
 
 interface SpeciesIds {
   def: TreeSpecies;
@@ -51,7 +51,14 @@ export function giantTrees(ctx: GenContext): void {
     }
     const nearSpawnTree = Math.abs(x - spawnTreeX) < species.def.spacing[0];
     const nearSpawn = Math.abs(x - ctx.width / 2) < WORLDGEN.spawnHalfWidth;
-    if (!nearSpawnTree && !nearSpawn && random() < species.def.chance && siteOk(ctx, x)) {
+    const nearTown = inTownColumns(ctx, x, WORLDGEN.townClearance);
+    if (
+      !nearSpawnTree &&
+      !nearSpawn &&
+      !nearTown &&
+      random() < species.def.chance &&
+      siteOk(ctx, x)
+    ) {
       buildTree(ctx, species, x, random, gapSeed);
     }
     x += between(random, species.def.spacing);

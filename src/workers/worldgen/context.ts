@@ -1,3 +1,4 @@
+import { WORLDGEN } from '../../config';
 import { tileId, TILES } from '../../data/tiles';
 import { mulberry32 } from '../../sim/random';
 
@@ -28,6 +29,17 @@ export interface GenContext {
   spawnY: number;
   /** Columns where a cave entrance opens at the surface (giant trees keep clear of them). */
   caveMouths: number[];
+  /** Towns placed by step 2 and stamped by step 7 (M11): prefab rectangles, inclusive. */
+  towns: PlacedTown[];
+}
+
+/** A town prefab's place in the world (tiles; x0/y0 is the prefab's top-left cell). */
+export interface PlacedTown {
+  readonly key: string;
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
 }
 
 export function createContext(
@@ -54,6 +66,7 @@ export function createContext(
     spawnX: 0,
     spawnY: 0,
     caveMouths: [],
+    towns: [],
   };
 }
 
@@ -83,6 +96,29 @@ export const isSolidId = (id: number) => SOLID[id] === 1;
 export function inSpawnArea(ctx: GenContext, x: number, y: number): boolean {
   const a = ctx.spawnArea;
   return x >= a.x0 && x <= a.x1 && y >= a.y0 && y <= a.y1;
+}
+
+/** Inside a town's prefab rectangle, widened by `margin` tiles. */
+export function inTown(ctx: GenContext, x: number, y: number, margin = 0): boolean {
+  for (const t of ctx.towns) {
+    if (x >= t.x0 - margin && x <= t.x1 + margin && y >= t.y0 - margin && y <= t.y1 + margin) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** A town's columns (widened by `margin`) — surface features keep out of them. */
+export function inTownColumns(ctx: GenContext, x: number, margin = 0): boolean {
+  return ctx.towns.some((t) => x >= t.x0 - margin && x <= t.x1 + margin);
+}
+
+/**
+ * Protected from caves, pools and features: the spawn glade, and every town with a margin
+ * (plan 1.7: "marks their area as protected").
+ */
+export function inProtected(ctx: GenContext, x: number, y: number): boolean {
+  return inSpawnArea(ctx, x, y) || inTown(ctx, x, y, WORLDGEN.townMargin);
 }
 
 /** Depth layer index for a row (layers are horizontal; their tops already include wiggle). */

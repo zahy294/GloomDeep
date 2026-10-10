@@ -43,6 +43,17 @@ export interface GeneratedWorld {
   spawnY: number;
   /** Columns where cave entrances open at the surface (not saved; tests and debug starts). */
   caveMouths?: number[];
+  /** Where world generation placed each town (M11). */
+  towns: TownPlace[];
+}
+
+/** A town prefab's rectangle in the world (tiles, inclusive; x0/y0 = the prefab's top-left). */
+export interface TownPlace {
+  key: string;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
 }
 
 export interface SavedPlayer {

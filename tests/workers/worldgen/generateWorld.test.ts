@@ -7,6 +7,8 @@ import { SPAWN_TREE } from '../../../src/data/trees';
 import { Simulation } from '../../../src/sim/Simulation';
 import { isSolidId } from '../../../src/workers/worldgen/context';
 import { decorSupported, isDecor } from '../../../src/sim/world/decor';
+import { prefabByKey } from '../../../src/data/prefabs';
+import { prefabGroundRow } from '../../../src/sim/world/tiled';
 
 const W = 700;
 const H = 360;
@@ -323,5 +325,86 @@ describe('giant trees (medium world)', () => {
       }
     }
     expect(falls).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('towns (medium world, M11)', () => {
+  const MW = 4200;
+  const MH = 1200;
+  const generated = generateWorld(MW, MH, 3);
+  const { world } = Simulation.fromGenerated(generated);
+  const town = (key: string) => {
+    const t = generated.towns.find((p) => p.key === key);
+    if (!t) throw new Error(`no ${key}`);
+    return t;
+  };
+
+  it('places Canopyhold on the Elderglade surface and the Citadel deep in Rootdeep', () => {
+    const c = town('canopyhold');
+    const prefab = prefabByKey('canopyhold');
+    expect(c.x1 - c.x0 + 1).toBe(prefab.width);
+    for (const x of [c.x0, c.x1])
+      expect(SURFACE_BIOMES[world.surfaceBiome[x]!]?.key).toBe('elderglade');
+    // The prefab's ground row sits on the world's ground, and it is stamped as drawn.
+    const g = c.y0 + prefabGroundRow(prefab);
+    expect(world.get(c.x0 + 30, g)).toBe(tileId('elderglade_grass'));
+    expect(world.get(c.x0 + 62, g - 1)).toBe(tileId('lift_post'));
+    const d = town('citadel');
+    const rootdeep = DEPTH_LAYERS.findIndex((l) => l.key === 'rootdeep');
+    expect(d.y0).toBeGreaterThan(world.layerTops[rootdeep]!);
+    expect(world.get(d.x0 + 25, d.y0 + 39)).toBe(tileId('beacon_dormant'));
+    // The two are on opposite sides of the spawn.
+    const spawnX = generated.spawnX / TILE_SIZE;
+    expect(Math.sign(c.x0 - spawnX)).toBe(-Math.sign(d.x0 - spawnX));
+  });
+
+  it('same seed → same towns', () => {
+    expect(generateWorld(W, H, 42).towns).toEqual(generateWorld(W, H, 42).towns);
+  });
+
+  it('keeps towns protected: no caves, pools, flora or stray Gloam inside, Gloam in the districts', () => {
+    for (const t of generated.towns) {
+      const prefab = prefabByKey(t.key);
+      let gloamy = 0;
+      for (let y = t.y0; y <= t.y1; y++) {
+        for (let x = t.x0; x <= t.x1; x++) {
+          const i = y * MW + x;
+          const key = prefab.fg[(y - t.y0) * prefab.width + (x - t.x0)] || 'air';
+          expect(world.fg[i], `${t.key} at ${x},${y}`).toBe(tileId(key));
+          expect(world.liquid[i]).toBe(0);
+          if (world.gloam[i]! > 0) gloamy++;
+        }
+      }
+      if (t.key === 'canopyhold') expect(gloamy).toBe(0);
+      else expect(gloamy).toBeGreaterThan(1000);
+    }
+  });
+
+  it('a tunnel leads from the surface into the Citadel gate', () => {
+    const d = town('citadel');
+    const gates = prefabByKey('citadel').waypoints.filter((w) => w.tag.startsWith('gate'));
+    const inside = new Set(gates.map((w) => (d.y0 + w.y) * MW + d.x0 + w.x));
+    // Flood the open cells from every cave mouth until one reaches a gate.
+    let reached = false;
+    for (const mouth of generated.caveMouths ?? []) {
+      const startY = world.groundRow(mouth) - 1;
+      const seen = new Uint8Array(MW * MH);
+      const stack = [startY * MW + mouth];
+      while (stack.length > 0 && !reached) {
+        const i = stack.pop() ?? 0;
+        if (seen[i]) continue;
+        seen[i] = 1;
+        const x = i % MW;
+        const y = (i - x) / MW;
+        if (world.isSolid(x, y) || y < startY - 3) continue;
+        if (inside.has(i)) reached = true;
+        if (x > 0) stack.push(i - 1);
+        if (x < MW - 1) stack.push(i + 1);
+        if (y > 0) stack.push(i - MW);
+        if (y < MH - 1) stack.push(i + MW);
+      }
+      if (reached) break;
+    }
+    expect(reached).toBe(true);
   });
 });

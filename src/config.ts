@@ -116,6 +116,18 @@ export const WORLDGEN = {
    * They descend in switchbacks at a walkable slope (angles from horizontal, radians), so you can
    * walk down and climb back out; small chambers open up along the way.
    */
+  /** Towns (M11): caves, pools and features keep this many tiles clear of a town's prefab. */
+  townMargin: 3,
+  /** The ground eases into a surface town's level over this many columns each side. */
+  townBlendWidth: 24,
+  /** Giant trees, ruins and fairy rings keep this many columns clear of a surface town. */
+  townClearance: 22,
+  /**
+   * The tunnel down to an underground town: it opens at the surface `mouthOffset` columns out from
+   * the town's gate, winds down in switchbacks no wider than `band` columns, and ends in a
+   * corridor `corridorHeight` rows tall into the gate.
+   */
+  townTunnel: { mouthOffset: 40, band: 46, corridorHeight: 4 },
   caveEntrances: {
     perThousandColumns: 1.5,
     /** One entrance this far (columns) from the spawn, on a random side, so it's easy to find. */

@@ -1,6 +1,6 @@
 import { WATER_FX } from '../../config';
 import { tileId, TILES } from '../../data/tiles';
-import { AIR, inSpawnArea, isSolidId, stepRandom, type GenContext } from './context';
+import { AIR, inProtected, isSolidId, stepRandom, type GenContext } from './context';
 
 const WATERFALL = tileId('waterfall');
 /** Decorations (flora) are non-solid and may stand in the way; they are cleared with the ground. */
@@ -55,7 +55,7 @@ function planCut(ctx: GenContext, ledge: number, dir: 1 | -1, drop: number): Cut
 
   for (let x = ledge; x !== far + dir; x += dir) {
     const ground = surface[x] ?? 0;
-    if (inSpawnArea(ctx, x, top) || inSpawnArea(ctx, x, floor)) return null;
+    if (inProtected(ctx, x, top) || inProtected(ctx, x, floor)) return null;
     if (x !== ledge && Math.abs(ground - top) > FG.maxSlope) return null; // only on level ground
     for (let y = ground - FG.skyClearance; y < ground; y++) {
       const id = fg[y * width + x] ?? AIR;

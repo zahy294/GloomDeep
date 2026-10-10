@@ -2,7 +2,15 @@ import { WORLDGEN } from '../../config';
 import { DEPTH_LAYERS, SURFACE_BIOMES } from '../../data/biomes';
 import { FAIRY_RINGS, FLORA, RUINS, type FloraRule } from '../../data/flora';
 import { TILES, tileId } from '../../data/tiles';
-import { AIR, isSolidId, layerAt, stepRandom, type GenContext } from './context';
+import {
+  AIR,
+  inTown,
+  inTownColumns,
+  isSolidId,
+  layerAt,
+  stepRandom,
+  type GenContext,
+} from './context';
 
 interface Rule {
   id: number;
@@ -62,6 +70,7 @@ export function flora(ctx: GenContext): void {
     const biome = ctx.surfaceBiome[x] ?? 0;
     const i = (ground - 1) * width + x;
     if (ground <= 0 || fg[ground * width + x] !== GRASS[biome] || !empty(i)) continue;
+    if (inTownColumns(ctx, x)) continue; // towns are kept tidy
     const rule = pick(SURFACE_RULES[biome] ?? [], random);
     if (!rule) continue;
     if (SAPLING[rule.id] === 1) {
@@ -79,7 +88,7 @@ export function flora(ctx: GenContext): void {
     for (let x = 1; x < width - 1; x++) {
       if (y - (ctx.surface[x] ?? 0) < WORLDGEN.caveMinDepth) continue;
       const i = y * width + x;
-      if (!empty(i)) continue;
+      if (!empty(i) || inTown(ctx, x, y)) continue;
       if (isSolidId(fg[i + width] ?? AIR)) {
         const rule = pick(floor, random);
         if (rule) fg[i] = rule.id;
@@ -107,6 +116,7 @@ export function fairyRings(ctx: GenContext): void {
     const biome = SURFACE_BIOMES[ctx.surfaceBiome[x] ?? 0]?.key ?? '';
     if (!FAIRY_RINGS.biomes.includes(biome) || x - reach < 1 || x + reach >= width - 1)
       return false;
+    if (inTownColumns(ctx, x, reach + WORLDGEN.townClearance)) return false;
     for (let dx = -reach; dx <= reach; dx++) {
       const g = ctx.surface[x + dx];
       if (g !== ground || !isSolidId(fg[ground * width + x + dx] ?? AIR)) return false;
@@ -154,6 +164,7 @@ export function ruins(ctx: GenContext): void {
     const x = Math.floor(random() * ctx.width);
     if (!biomes.has(ctx.surfaceBiome[x] ?? -1)) continue;
     if (Math.abs(x - mid) < WORLDGEN.spawnHalfWidth + FLORA_CFG.ruinClearance) continue;
+    if (inTownColumns(ctx, x, WORLDGEN.townClearance)) continue;
     if (!flatAndClear(ctx, x)) continue;
     buildRuin(ctx, x, random);
     left--;
