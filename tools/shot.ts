@@ -866,6 +866,147 @@ const LIFE_SHOTS: Shot[] = [
   },
 ];
 
+/** M11: Canopyhold, the Rootdeep Citadel, the trade road, quests, trading and the festival. */
+const TOWNSFOLK = ['innkeeper', 'merchant', 'lampwright', 'caravaneer', 'courier', 'child'];
+const townsfolkHere = (p: GameProbe) => p.npcs.filter((n) => TOWNSFOLK.includes(n.key)).length;
+
+/** Right-clicks a townsperson once they stand still within reach; waits for their dialogue. */
+async function talkTo(page: Page, key: string): Promise<GameProbe> {
+  const near = (q: GameProbe) =>
+    q.npcs.find(
+      (n) =>
+        n.key === key &&
+        Math.abs(n.x - q.playerX) < (BUILDING_REACH - 0.5) * TILE_SIZE &&
+        Math.abs(n.y - q.playerY) < TILE_SIZE * 3,
+    );
+  const q = await waitForProbe(page, (r) => near(r) !== undefined, `${key} in reach`);
+  const npc = near(q);
+  if (npc) await rightClickPx(page, npc.x, npc.y - 20);
+  await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+  return waitForProbe(page, (r) => r.dialogue !== null, `${key}'s dialogue`);
+}
+
+const TOWN_SHOTS: Shot[] = [
+  {
+    name: 'canopyhold-day',
+    query: '?scene=game&time=noon&ui=0&spot=canopyhold',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = await waitForProbe(page, (q) => townsfolkHere(q) >= 4, 'Canopyhold folk');
+      await page.waitForTimeout(2500);
+      const town = p.towns.find((t) => t.key === 'canopyhold');
+      report.push(
+        `canopyhold: at ${town?.x0},${town?.y0}, light ${town?.light.toFixed(2)}, ${townsfolkHere(p)} folk about`,
+      );
+    },
+  },
+  {
+    name: 'canopyhold-night',
+    query: '?scene=game&time=night&ui=0&spot=canopyhold',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(2500);
+    },
+  },
+  {
+    // Pip offers a quest ('!' over her head): the dialogue shows the quest and Accept.
+    name: 'quest-offer',
+    query: '?scene=game&time=noon&near=child',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      const p = await talkTo(page, 'child');
+      await page.waitForTimeout(400);
+      check((await page.locator('text=Accept').count()) > 0, 'the dialogue should offer a quest');
+      report.push(`quest offer: ${p.dialogue} offers a quest`);
+    },
+  },
+  {
+    name: 'quest-journal',
+    query: '?scene=game&time=noon&near=child',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await talkTo(page, 'child');
+      await page.locator('text=Accept').first().click();
+      await waitForProbe(page, (q) => q.quests.length > 0, 'the quest to start');
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.keyboard.press('j');
+      await page.waitForTimeout(500);
+      const p = (await probe(page)) as GameProbe;
+      report.push(`journal: ${p.quests.join(', ')}`);
+    },
+  },
+  {
+    name: 'canopyhold-shop',
+    query: '?scene=game&time=noon&near=merchant&kit=crafting',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await talkTo(page, 'merchant');
+      await page.locator('text=Trade').first().click();
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
+      await page.waitForFunction(() => window.gloamdeep?.bridge.state.shop !== null, undefined, {
+        timeout: TIMEOUT_MS,
+      });
+      await page.waitForTimeout(400);
+      report.push('shop: the trader’s stall is open');
+    },
+  },
+  {
+    // Lost to the Gloam: a dark district with its dormant beacon.
+    name: 'citadel-lost',
+    query: '?scene=game&time=noon&ui=0&spot=citadel',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    // "Done when": two districts reclaimed, their folk back.
+    name: 'citadel-reclaimed',
+    query: '?scene=game&time=noon&ui=0&spot=citadel&reclaim=gate_ward,lantern_market',
+    prepare: async (page) => {
+      await waitForLight(page);
+      const p = await waitForProbe(
+        page,
+        (q) => (q.towns.find((t) => t.key === 'citadel')?.light ?? 0) > 0.6,
+        'two districts reclaimed',
+      );
+      await page.waitForTimeout(1500);
+      const folk = p.npcs.filter((n) => ['warden', 'smith', 'lampkeeper'].includes(n.key));
+      check(folk.length >= 2, 'reclaimed districts should have their folk back');
+      report.push(
+        `citadel: light ${p.towns.find((t) => t.key === 'citadel')?.light.toFixed(2)}, folk ${folk.map((n) => n.key).join(', ')}`,
+      );
+    },
+  },
+  {
+    // "Done when": lighting a road makes a caravan travel it.
+    name: 'road-caravan',
+    query: '?scene=game&time=sunset&ui=0&spot=road&road=lit',
+    prepare: async (page) => {
+      await waitForLight(page);
+      const near = (q: GameProbe) =>
+        q.caravans.some((c) => Math.abs(c.x - q.playerX) < VIEWPORT.width / ZOOM / 3);
+      const p = await waitForProbe(page, near, 'the caravan to come by');
+      await page.waitForTimeout(500);
+      report.push(`road: ${p.caravans.length} caravan(s) on the lit road`);
+    },
+  },
+  {
+    name: 'festival-night',
+    query: '?scene=game&ui=0&spot=canopyhold&festival=1',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await waitForProbe(
+        page,
+        (q) => q.towns.some((t) => t.festival === 'on'),
+        'the festival to start',
+      );
+      await page.waitForTimeout(6000); // lanterns rise, fireworks go up
+      report.push('festival: on in Canopyhold');
+    },
+  },
+];
+
 const SHOTS: Shot[] = [
   ...EXTRA_SHOTS,
   ...FOREST_SHOTS,
@@ -875,6 +1016,7 @@ const SHOTS: Shot[] = [
   ...COMBAT_SHOTS,
   ...MATERIAL_SHOTS,
   ...LIFE_SHOTS,
+  ...TOWN_SHOTS,
   // M10: a cave entrance near the spawn, and inside it, looking down the switchbacks.
   {
     name: 'cave-entrance',

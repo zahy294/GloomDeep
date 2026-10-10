@@ -768,3 +768,193 @@ body {
 .fae {
   color: #c8f078;
 }
+
+/* M11: dialogue actions, shop, journal, banner, HUD additions. */
+.dialogue-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 3);
+  margin-top: calc(var(--px) * 3);
+}
+
+.dialogue-offer {
+  color: var(--gold);
+}
+
+.shop-panel,
+.journal-panel {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--px) * 40);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 2);
+  width: calc(var(--px) * 200);
+  max-height: calc(var(--px) * 400);
+  overflow-y: auto;
+  padding: calc(var(--px) * 5);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+}
+
+.shop-terms {
+  color: var(--ink-dim);
+}
+
+.shop-purse {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 2);
+  color: var(--gold);
+}
+
+.shop-heading {
+  margin-top: calc(var(--px) * 2);
+  color: var(--glow);
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 3);
+  text-align: left;
+}
+
+.shop-name {
+  flex: 1;
+}
+
+.shop-price {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 2);
+  color: var(--gold);
+}
+
+.shop-badge {
+  margin-left: calc(var(--px) * 3);
+  padding: 0 calc(var(--px) * 2);
+  color: var(--rose-light);
+  border: var(--px) solid var(--rose);
+}
+
+.coin {
+  display: inline-block;
+  width: calc(var(--px) * 5);
+  height: calc(var(--px) * 5);
+  background: var(--gold);
+  border: var(--px) solid #a07a1e;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.glimmer {
+  color: var(--gold);
+}
+
+.journal-quest {
+  padding: calc(var(--px) * 2) 0;
+  border-top: var(--px) solid var(--panel-edge);
+}
+
+.journal-title {
+  display: flex;
+  justify-content: space-between;
+  color: var(--gold);
+}
+
+.journal-summary {
+  margin-top: calc(var(--px) * 1);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.journal-quest.done .journal-title,
+.journal-quest.done .journal-summary {
+  color: var(--ink-dim);
+}
+
+.journal-done {
+  color: var(--glow);
+}
+
+.banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22%;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  animation: banner-fade 3.5s ease-in-out forwards;
+  text-shadow: 0 0 calc(var(--px) * 4) #000;
+}
+
+.banner-title {
+  font-size: calc(var(--px) * 16);
+  color: var(--gold);
+}
+
+.banner-sub {
+  margin-top: calc(var(--px) * 2);
+  font-size: calc(var(--px) * 8);
+  color: var(--ink);
+}
+
+@keyframes banner-fade {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.town-plate {
+  color: var(--gold);
+}
+
+.town-bar,
+.courage-bar {
+  position: relative;
+  width: calc(var(--px) * 40);
+  height: calc(var(--px) * 4);
+  background: rgb(5 8 10 / 0.7);
+  border: var(--px) solid var(--panel-edge);
+}
+
+.town-fill,
+.courage-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--gold);
+}
+
+.town-bar.dim .town-fill {
+  background: #9a5a2a;
+}
+
+.courage-fill {
+  background: var(--glow);
+}
+
+.courage-bar.low {
+  border-color: var(--rose);
+  animation: courage-pulse 0.8s ease-in-out infinite;
+}
+
+.courage-bar.low .courage-fill {
+  background: var(--rose);
+}
+
+@keyframes courage-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}

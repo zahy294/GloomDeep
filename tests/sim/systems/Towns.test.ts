@@ -14,6 +14,7 @@ import { createNpc } from '../../../src/sim/entities/Npc';
 import { stampPrefabAt, worldTarget } from '../../../src/sim/world/prefabs';
 import type { TownPlace } from '../../../src/sim/world/worldData';
 import { AIR } from '../../../src/sim/world/World';
+import { lightRoads, relightDistricts, startFestival, townSpot } from '../../../src/sim/debugTowns';
 
 const T = TILE_SIZE;
 const W = 420;
@@ -473,5 +474,21 @@ describe('saving towns', () => {
     const keys = loaded.settlement.npcs.map((n) => n.key);
     expect(keys.filter((k) => k === 'merchant')).toHaveLength(1);
     expect(keys).toContain('warden');
+  });
+});
+
+describe('town debug starts', () => {
+  it('light the roads, relight districts, start the festival, find the spots', () => {
+    const sim = townWorld();
+    lightRoads(sim);
+    relightDistricts(sim, ['gate_ward']);
+    startFestival(sim);
+    step(sim, Math.max(ROAD.checkSeconds, TOWN.checkSeconds) * 1.2);
+    expect(sim.progression.has('road:canopy_road')).toBe(true);
+    expect(sim.progression.has('district:gate_ward')).toBe(true);
+    expect(canopy(sim).festivalPhase).toBe('on');
+    expect(townSpot(sim, 'canopyhold')?.y).toBe(GROUND);
+    expect(townSpot(sim, 'citadel')?.x).toBeGreaterThan(CITADEL.x0);
+    expect(townSpot(sim, 'road')?.x).toBeGreaterThan(VILLAGE_X);
   });
 });

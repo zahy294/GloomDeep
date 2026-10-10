@@ -39,6 +39,10 @@ export interface GameProbe {
   fae: number;
   /** Name of whoever is talking, or null. */
   dialogue: string | null;
+  /** M11: quests taken (`key:state`), towns (place, light, festival) and caravans (feet, px). */
+  quests: string[];
+  towns: { key: string; x0: number; y0: number; light: number; festival: string }[];
+  caravans: { x: number; y: number }[];
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */

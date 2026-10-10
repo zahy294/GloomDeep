@@ -40,12 +40,16 @@ export function recipeRows(
   stations: readonly string[],
   query: string,
   showAll: boolean,
+  lockedRecipes: readonly string[] = [],
 ): RecipeRow[] {
+  const locked = new Set(lockedRecipes);
   const counts = countItems(slots);
   const near = new Set(stations);
   const q = query.trim().toLowerCase();
   const rows: RecipeRow[] = [];
   for (const recipe of RESOLVED_RECIPES) {
+    // Recipes folk haven't taught yet stay hidden, even under "All".
+    if (locked.has(recipe.key)) continue;
     const stationOk = recipe.station === null || near.has(recipe.station);
     if (!stationOk && !showAll) continue;
     const name = ITEMS[recipe.output.itemId]?.name ?? '?';

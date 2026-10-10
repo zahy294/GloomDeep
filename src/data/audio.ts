@@ -109,6 +109,22 @@ export const SOUND_DESIGN = {
       noise: { type: 'highpass', hz: 2400, decay: 0.6, gain: 0.08 },
       tone: { type: 'sine', from: 300, to: 1200, decay: 0.7, gain: 0.07 },
     },
+    // M11 towns and folk.
+    coin: { tone: { type: 'square', from: 1800, to: 2400, decay: 0.14, gain: 0.04 } },
+    quest: { tone: { type: 'triangle', from: 523, to: 1046, decay: 1.1, gain: 0.08 } },
+    lamp: {
+      noise: { type: 'lowpass', hz: 1400, decay: 0.3, gain: 0.08 },
+      tone: { type: 'sine', from: 440, to: 660, decay: 0.4, gain: 0.05 },
+    },
+    lift: { noise: { type: 'bandpass', hz: 500, decay: 0.7, gain: 0.1 } },
+    relight: {
+      noise: { type: 'highpass', hz: 1800, decay: 1.2, gain: 0.07 },
+      tone: { type: 'sine', from: 196, to: 392, decay: 1.8, gain: 0.1 },
+    },
+    firework: {
+      noise: { type: 'lowpass', hz: 700, decay: 0.5, gain: 0.16 },
+      tone: { type: 'sine', from: 900, to: 300, decay: 0.3, gain: 0.04 },
+    },
   },
   /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
   envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },

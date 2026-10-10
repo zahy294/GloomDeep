@@ -29,8 +29,8 @@ export function Crafting({
   const [query, setQuery] = useState('');
   const [showAll, setShowAll] = useState(false);
   const rows = useMemo(
-    () => recipeRows(view.slots, view.stations, query, showAll),
-    [view.slots, view.stations, query, showAll],
+    () => recipeRows(view.slots, view.stations, query, showAll, view.lockedRecipes),
+    [view.slots, view.stations, query, showAll, view.lockedRecipes],
   );
   const stations = view.stations.map(stationName).join(', ');
 

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
 import { DebugOverlay } from './DebugOverlay';
-import { Hud, NoticeView } from './Hud';
+import { BannerOverlay, Hud, NoticeView } from './Hud';
+import { Journal } from './Journal';
+import { Shop } from './Shop';
 import { Generating } from './Generating';
 import { Hotbar, InventoryScreen } from './Inventory';
 import { PauseMenu } from './PauseMenu';
@@ -47,6 +49,9 @@ export function App({ bridge }: { bridge: UiBridge }) {
     notice,
     dialogue,
     travel,
+    shop,
+    journal,
+    banner,
     respawnIn,
     worlds,
     generation,
@@ -68,11 +73,14 @@ export function App({ bridge }: { bridge: UiBridge }) {
           {debug ? (
             <DebugOverlay info={debug} />
           ) : (
-            <div class="game-hint">F3: debug · E: inventory</div>
+            <div class="game-hint">F3: debug · E: inventory · J: journal</div>
           )}
           {hud && <Hud hud={hud} />}
           {notice && <NoticeView key={notice.id} notice={notice} />}
-          {dialogue && !inventoryOpen && <DialogueBox dialogue={dialogue} />}
+          {dialogue && !inventoryOpen && <DialogueBox bridge={bridge} dialogue={dialogue} />}
+          {shop && !inventoryOpen && <Shop bridge={bridge} shop={shop} icons={icons} />}
+          {journal && !inventoryOpen && <Journal bridge={bridge} journal={journal} />}
+          {banner && <BannerOverlay key={banner.id} banner={banner} />}
           {travel && !inventoryOpen && <TravelMenu bridge={bridge} travel={travel} />}
           {inventory && <Hotbar bridge={bridge} view={inventory} icons={icons} />}
           {inventory && inventoryOpen && (

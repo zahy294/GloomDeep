@@ -74,6 +74,15 @@ import { LightEffects } from '../LightEffects';
 import { MaterialsRenderer } from '../MaterialsRenderer';
 import { CombatRenderer } from '../CombatRenderer';
 import { LifeRenderer } from '../LifeRenderer';
+import { TownRenderer } from '../TownRenderer';
+import { TownPresenter } from '../TownPresenter';
+import {
+  besideResident,
+  lightRoads,
+  relightDistricts,
+  startFestival,
+  townSpot,
+} from '../../sim/debugTowns';
 import { selectedWeapon } from '../../sim/systems/CombatSystem';
 import { ownedLenses } from '../../sim/systems/LensSystem';
 import { PackFile, SceneKey, TextureKey } from './keys';
@@ -162,6 +171,8 @@ export class GameScene extends Phaser.Scene {
   };
   private combatView!: CombatRenderer;
   private lifeView!: LifeRenderer;
+  private townView!: TownRenderer;
+  private townUi!: TownPresenter;
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
   private paused = false;
@@ -177,6 +188,8 @@ export class GameScene extends Phaser.Scene {
   private noticeId = 0;
   /** Active lens and owned lenses last sent to the HUD. */
   private hudLensKey = '';
+  /** The M11 HUD fields last sent (glimmer, town, escort), as JSON. */
+  private hudTownKey = '';
   /** Who is talking (npc id) and the beacon whose travel list is open (tiles), or -1/null. */
   private talkingTo = -1;
   private travelFrom: { x: number; y: number } | null = null;
@@ -365,7 +378,10 @@ export class GameScene extends Phaser.Scene {
       sim.critters.critters,
       sim.wisps,
       player,
+      (npc) => sim.quests.marker(npc),
     );
+    this.townView = new TownRenderer(this, this.glowScene, sim);
+    this.townUi = new TownPresenter(sim, this.bridge, (text) => this.notify(text));
     sim.events.on('playerHurt', () =>
       this.cameraDirector.shake(COMBAT_VIEW.hurtShake, COMBAT_VIEW.hurtShakeSeconds),
     );
@@ -390,11 +406,15 @@ export class GameScene extends Phaser.Scene {
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.pause}`, () => {
       if (this.inventoryOpen) this.toggleInventory();
-      else if (this.talkingTo >= 0 || this.travelFrom) this.closeVillagePanels();
+      else if (this.talkingTo >= 0 || this.travelFrom || this.townUi.panelOpen)
+        this.closeVillagePanels();
       else this.setPaused(!this.paused);
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.toggleInventory}`, () => {
       if (!this.paused) this.toggleInventory();
+    });
+    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleJournal}`, () => {
+      if (!this.paused) this.townUi.toggleJournal();
     });
     const onVisibility = () => {
       if (document.visibilityState !== 'hidden' || this.quitting) return;
@@ -423,6 +443,23 @@ export class GameScene extends Phaser.Scene {
         this.closeVillagePanels();
       }),
       this.bridge.commands.on('closePanel', () => this.closeVillagePanels()),
+      this.bridge.commands.on('acceptQuest', ({ quest }) => {
+        sim.enqueue({ type: 'acceptQuest', quest });
+        this.talkingTo = -1;
+        this.bridge.set({ dialogue: null });
+      }),
+      this.bridge.commands.on('openShop', ({ npcId }) => {
+        this.talkingTo = -1;
+        this.bridge.set({ dialogue: null });
+        this.townUi.openShop(npcId);
+      }),
+      this.bridge.commands.on('buy', ({ npcId, offer }) =>
+        sim.enqueue({ type: 'buy', npc: npcId, offer }),
+      ),
+      this.bridge.commands.on('sell', ({ npcId, item, count }) =>
+        sim.enqueue({ type: 'sell', npc: npcId, item, count }),
+      ),
+      this.bridge.commands.on('toggleJournal', () => this.townUi.toggleJournal()),
     ];
     this.listenToVillage();
     sim.events.on('inventoryChanged', () => this.publishInventory());
@@ -446,6 +483,8 @@ export class GameScene extends Phaser.Scene {
       this.materials.destroy();
       this.combatView.destroy();
       this.lifeView.destroy();
+      this.townView.destroy();
+      this.townUi.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
       this.waterfalls.destroy();
@@ -467,6 +506,9 @@ export class GameScene extends Phaser.Scene {
         notice: null,
         dialogue: null,
         travel: null,
+        shop: null,
+        journal: null,
+        banner: null,
         respawnIn: null,
         paused: false,
       });
@@ -498,9 +540,20 @@ export class GameScene extends Phaser.Scene {
   /** Talking, beacon travel and the M10 notices (arrivals, the fae buff, caught fireflies). */
   private listenToVillage(): void {
     const { events } = this.sim;
-    events.on('talk', ({ npcId, name, role, text }) => {
+    events.on('talk', ({ npcId, name, role, text, offer, offerTitle, shop }) => {
       this.talkingTo = npcId;
-      this.bridge.set({ dialogue: { name, role, text, id: ++this.dialogueId } });
+      this.townUi.close();
+      this.bridge.set({
+        dialogue: {
+          name,
+          role,
+          text,
+          id: ++this.dialogueId,
+          npcId,
+          offer: offer ? { key: offer, title: offerTitle } : null,
+          shop,
+        },
+      });
     });
     events.on('beaconMenu', ({ x, y, beacons }) => {
       this.travelFrom = { x, y };
@@ -522,8 +575,10 @@ export class GameScene extends Phaser.Scene {
 
   private closeVillagePanels(): void {
     if (this.travelFrom) this.setPointerOverUi(false); // the list may close under the cursor
+    if (this.townUi.panelOpen) this.setPointerOverUi(false);
     this.talkingTo = -1;
     this.travelFrom = null;
+    this.townUi.close();
     this.bridge.set({ dialogue: null, travel: null });
   }
 
@@ -622,6 +677,15 @@ export class GameScene extends Phaser.Scene {
     events.on('wispAppeared', () => audio.effect('wisp'));
     events.on('wispArrived', () => audio.effect('wisp'));
     events.on('travelled', () => audio.effect('travel'));
+    events.on('traded', () => audio.effect('coin'));
+    events.on('questCompleted', () => audio.effect('quest'));
+    events.on('questStarted', () => audio.effect('talk'));
+    events.on('lampRefuelled', () => audio.effect('lamp'));
+    events.on('liftRode', () => audio.effect('lift'));
+    events.on('beaconRelit', () => audio.effect('relight'));
+    events.on('districtReclaimed', () => audio.effect('arrive'));
+    events.on('roadLit', () => audio.effect('quest'));
+    events.on('festivalStarted', () => audio.effect('firework'));
     // A colony of bats takes off together: one flutter, not one per bat.
     let lastFlutter = -Infinity;
     events.on('critterStartled', ({ type }) => {
@@ -795,6 +859,7 @@ export class GameScene extends Phaser.Scene {
     this.materials.update(this.view, alpha, delta / 1000, this.sim.time);
     this.combatView.update(alpha, delta / 1000, this.sim.time);
     this.lifeView.update(alpha, delta / 1000, this.sim.time);
+    this.townView.update(alpha, delta / 1000, this.sim.time, this.view);
     this.fx.update(delta / 1000);
     // The light grid is computed around what the camera shows.
     input.setFocus(cam.scrollX + cam.width / 2, cam.scrollY + cam.height / 2);
@@ -858,6 +923,17 @@ export class GameScene extends Phaser.Scene {
       wisp: this.sim.wisps.wisp !== null,
       fae: player.fae,
       dialogue: this.bridge.state.dialogue?.name ?? null,
+      quests: [...this.sim.quests.quests.values()].map((q) => `${q.key}:${q.state}`),
+      towns: this.sim.towns.towns.map((t) => ({
+        key: t.def.key,
+        x0: t.place.x0,
+        y0: t.place.y0,
+        light: t.light,
+        festival: t.festivalPhase,
+      })),
+      caravans: this.sim.roads.roads.flatMap((r) =>
+        r.caravan ? [{ x: r.caravan.x, y: r.caravan.y }] : [],
+      ),
     };
   }
 
@@ -872,6 +948,7 @@ export class GameScene extends Phaser.Scene {
       hotbarSize: inv.hotbarSize,
       cursor: inv.cursor ? { itemId: inv.cursor.itemId, count: inv.cursor.count } : null,
       stations,
+      lockedRecipes: this.townUi.lockedRecipes(),
     };
     this.bridge.set({ inventory: view });
   }
@@ -904,6 +981,7 @@ export class GameScene extends Phaser.Scene {
       this.timer.roll();
       if (this.debugOpen) this.publishDebug();
       this.publishHud();
+      this.townUi.update();
       this.checkVillagePanels();
       this.refreshStations();
       // How much of the view the Gloam covers drains the colour grade (eased, a few times a second).
@@ -931,6 +1009,8 @@ export class GameScene extends Phaser.Scene {
     const lensKey = ownedLenses(this.sim.inventory)
       .map((l) => l.key)
       .join(',');
+    const town = this.townUi.hud();
+    const townKey = JSON.stringify(town);
     if (
       hud &&
       hud.lumen === lumen &&
@@ -938,10 +1018,12 @@ export class GameScene extends Phaser.Scene {
       this.hudLensKey === `${player.lens}|${lensKey}` &&
       hud.lanternOn === player.lanternOn &&
       hud.clock === clock &&
-      hud.fae === fae
+      hud.fae === fae &&
+      this.hudTownKey === townKey
     ) {
       return;
     }
+    this.hudTownKey = townKey;
     this.hudLensKey = `${player.lens}|${lensKey}`;
     const lens = lensByKey(player.lens);
     const lenses = ownedLenses(this.sim.inventory).map((l) => ({
@@ -960,6 +1042,7 @@ export class GameScene extends Phaser.Scene {
         lensName: lens.name,
         clock,
         fae,
+        ...town,
       },
     });
   }
@@ -1012,6 +1095,12 @@ export class GameScene extends Phaser.Scene {
       feet = { x: fx, y: sim.world.groundRow(fx) };
     } else if (spot === 'village') {
       feet = this.stampVillage(sim, Math.floor(generated.spawnX / TILE_SIZE));
+    } else if (this.params.near) {
+      feet = besideResident(sim, this.params.near);
+      if (!feet) console.warn(`No townsperson near=${this.params.near}`);
+    } else if (spot === 'canopyhold' || spot === 'citadel' || spot === 'road') {
+      feet = townSpot(sim, spot);
+      if (!feet) console.warn(`No ${spot} in this world; using the normal spawn`);
     } else if (biome !== null || spot !== null) {
       feet = findDebugSpawn(sim.world, { biome, spot });
       if (!feet)
@@ -1023,6 +1112,13 @@ export class GameScene extends Phaser.Scene {
       p.body.y = feet.y * TILE_SIZE - p.body.height;
       p.prevX = p.body.x;
       p.prevY = p.body.y;
+    }
+    // M11 town starts.
+    if (this.params.roadLit) lightRoads(sim);
+    if (this.params.reclaim.length > 0) relightDistricts(sim, this.params.reclaim);
+    if (this.params.festival) startFestival(sim);
+    if (this.params.quest && !sim.quests.accept(this.params.quest)) {
+      console.warn(`Unknown or unavailable quest=${this.params.quest}`);
     }
     if (this.params.wisp) sim.wisps.summon(sim.player);
     const critter = CRITTERS.findIndex((c) => c.key === this.params.critter);

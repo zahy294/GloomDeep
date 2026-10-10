@@ -58,6 +58,11 @@ describe('parseDebugParams', () => {
     enemy: null,
     wisp: false,
     critter: null,
+    roadLit: false,
+    festival: false,
+    quest: null,
+    reclaim: [],
+    near: null,
   };
 
   it('defaults to the title screen with UI, normal spawn and no seed', () => {
@@ -85,6 +90,23 @@ describe('parseDebugParams', () => {
       enemy: null,
       wisp: false,
       critter: null,
+      roadLit: false,
+      festival: false,
+      quest: null,
+      reclaim: [],
+      near: null,
+    });
+  });
+
+  it('reads the M11 town starts', () => {
+    expect(
+      parseDebugParams('?spot=citadel&road=lit&festival=1&quest=lost_locket&reclaim=a,b,c/d'),
+    ).toMatchObject({
+      spot: 'citadel',
+      roadLit: true,
+      festival: true,
+      quest: 'lost_locket',
+      reclaim: ['a', 'b'],
     });
   });
 

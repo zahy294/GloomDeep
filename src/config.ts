@@ -1684,3 +1684,70 @@ export const WATER_FX = {
     edgeMargin: 16,
   },
 } as const;
+
+/** M11 town visuals: quest markers, scared folk, caravans, lost-thing glint, festival lanterns and fireworks. */
+export const TOWN_VIEW = {
+  /** Quest markers: bob (px, rad/s), font, colours, gap above the head, re-evaluation rate (per second). */
+  markerBobPx: 1.5,
+  markerBobRate: 4,
+  markerFontPx: 10,
+  markerGap: 3,
+  markerGold: '#ffd24a',
+  markerMint: '#7ff0d0',
+  markerStroke: '#05080a',
+  markerStrokePx: 3,
+  markerChecksPerSecond: 5,
+  /** The name tag rises this many px above the marker so the two never overlap. */
+  tagLiftPx: 12,
+  /** Scared folk shiver by +-shiverPx at shiverRate (rad/s). */
+  shiverPx: 1,
+  shiverRate: 60,
+  /** Lift basket: tile-sized frame drawn under riding folk. */
+  basketDropPx: 0,
+  /** Caravans: walking frame rate, lantern offset ahead of the centre and above the feet and halo. */
+  caravanFrameRate: 4,
+  caravanLanternX: 24,
+  caravanLanternY: 22,
+  caravanHaloPx: 96,
+  caravanHaloAlpha: 0.7,
+  caravanHaloColor: 0xffc060,
+  caravanFlicker: 0.12,
+  caravanFlickerRate: 9,
+  /** Lost-thing glint: sparkle period (s), sizes (px) and halo alpha. */
+  glintPeriod: 1.6,
+  glintPx: 12,
+  glintHaloPx: 56,
+  glintHaloAlpha: 0.55,
+  glintColor: 0xfff0a0,
+  /** Festivals only draw for towns within this many px of the view. */
+  festivalMarginPx: 160,
+  /** Sky lanterns: spawns per second per town, rise speed (px/s min..max), sway (px, rad/s), lifetime (s), cap. */
+  lanternRate: 1.2,
+  lanternRiseMin: 10,
+  lanternRiseMax: 20,
+  lanternSwayPx: 8,
+  lanternSwayRate: 1.2,
+  lanternLifeMin: 9,
+  lanternLifeMax: 14,
+  lanternMax: 24,
+  lanternFadeSeconds: 2,
+  lanternHaloPx: 40,
+  lanternHaloAlpha: 0.6,
+  lanternColor: 0xffb050,
+  /** Fireworks: seconds between bursts (min..max), height above the town top (px, min..max), sparks per burst, speed, lifetime, gravity, cap. */
+  fireworkIntervalMin: 3,
+  fireworkIntervalMax: 7,
+  fireworkHeightMin: 40,
+  fireworkHeightMax: 110,
+  fireworkSparks: 18,
+  fireworkSpeedMin: 40,
+  fireworkSpeedMax: 80,
+  fireworkLife: 1.4,
+  fireworkGravity: 40,
+  sparkMax: 96,
+  fireworkFlashPx: 140,
+  fireworkFlashSeconds: 0.25,
+  fireworkFlashAlpha: 0.8,
+  sparkHaloPx: 14,
+  sparkHaloAlpha: 0.5,
+} as const;

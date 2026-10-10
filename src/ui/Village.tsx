@@ -4,15 +4,47 @@ import type { DialogueView, TravelView, UiBridge } from './bridge';
  * M10 village UI: the speech box when you talk to someone (right-click them again for their next
  * line; it closes when you walk away or press Esc) and a beacon's travel list.
  */
-export function DialogueBox({ dialogue }: { dialogue: DialogueView }) {
+export function DialogueBox({ bridge, dialogue }: { bridge: UiBridge; dialogue: DialogueView }) {
+  const { offer, shop } = dialogue;
+  const hasButtons = offer !== null || shop;
+  const over = (value: boolean) => bridge.commands.emit('pointerOverUi', { over: value });
   return (
-    <div class="dialogue" role="dialog" aria-label={dialogue.name}>
+    <div
+      class={`dialogue${hasButtons ? ' interactive' : ''}`}
+      role="dialog"
+      aria-label={dialogue.name}
+      onMouseEnter={hasButtons ? () => over(true) : undefined}
+      onMouseLeave={hasButtons ? () => over(false) : undefined}
+    >
       <div class="dialogue-name">
         {dialogue.name} <span class="hud-dim">· {dialogue.role}</span>
       </div>
       <div class="dialogue-text" key={dialogue.id}>
         {dialogue.text}
       </div>
+      {hasButtons && (
+        <div class="dialogue-actions">
+          {offer && (
+            <>
+              <span class="dialogue-offer">{offer.title}</span>
+              <button
+                class="panel-button"
+                onClick={() => bridge.commands.emit('acceptQuest', { quest: offer.key })}
+              >
+                Accept
+              </button>
+            </>
+          )}
+          {shop && (
+            <button
+              class="panel-button"
+              onClick={() => bridge.commands.emit('openShop', { npcId: dialogue.npcId })}
+            >
+              Trade
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

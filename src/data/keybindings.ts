@@ -44,6 +44,8 @@ export const DEBUG_KEYS = {
 
 export const UI_KEYS = {
   toggleInventory: 'E',
+  /** The quest journal (M11). */
+  toggleJournal: 'J',
   /** Closes the inventory panel, otherwise opens/closes the pause menu. */
   pause: 'ESC',
 } as const;

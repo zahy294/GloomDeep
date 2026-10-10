@@ -52,6 +52,27 @@ export interface HudView {
   clock: string;
   /** Whole seconds of the fairy-ring buff left (0 = none). */
   fae: number;
+  /** Glimmer carried (M11 currency). */
+  glimmer: number;
+  /** The town the player is in, or null. */
+  town: TownView | null;
+  /** Someone following the player through the dark (escort quest), or null. */
+  escort: EscortView | null;
+}
+
+/** The town around the player (M11): its name and how well lit it is. */
+export interface TownView {
+  name: string;
+  /** 0..1: lamps burning (the Citadel: districts reclaimed). */
+  light: number;
+  /** A short status, e.g. "Lamps burning low" or "2 of 3 districts reclaimed". */
+  status: string;
+}
+
+/** An escort's courage: 1 = calm, 0 = about to run home. */
+export interface EscortView {
+  name: string;
+  courage: number;
 }
 
 /** Someone talking (M10); `id` changes per line so the text fades in anew. */
@@ -59,6 +80,46 @@ export interface DialogueView {
   name: string;
   role: string;
   text: string;
+  id: number;
+  /** Who is talking (for opening their shop). */
+  npcId: number;
+  /** A quest they offer right now (M11), or null. */
+  offer: { key: string; title: string } | null;
+  /** They trade: show a Trade button. */
+  shop: boolean;
+}
+
+/** A trader's stall (M11): what they sell now, what they'd pay for what you carry. */
+export interface ShopView {
+  npcId: number;
+  name: string;
+  role: string;
+  glimmer: number;
+  /** e.g. "Fair prices", "Dark streets: prices up 30%", "Lit roads: prices down 15%". */
+  terms: string;
+  offers: readonly {
+    /** Index into the trader's offers (the `buy` command takes it). */
+    index: number;
+    itemId: number;
+    count: number;
+    price: number;
+    affordable: boolean;
+    /** A festival stall offer. */
+    festival: boolean;
+  }[];
+  /** Stacks they would buy from you: the whole stack's price. */
+  sells: readonly { itemId: number; have: number; price: number }[];
+}
+
+/** The quest journal (M11). */
+export interface JournalView {
+  quests: readonly { key: string; title: string; summary: string; done: boolean }[];
+}
+
+/** A big centred title that fades (entering a town, a district reclaimed, a festival). */
+export interface BannerView {
+  title: string;
+  sub: string;
   id: number;
 }
 
@@ -81,6 +142,8 @@ export interface InventoryView {
   cursor: StackView | null;
   /** Crafting station keys within reach of the player. */
   stations: readonly string[];
+  /** Recipes not known yet (taught by folk, M11): hidden from the crafting list. */
+  lockedRecipes: readonly string[];
 }
 
 /** Where an item icon sits in one of the pack's images, in game pixels. */
@@ -117,6 +180,11 @@ export interface UiState {
   dialogue: DialogueView | null;
   /** Null unless a beacon's travel list is open. */
   travel: TravelView | null;
+  /** Null unless a trader's stall is open. */
+  shop: ShopView | null;
+  /** Null unless the quest journal is open. */
+  journal: JournalView | null;
+  banner: BannerView | null;
   /** Seconds until the player respawns, or null while alive. */
   respawnIn: number | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
@@ -149,8 +217,16 @@ export interface UiCommands {
   resume: Record<string, never>;
   /** Fast travel to the beacon at tile (x, y), from the travel list. */
   travelTo: { x: number; y: number };
-  /** Close the travel list (or the dialogue). */
+  /** Close the travel list (or the dialogue, the shop, the journal). */
   closePanel: Record<string, never>;
+  /** Accept the quest offered in the dialogue. */
+  acceptQuest: { quest: string };
+  /** Open the trader's stall from the dialogue. */
+  openShop: { npcId: number };
+  buy: { npcId: number; offer: number };
+  /** Sell `count` of an item (the stall offers whole stacks). */
+  sell: { npcId: number; item: number; count: number };
+  toggleJournal: Record<string, never>;
   saveAndQuit: Record<string, never>;
 }
 

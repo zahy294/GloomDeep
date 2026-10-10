@@ -1,19 +1,22 @@
 import * as Phaser from 'phaser';
-import { LIFE_VIEW, LIGHT_FX, TILE_SIZE } from '../config';
+import { LIFE_VIEW, LIGHT_FX, TILE_SIZE, TOWN_VIEW } from '../config';
 import { CRITTERS } from '../data/critters';
 import { DRYAD, folkFrame, npcDef } from '../data/npcs';
 import { lightByKey } from '../data/lights';
+import { tileId } from '../data/tiles';
 import type { Npc } from '../sim/entities/Npc';
 import type { Player } from '../sim/entities/Player';
 import type { EventBus, SimEvents } from '../sim/events';
 import type { Critter } from '../sim/systems/CritterSystem';
 import type { WispSystem } from '../sim/systems/WispSystem';
 import { Depth } from './depth';
+import { frameBase } from '../sim/world/autotile';
 import { TextureKey } from './scenes/keys';
 import { spriteFrame } from './spriteFrames';
 
 const FOLK_SHEET = 'folk';
 const CRITTER_SHEET = 'critters';
+const LIFT_BASKET_FRAME = frameBase(tileId('lift_post'));
 const WISP_COLOR = rgb(lightByKey('wisp').color);
 
 function rgb(c: readonly number[]): number {
@@ -35,6 +38,11 @@ interface Ring {
 export class LifeRenderer {
   private readonly folk: Phaser.GameObjects.Image[] = [];
   private readonly tags: Phaser.GameObjects.Text[] = [];
+  private readonly markers: Phaser.GameObjects.Text[] = [];
+  private readonly baskets: Phaser.GameObjects.Image[] = [];
+  /** Cached quest marker per NPC and the time it is next re-evaluated. */
+  private readonly markerValue: ('' | '!' | '?')[] = [];
+  private readonly markerDue: number[] = [];
   private readonly critterImages: Phaser.GameObjects.Image[] = [];
   private readonly halos: Phaser.GameObjects.Image[] = [];
   private readonly trail: Phaser.GameObjects.Image[] = [];
@@ -54,6 +62,8 @@ export class LifeRenderer {
     private readonly critters: readonly Critter[],
     private readonly wisps: WispSystem,
     private readonly player: Player,
+    /** Quest marker over someone's head (M11): '!' an offer, '?' ready to hand in. */
+    readonly marker: (npc: Npc) => '' | '!' | '?' = () => '',
   ) {
     for (let i = 0; i < LIFE_VIEW.wispTrail; i++) {
       this.trail.push(
@@ -82,6 +92,8 @@ export class LifeRenderer {
     for (const list of [this.folk, this.critterImages, this.halos, this.trail])
       for (const image of list) image.destroy();
     for (const tag of this.tags) tag.destroy();
+    for (const m of this.markers) m.destroy();
+    for (const basket of this.baskets) basket.destroy();
     for (const ring of this.rings) ring.image.destroy();
     this.rings.length = 0;
   }
@@ -106,6 +118,27 @@ export class LifeRenderer {
           .setOrigin(0.5, 1)
           .setVisible(false),
       );
+      this.markers.push(
+        this.glowScene.add
+          .text(0, 0, '', {
+            fontFamily: 'monospace',
+            fontStyle: 'bold',
+            fontSize: `${TOWN_VIEW.markerFontPx}px`,
+            stroke: TOWN_VIEW.markerStroke,
+            strokeThickness: TOWN_VIEW.markerStrokePx,
+          })
+          .setOrigin(0.5, 1)
+          .setVisible(false),
+      );
+      this.baskets.push(
+        this.scene.add
+          .image(0, 0, TextureKey.tiles, LIFT_BASKET_FRAME)
+          .setOrigin(0.5, 0)
+          .setDepth(Depth.entities - 0.1)
+          .setVisible(false),
+      );
+      this.markerValue.push('');
+      this.markerDue.push(0);
     }
     const pb = this.player.body;
     const px = pb.x + pb.width / 2;
@@ -113,17 +146,24 @@ export class LifeRenderer {
     for (let i = 0; i < this.folk.length; i++) {
       const image = this.folk[i];
       const tag = this.tags[i];
+      const mark = this.markers[i];
+      const basket = this.baskets[i];
       const npc = this.npcs[i];
-      if (!image || !tag) continue;
+      if (!image || !tag || !mark || !basket) continue;
       if (!npc) {
         image.setVisible(false);
         tag.setVisible(false);
+        mark.setVisible(false);
+        basket.setVisible(false);
         continue;
       }
       const b = npc.body;
-      const x = Math.round(npc.prevX + (b.x - npc.prevX) * alpha + b.width / 2);
+      let x = Math.round(npc.prevX + (b.x - npc.prevX) * alpha + b.width / 2);
       const y = Math.round(npc.prevY + (b.y - npc.prevY) * alpha + b.height);
       const walking = Math.abs(b.vx) > 1;
+      // Frightened folk shiver in place.
+      if (npc.scared && !walking)
+        x += Math.sin(time * TOWN_VIEW.shiverRate) >= 0 ? TOWN_VIEW.shiverPx : -TOWN_VIEW.shiverPx;
       const step = walking ? Math.floor(time * LIFE_VIEW.walkRate + npc.id) % 2 : 0;
       // The Dryad sways slowly in place instead of stepping.
       const sway = npc.key === DRYAD.key;
@@ -133,11 +173,29 @@ export class LifeRenderer {
         .setPosition(x, y)
         .setFlipX(npc.facing < 0)
         .setVisible(true);
+      const riding = npc.nav?.riding === true;
+      basket.setVisible(riding);
+      if (riding) basket.setPosition(x, y + TOWN_VIEW.basketDropPx);
+      if (time >= (this.markerDue[i] ?? 0)) {
+        this.markerValue[i] = this.marker(npc);
+        this.markerDue[i] = time + 1 / TOWN_VIEW.markerChecksPerSecond;
+      }
+      const flag = this.markerValue[i] ?? '';
+      const headY = y - b.height;
+      if (flag === '') mark.setVisible(false);
+      else {
+        if (mark.text !== flag) {
+          mark.setText(flag);
+          mark.setColor(flag === '!' ? TOWN_VIEW.markerGold : TOWN_VIEW.markerMint);
+        }
+        const bob = Math.sin(time * TOWN_VIEW.markerBobRate + npc.id) * TOWN_VIEW.markerBobPx;
+        mark.setPosition(x, headY - TOWN_VIEW.markerGap + bob).setVisible(true);
+      }
       const near = Math.hypot(x - px, y - b.height / 2 - py) < LIFE_VIEW.tagTiles * TILE_SIZE;
       if (near) {
         const name = npcDef(npc.key)?.name ?? '';
         if (tag.text !== name) tag.setText(name);
-        tag.setPosition(x, y - b.height - LIFE_VIEW.tagGap);
+        tag.setPosition(x, headY - LIFE_VIEW.tagGap - (flag === '' ? 0 : TOWN_VIEW.tagLiftPx));
       }
       tag.setVisible(near);
     }

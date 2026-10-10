@@ -35,9 +35,11 @@ export interface DebugParams {
    * Debug start: `spot=cave` spawns in an open cave pocket, `spot=waterfall` beside a waterfall,
    * `spot=entrance` at the cave entrance nearest the spawn, `spot=village` among four lit
    * cottages stamped beside the spawn (villagers move in over the first seconds), `spot=fairy`
-   * inside the fairy ring nearest the centre, `spot=chamber` in a tall open cave room.
+   * inside the fairy ring nearest the centre, `spot=chamber` in a tall open cave room,
+   * `spot=canopyhold` on Canopyhold's plaza, `spot=citadel` inside the Rootdeep Citadel's west gate,
+   * `spot=road` on the road from the village to Canopyhold, halfway along.
    */
-  spot: 'cave' | 'waterfall' | 'entrance' | 'village' | 'fairy' | 'chamber' | null;
+  spot: DebugSpot | null;
   /** Debug start world size (`size=small|medium|large`). */
   size: WorldSizeKey | null;
   /** `rain=0..1` forces the rain intensity for rendering only (screenshots); null = real weather. */
@@ -52,7 +54,30 @@ export interface DebugParams {
   critter: string | null;
   /** `wisp=1` makes a wisp appear at once (if a secret is near) for screenshots. */
   wisp: boolean;
+  /** M11: `road=lit` lights every road with torches at the start (caravans set out). */
+  roadLit: boolean;
+  /** `festival=1`: the first boss is down, so the festival runs from the next dusk. */
+  festival: boolean;
+  /** `quest=<key>`: that quest is already accepted (src/data/quests). */
+  quest: string | null;
+  /** `reclaim=<district>,<district>`: those Citadel district beacons start relit. */
+  reclaim: readonly string[];
+  /** `near=<npc>`: start beside that townsperson (where their routine has them). */
+  near: string | null;
 }
+
+export const DEBUG_SPOTS = [
+  'cave',
+  'waterfall',
+  'entrance',
+  'village',
+  'fairy',
+  'chamber',
+  'canopyhold',
+  'citadel',
+  'road',
+] as const;
+export type DebugSpot = (typeof DEBUG_SPOTS)[number];
 
 function intParam(params: URLSearchParams, name: string): number | null {
   const text = params.get(name);
@@ -93,10 +118,7 @@ export function parseDebugParams(search: string): DebugParams {
     quality: (['low', 'medium', 'high'] as const).find((q) => q === params.get('quality')) ?? null,
     pack: nameParam(params, 'pack'),
     biome: nameParam(params, 'biome'),
-    spot:
-      (['cave', 'waterfall', 'entrance', 'village', 'fairy', 'chamber'] as const).find(
-        (s) => s === params.get('spot'),
-      ) ?? null,
+    spot: DEBUG_SPOTS.find((s) => s === params.get('spot')) ?? null,
     size: (['small', 'medium', 'large'] as const).find((s) => s === params.get('size')) ?? null,
     rain: unitParam(params, 'rain'),
     kit: nameParam(params, 'kit'),
@@ -104,5 +126,10 @@ export function parseDebugParams(search: string): DebugParams {
     enemy: nameParam(params, 'enemy'),
     wisp: params.get('wisp') === '1',
     critter: nameParam(params, 'critter'),
+    roadLit: params.get('road') === 'lit',
+    festival: params.get('festival') === '1',
+    quest: nameParam(params, 'quest'),
+    near: nameParam(params, 'near'),
+    reclaim: (params.get('reclaim') ?? '').split(',').filter((k) => /^[\w-]+$/.test(k)),
   };
 }

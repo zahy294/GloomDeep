@@ -45,6 +45,17 @@ describe('recipeRows', () => {
   });
 });
 
+describe('recipeRows locked recipes', () => {
+  it('hides recipes that are not learned yet', () => {
+    const slots = [stack('elderwood_planks', 9)];
+    const open = recipeRows(slots, ['workbench'], '', true);
+    expect(open.some((r) => r.recipe.key === 'elderwood_pickaxe')).toBe(true);
+    const locked = recipeRows(slots, ['workbench'], '', true, ['elderwood_pickaxe']);
+    expect(locked.some((r) => r.recipe.key === 'elderwood_pickaxe')).toBe(false);
+    expect(locked.length).toBe(open.length - 1);
+  });
+});
+
 describe('item text', () => {
   it('describes tools, stations, blocks and materials', () => {
     expect(itemTooltip(itemId('copper_pickaxe'))).toEqual([
