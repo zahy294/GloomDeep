@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { ATMOSPHERE, GLOAM, GRADE } from '../config';
+import { ATMOSPHERE, DIMMING_FX, GLOAM, GRADE } from '../config';
 import type { BiomeVisual } from '../data/biomeVisuals';
 import { mixColor } from './atmosphereMath';
 import { blendColor, blendNumber } from './biomeBlend';
@@ -147,6 +147,13 @@ export class CameraGrade {
       (1 - visual.gloam * GLOAM.maxDesaturate);
     p.contrast = blendNumber(w, pickContrast) * (1 - k) + u.contrast * k;
     p.brightness = blendNumber(w, pickBrightness) * (1 - k) + u.brightness * k;
+    // A Dimming night (M12): cold and violet, a little darker.
+    const dim = visual.dimming;
+    if (dim > 0) {
+      p.tint = mixColor(p.tint, DIMMING_FX.tint, dim * DIMMING_FX.tintMix);
+      p.saturation *= 1 - dim * (1 - DIMMING_FX.saturation);
+      p.brightness *= 1 - dim * (1 - DIMMING_FX.brightness);
+    }
     gradeMatrix(p, this.matrix);
 
     const needed = enabled && !isIdentity(this.matrix, GRADE.matrixEpsilon);

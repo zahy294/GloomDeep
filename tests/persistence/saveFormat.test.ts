@@ -89,9 +89,21 @@ export function makeState(width: number, height: number, fill?: (i: number) => n
     gloamInitial: 98765,
     flags: ['road:canopy_road', 'district:gate_ward'],
     towns: [
-      { key: 'canopyhold', x0: 5, y0: 6, x1: 7, y1: 8, lamps: [[6, 7, 0.25]], festival: 'due' },
+      {
+        key: 'canopyhold',
+        x0: 5,
+        y0: 6,
+        x1: 7,
+        y1: 8,
+        lamps: [[6, 7, 0.25]],
+        festival: 'due',
+        festivalsDone: [],
+      },
     ],
     quests: [{ key: 'lost_locket', state: 'active', x: 12, y: 34 }],
+    day: 4,
+    dimmingsSurvived: 1,
+    arenas: [{ key: 'moth_matriarch', x0: 1, y0: 2, x1: 3, y1: 4 }],
   };
 }
 

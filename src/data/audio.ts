@@ -125,6 +125,29 @@ export const SOUND_DESIGN = {
       noise: { type: 'lowpass', hz: 700, decay: 0.5, gain: 0.16 },
       tone: { type: 'sine', from: 900, to: 300, decay: 0.3, gain: 0.04 },
     },
+    // M12 bosses and Dimming nights.
+    bossIntro: {
+      noise: { type: 'lowpass', hz: 220, decay: 2.2, gain: 0.22 },
+      tone: { type: 'sawtooth', from: 55, to: 41, decay: 2.4, gain: 0.12 },
+    },
+    bossPhase: {
+      noise: { type: 'lowpass', hz: 400, decay: 0.9, gain: 0.2 },
+      tone: { type: 'square', from: 110, to: 70, decay: 0.8, gain: 0.07 },
+    },
+    bossDefeated: { tone: { type: 'triangle', from: 262, to: 1046, decay: 2.6, gain: 0.12 } },
+    bossVolley: { noise: { type: 'bandpass', hz: 1100, decay: 0.2, gain: 0.08 } },
+    slam: {
+      noise: { type: 'lowpass', hz: 200, decay: 0.5, gain: 0.3 },
+      tone: { type: 'sine', from: 90, to: 40, decay: 0.4, gain: 0.12 },
+    },
+    stun: { tone: { type: 'sine', from: 1400, to: 300, decay: 0.7, gain: 0.08 } },
+    flood: { noise: { type: 'lowpass', hz: 600, decay: 1.6, gain: 0.14 } },
+    drain: { noise: { type: 'bandpass', hz: 400, decay: 1.2, gain: 0.14 } },
+    prism: { tone: { type: 'sine', from: 2100, to: 2800, decay: 0.4, gain: 0.05 } },
+    nodeLit: { tone: { type: 'triangle', from: 330, to: 660, decay: 1.2, gain: 0.09 } },
+    nodeChoked: { tone: { type: 'sawtooth', from: 330, to: 82, decay: 0.9, gain: 0.07 } },
+    dimmingToll: { tone: { type: 'sine', from: 98, to: 96, decay: 3.5, gain: 0.14 } },
+    shadeWave: { noise: { type: 'highpass', hz: 1500, decay: 1.4, gain: 0.08 } },
   },
   /** Gain envelope shared by every sound: floor it decays to, minimum decay after the attack, tail before stopping. */
   envelope: { floor: 0.0001, minDecay: 0.01, tail: 0.05 },

@@ -91,7 +91,12 @@ export function Hud({ hud }: { hud: HudView }) {
             </span>
           </div>
         )}
-        <div class="hud-row hud-dim">{hud.clock} · F: lantern</div>
+        <div class="hud-row hud-dim">
+          {hud.clock} · F: lantern
+          {hud.dimming && (
+            <span class={`dimming-badge${hud.dimming.on ? ' on' : ''}`}>{hud.dimming.text}</span>
+          )}
+        </div>
         {hud.fae > 0 && (
           <div class="hud-row fae" title="Fairy ring: faster, higher jumps, a gentler lantern">
             ✦ Fae-touched {hud.fae}s

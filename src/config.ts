@@ -882,6 +882,62 @@ export const DIMMING = {
   dawnGift: { item: 'lumen_crystal', count: 3 },
 } as const;
 
+/** Boss fights on screen (src/render/BossRenderer.ts). Pixels, seconds, radians. */
+export const BOSS_VIEW = {
+  /** Intro: camera zoom, and the share of the intro spent zooming in (and again out). */
+  introZoom: 2,
+  introEase: 0.25,
+  flashSeconds: 0.08,
+  /** Animation rates (frames per second) and the stunned Matriarch's tumble. */
+  poseRate: 2,
+  flapRate: 9,
+  tumbleRate: 8,
+  tumbleAngle: 0.35,
+  /** The Heart's heartbeat: scale wobble and rate (rad/s). */
+  pulseRate: 4,
+  pulseScale: 0.05,
+  submergedAlpha: 0.35,
+  haloScale: 2.2,
+  haloAlpha: 0.45,
+  /** Shots: drawn at their collision diameter × this, at least this many px. */
+  shotScale: 1.6,
+  shotMinPx: 6,
+  /** The Warden's lantern beam: [width px, colour, alpha] strokes, dimmer while it misses. */
+  beamStrokes: [
+    [6, 0x2fb2b8, 0.25],
+    [2, 0xd6e0f0, 0.8],
+  ] as readonly (readonly [number, number, number])[],
+  beamIdleAlpha: 0.55,
+  /** Screen shakes. */
+  slamShake: 4,
+  hitShake: 3,
+  phaseShake: 6,
+  shakeSeconds: 0.3,
+  phaseShakeSeconds: 0.6,
+} as const;
+
+/** Dimming nights on screen (sky aurora, colour grade). */
+export const DIMMING_FX = {
+  /** Grade at full strength: tint mixed in, saturation and brightness multipliers. */
+  tint: 0x8a6ad8,
+  tintMix: 0.35,
+  saturation: 0.7,
+  brightness: 0.88,
+  /** Aurora ribbons: count, vertical position (share of the view height), amplitude, colours. */
+  aurora: {
+    ribbons: 3,
+    top: 0.12,
+    spacing: 0.07,
+    height: 26,
+    waveAmplitude: 14,
+    waveLength: 180,
+    speed: 0.25,
+    columns: 96,
+    alpha: 0.32,
+    colors: [0x5cc495, 0x76e6e0, 0xc4637e] as readonly number[],
+  },
+} as const;
+
 /** Placed and thrown light on screen (src/render/LightEffects.ts). Pixels and seconds. */
 export const LIGHT_FX = {
   /** The ring texture's size, and how long a placed light's ring takes to reach its radius. */

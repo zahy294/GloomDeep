@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { UiBridge, UiState } from './bridge';
+import { BossBar, EndingCard, TitleCard } from './BossBar';
 import { DebugOverlay } from './DebugOverlay';
 import { BannerOverlay, Hud, NoticeView } from './Hud';
 import { Journal } from './Journal';
@@ -52,6 +53,9 @@ export function App({ bridge }: { bridge: UiBridge }) {
     shop,
     journal,
     banner,
+    boss,
+    titleCard,
+    ending,
     respawnIn,
     worlds,
     generation,
@@ -81,6 +85,8 @@ export function App({ bridge }: { bridge: UiBridge }) {
           {shop && !inventoryOpen && <Shop bridge={bridge} shop={shop} icons={icons} />}
           {journal && !inventoryOpen && <Journal bridge={bridge} journal={journal} />}
           {banner && <BannerOverlay key={banner.id} banner={banner} />}
+          {boss && <BossBar boss={boss} />}
+          {titleCard && <TitleCard key={titleCard.id} card={titleCard} />}
           {travel && !inventoryOpen && <TravelMenu bridge={bridge} travel={travel} />}
           {inventory && <Hotbar bridge={bridge} view={inventory} icons={icons} />}
           {inventory && inventoryOpen && (
@@ -92,6 +98,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
               <div class="death-sub">Rekindling in {respawnIn}…</div>
             </div>
           )}
+          {ending && <EndingCard bridge={bridge} ending={ending} />}
           {paused && <PauseMenu bridge={bridge} error={error} />}
         </>
       );

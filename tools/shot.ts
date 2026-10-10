@@ -886,6 +886,121 @@ async function talkTo(page: Page, key: string): Promise<GameProbe> {
   return waitForProbe(page, (r) => r.dialogue !== null, `${key}'s dialogue`);
 }
 
+/** Waits for a boss fight to be in a state, then reports it. */
+async function waitForBoss(page: Page, state: string): Promise<GameProbe> {
+  return waitForProbe(page, (q) => q.boss?.state === state, `the boss fight (${state})`);
+}
+
+const BEATEN_THREE = 'moth_matriarch,mire_sovereign,hollow_warden';
+
+/** M12: the four fights, the wards, Dimming nights and the Heartlight. */
+const BOSS_SHOTS: Shot[] = [
+  {
+    // Stepping into the nest: the camera zooms in on her and the title card shows.
+    name: 'boss-moth-intro',
+    query: '?scene=game&time=noon&boss=moth_matriarch&kit=boss',
+    prepare: async (page) => {
+      await waitForBoss(page, 'intro');
+      await page.waitForFunction(
+        () => window.gloamdeep?.bridge.state.titleCard !== null,
+        undefined,
+        {
+          timeout: TIMEOUT_MS,
+        },
+      );
+      await page.waitForTimeout(1100);
+      report.push('moth intro: the title card is up, the camera zoomed in');
+    },
+  },
+  {
+    name: 'boss-moth-fight',
+    query: '?scene=game&time=noon&boss=moth_matriarch&bossphase=1&kit=boss',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 3);
+      await page.waitForTimeout(3500);
+      const p = await waitForBoss(page, 'fight');
+      report.push(`moth fight: phase ${p.boss?.phase}, health ${p.boss?.health.toFixed(2)}`);
+    },
+  },
+  {
+    name: 'boss-mire-fight',
+    query: '?scene=game&time=dusk&boss=mire_sovereign&bossphase=1&kit=boss',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(6000);
+      const p = await waitForBoss(page, 'fight');
+      report.push(`mire fight: phase ${p.boss?.phase}, "${p.boss?.status}"`);
+    },
+  },
+  {
+    // The lantern beam aimed up the hall at the ceiling prisms.
+    name: 'boss-warden-beam',
+    query: '?scene=game&time=noon&boss=hollow_warden&bossphase=0&kit=boss',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.mouse.move(VIEWPORT.width * 0.42, VIEWPORT.height * 0.15);
+      await page.waitForTimeout(2500);
+      const p = await waitForBoss(page, 'fight');
+      report.push(`warden fight: "${p.boss?.status}"`);
+    },
+  },
+  {
+    name: 'boss-heart-fight',
+    query: `?scene=game&boss=gloam_heart&bossphase=0&kit=boss&beaten=${BEATEN_THREE}`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(3000);
+      const p = await waitForBoss(page, 'fight');
+      report.push(`heart fight: "${p.boss?.status}"`);
+    },
+  },
+  {
+    // After the end: the Heartlight burning in the chamber, every root-lamp lit.
+    name: 'heartlight',
+    query: `?scene=game&ui=0&arena=gloam_heart&beaten=${BEATEN_THREE},gloam_heart`,
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(2500);
+      const p = (await probe(page)) as GameProbe;
+      check(
+        p.arenas.every((a) => a.state === 'won'),
+        'every arena should be won',
+      );
+      report.push('heartlight: all four arenas won');
+    },
+  },
+  {
+    name: 'ward-band',
+    query: '?scene=game&time=noon&ui=0&spot=ward&kit=boss',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(1500);
+    },
+  },
+  {
+    // A Dimming night over the spawn: dark sky, auroras, the violet grade.
+    name: 'dimming-night',
+    query: '?scene=game&dimming=1',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(2500);
+      const p = (await probe(page)) as GameProbe;
+      check(p.dimming > 0.9, 'the Dimming should be at full strength');
+      report.push(`dimming night: strength ${p.dimming.toFixed(2)}`);
+    },
+  },
+  {
+    // Canopyhold keeps a vigil at the plaza on a Dimming night.
+    name: 'dimming-canopyhold',
+    query: '?scene=game&ui=0&spot=canopyhold&dimming=1',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.waitForTimeout(3000);
+    },
+  },
+];
+
 const TOWN_SHOTS: Shot[] = [
   {
     name: 'canopyhold-day',
@@ -1017,6 +1132,7 @@ const SHOTS: Shot[] = [
   ...MATERIAL_SHOTS,
   ...LIFE_SHOTS,
   ...TOWN_SHOTS,
+  ...BOSS_SHOTS,
   // M10: a cave entrance near the spawn, and inside it, looking down the switchbacks.
   {
     name: 'cave-entrance',

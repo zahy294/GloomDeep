@@ -958,3 +958,213 @@ body {
     opacity: 0.4;
   }
 }
+
+/* M12: boss bar, title card, ending, Dimming badge, story journal */
+.boss-bar {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--px) * 14);
+  transform: translateX(-50%);
+  width: calc(var(--px) * 240);
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 0 calc(var(--px) * 2) #000;
+}
+
+.boss-name {
+  font-size: calc(var(--px) * 9);
+  color: var(--rose-light);
+  letter-spacing: 0.08em;
+}
+
+.boss-epithet {
+  margin-left: calc(var(--px) * 3);
+  font-size: calc(var(--px) * 5);
+  color: var(--ink-dim);
+  letter-spacing: 0;
+}
+
+.boss-health {
+  position: relative;
+  height: calc(var(--px) * 7);
+  margin-top: calc(var(--px) * 2);
+  background: rgb(5 8 10 / 0.8);
+  border: var(--px) solid rgb(196 99 126 / 0.7);
+  box-shadow: 0 0 calc(var(--px) * 4) rgb(120 60 180 / 0.45);
+}
+
+.boss-fill,
+.boss-trail {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+
+.boss-fill {
+  background: linear-gradient(90deg, #6a2f8a, var(--rose));
+  transition: width 0.15s ease-out;
+}
+
+.boss-trail {
+  background: var(--rose-light);
+  opacity: 0.75;
+  transition: width 0.9s ease-out 0.25s;
+}
+
+.boss-bar.intro .boss-fill,
+.boss-bar.intro .boss-trail {
+  animation: boss-fill-in 2.5s ease-out both;
+}
+
+@keyframes boss-fill-in {
+  from {
+    width: 0;
+  }
+}
+
+.boss-pips {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--px) * 3);
+  margin-top: calc(var(--px) * 3);
+}
+
+.boss-pip {
+  width: calc(var(--px) * 5);
+  height: calc(var(--px) * 5);
+  box-sizing: border-box;
+  transform: rotate(45deg);
+  border: var(--px) solid rgb(196 99 126 / 0.6);
+  background: rgb(5 8 10 / 0.7);
+}
+
+.boss-pip.done {
+  background: rgb(196 99 126 / 0.45);
+}
+
+.boss-pip.current {
+  background: var(--rose-light);
+  border-color: var(--rose-light);
+  box-shadow: 0 0 calc(var(--px) * 3) var(--rose);
+}
+
+.boss-status {
+  margin-top: calc(var(--px) * 3);
+  font-size: calc(var(--px) * 6);
+  color: var(--gold);
+}
+
+.title-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 32%;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  animation: title-card-fade 3s ease-in-out forwards;
+  text-shadow: 0 0 calc(var(--px) * 6) #000;
+}
+
+.title-card-name {
+  font-size: calc(var(--px) * 28);
+  letter-spacing: 0.35em;
+  text-indent: 0.35em;
+  text-transform: uppercase;
+  color: var(--rose-light);
+}
+
+.title-card-sub {
+  margin-top: calc(var(--px) * 4);
+  font-size: calc(var(--px) * 9);
+  letter-spacing: 0.15em;
+  color: var(--ink-dim);
+}
+
+@keyframes title-card-fade {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.1em;
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    letter-spacing: 0.45em;
+  }
+}
+
+.ending-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--px) * 4);
+  width: calc(var(--px) * 260);
+  padding: calc(var(--px) * 10);
+  text-align: center;
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  box-shadow: 0 0 calc(var(--px) * 12) rgb(118 230 224 / 0.25);
+  animation: ending-in 2s ease-out both;
+}
+
+.ending-title {
+  font-size: calc(var(--px) * 14);
+  color: var(--gold);
+}
+
+.ending-line {
+  margin: 0;
+  font-size: calc(var(--px) * 7);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+@keyframes ending-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.dimming-badge {
+  margin-left: calc(var(--px) * 3);
+  padding: 0 calc(var(--px) * 2);
+  color: #b89be0;
+  border: var(--px) solid rgb(150 110 210 / 0.5);
+}
+
+.dimming-badge.on {
+  color: #e3d0ff;
+  border-color: #a074e0;
+  animation: dimming-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes dimming-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgb(160 116 224 / 0);
+  }
+  50% {
+    box-shadow: 0 0 calc(var(--px) * 4) rgb(160 116 224 / 0.9);
+  }
+}
+
+.journal-heading {
+  margin-top: calc(var(--px) * 2);
+  color: var(--glow);
+}
+
+.journal-where {
+  margin-top: calc(var(--px) * 1);
+  color: var(--ink-dim);
+  font-size: calc(var(--px) * 5);
+}
+
+.journal-fallen {
+  color: var(--rose-light);
+}

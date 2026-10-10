@@ -262,17 +262,31 @@ export function buildPlaceholderAtlas(
           tile.placeholderShape === 'beacon_dormant' ||
           tile.placeholderShape === 'lamp' ||
           tile.placeholderShape === 'lift' ||
-          tile.placeholderShape === 'hanging_lantern'
+          tile.placeholderShape === 'hanging_lantern' ||
+          tile.placeholderShape === 'lure' ||
+          tile.placeholderShape === 'lever' ||
+          tile.placeholderShape === 'lever_open' ||
+          tile.placeholderShape === 'brazier' ||
+          tile.placeholderShape === 'prism_left' ||
+          tile.placeholderShape === 'prism_right' ||
+          tile.placeholderShape === 'node'
         ) {
           if (kind === 'tiles') {
             // The dimmed street lamp keeps only the lower half of its glass lit.
             const shape =
               tile.placeholderShape === 'lamp' && tile.key.endsWith('_dim')
                 ? 'lamp_dim'
-                : tile.placeholderShape;
-            // Lamp glass and lantern glow take the tile's own ramp (gold lit, stone dead).
+                : tile.placeholderShape === 'brazier' && tile.key.endsWith('_out')
+                  ? 'brazier_out'
+                  : tile.placeholderShape;
+            // Lamp glass, brazier flames, the heart node's orb and the lure take the tile's own ramp.
             const glass =
-              tile.placeholderShape === 'lamp' ? (tile.placeholderRamp ?? undefined) : undefined;
+              tile.placeholderShape === 'lamp' ||
+              tile.placeholderShape === 'brazier' ||
+              tile.placeholderShape === 'node' ||
+              tile.placeholderShape === 'lure'
+                ? (tile.placeholderRamp ?? undefined)
+                : undefined;
             drawStation(shape, (x, y, c) => put(data, width, ox + x, oy + y, c), glass);
           }
           continue;

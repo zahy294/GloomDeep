@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { ATMOSPHERE, DISPLAY } from '../../config';
+import { ATMOSPHERE, DIMMING_FX, DISPLAY } from '../../config';
 import { PALETTE } from '../../data/palette';
 import { mulberry32 } from '../../sim/random';
 import type { DaySample } from '../../sim/dayCycle';
@@ -46,6 +46,8 @@ export class SkyScene extends Phaser.Scene {
   private sun!: Phaser.GameObjects.Image;
   private moon!: Phaser.GameObjects.Image;
   private stars!: Phaser.GameObjects.Graphics;
+  /** M12: aurora ribbons on Dimming nights (redrawn only while one shows). */
+  private aurora!: Phaser.GameObjects.Graphics;
   /** Colours last encoded into the gradient (encoding re-uploads a texture, so only on change). */
   private encodedTop = -1;
   private encodedHorizon = -1;
@@ -92,6 +94,7 @@ export class SkyScene extends Phaser.Scene {
           bright ? star.brightSize : star.dimSize,
         );
     }
+    this.aurora = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(0.5);
     this.moon = this.add.image(0, 0, TextureKey.moon);
     this.sun = this.add.image(0, 0, TextureKey.sun);
     this.moon.setDepth(1);
@@ -126,6 +129,7 @@ export class SkyScene extends Phaser.Scene {
     this.starfall.update(visual, dt);
     this.updateBackMist(visual, dt);
     this.stars.setAlpha(day.stars * (1 - visual.rain));
+    this.drawAurora(visual);
     // Clouds hide the sun and moon as the rain thickens.
     const clear = 1 - visual.rain * ATMOSPHERE.sky.rainHidesBodies;
     this.sun.setAlpha(clear);
@@ -158,6 +162,29 @@ export class SkyScene extends Phaser.Scene {
         dt,
         cameraDx,
       );
+    }
+  }
+
+  /** Curtains of light over a Dimming night's sky: vertical strips along slow sine waves. */
+  private drawAurora(visual: VisualState): void {
+    const g = this.aurora;
+    g.clear();
+    const strength = visual.dimming * visual.outdoors * (1 - visual.rain);
+    if (strength <= 0) return;
+    const a = DIMMING_FX.aurora;
+    const width = DISPLAY.width / a.columns;
+    const t = visual.realTime * a.speed;
+    for (let r = 0; r < a.ribbons; r++) {
+      const color = a.colors[r % a.colors.length] ?? 0xffffff;
+      const baseY = this.scale.height * (a.top + r * a.spacing);
+      for (let c = 0; c < a.columns; c++) {
+        const x = c * width;
+        const phase = (x + visual.view.x * 0.05) / a.waveLength + r * 1.7;
+        const y = baseY + Math.sin(phase * Math.PI * 2 + t) * a.waveAmplitude;
+        const flicker = 0.6 + 0.4 * Math.sin(phase * 5.3 + t * 2.1 + r);
+        g.fillStyle(color, a.alpha * strength * flicker);
+        g.fillRect(x, y, width + 1, a.height * (0.6 + 0.4 * flicker));
+      }
     }
   }
 

@@ -41,6 +41,8 @@ export class VisualState {
   underwater = false;
   /** 0..1: how much of the view the Gloam covers (smoothed); drains colour from the grade. */
   gloam = 0;
+  /** 0..1: a Dimming night's strength (M12): auroras in the sky, a violet grade. */
+  dimming = 0;
 
   private readonly target = new Float32Array(VISUALS.length);
   private first = true;
@@ -95,6 +97,7 @@ export class VisualState {
     this.night = 1 - this.daylight;
     const d = Math.abs(sim.dayFraction - TIME_OF_DAY_FX.duskCentre) / TIME_OF_DAY_FX.duskHalfWidth;
     this.dusk = d >= 1 ? 0 : 1 - d * d;
+    this.dimming = sim.dimming.strength;
     this.simTime = sim.time;
     this.realTime += dt;
     this.playerX = playerX;

@@ -502,7 +502,142 @@ const HANGING_LANTERN = [
   '................',
 ];
 
+/** A moth lure (M12): a glowcap and two petals on a stake; ramp passed in: rose. */
+const LURE = [
+  '................',
+  '.......00.......',
+  '......0330......',
+  '.....033320.....',
+  '....0332y220....',
+  '.....0222210....',
+  '..00..0110..00..',
+  '.0330..BB..0330.',
+  '.0320..Bd..0220.',
+  '..00...Bd...00..',
+  '.......Bd.......',
+  '.......Bd.......',
+  '.......Bd.......',
+  '.......Bd.......',
+  '......BBdd......',
+  '.....BBBBdd.....',
+];
+
+/** A sluice lever: wooden post, brass pivot, handle up (closed) or down (open). */
+const LEVER_BASE = [
+  '.....BBBBB......',
+  '.....BhhdB......',
+  '.....BhRdB',
+  '.....BhhdB',
+  '.....BhdBB',
+  '.....BhddB',
+  '....BBBBBBB.....',
+  '...BBhhhhddB....',
+  '...BBBBBBBBB....',
+];
+const LEVER = [
+  '................',
+  '............RR..',
+  '............RR..',
+  '...........r....',
+  '..........r.....',
+  '.........r......',
+  '........r.......',
+  ...LEVER_BASE.map((row) => row.padEnd(16, '.')),
+];
+const LEVER_OPEN = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....BBBBB......',
+  '.....BhhdB......',
+  '.....BhRdBr.....',
+  '.....BhhdB.r....',
+  '.....BhdBB..RR..',
+  '.....BhddB..RR..',
+  '....BBBBBBB.....',
+  '...BBhhhhddB....',
+  '...BBBBBBBBB....',
+];
+
+/** A brazier: iron bowl on a stand; flames in the tile's ramp (ember lit), `y` the hot core. */
+const BRAZIER_BOWL = [
+  '...OiiiiiiiiO...',
+  '...OIIIIIIIIO...',
+  '....OIIIIIIO....',
+  '.....OOIIOO.....',
+  '.......IO.......',
+  '.......IO.......',
+  '......iIIO......',
+  '....OOOOOOOO....',
+];
+const BRAZIER = [
+  '................',
+  '................',
+  '.......3........',
+  '......323.......',
+  '.....33232......',
+  '....3322212.....',
+  '....32yy2210....',
+  '.....2yy21......',
+  ...BRAZIER_BOWL,
+];
+/** Burnt out: only a low mound of ash (the tile's stone ramp) in the bowl. */
+const BRAZIER_OUT = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '....01122110....',
+  ...BRAZIER_BOWL,
+];
+
+/** A diagonal crystal mirror. `slash` is "/" (low left, high right); a clear white spine runs along it. */
+function prism(slash: boolean): string[] {
+  return Array.from({ length: 16 }, (_, y) => {
+    const c = slash ? 15 - y : y;
+    return Array.from({ length: 16 }, (_, x) => {
+      const d = Math.abs(x - c);
+      return d === 0 ? 'W' : d === 1 ? '3' : d === 2 ? '1' : d === 3 ? '0' : '.';
+    }).join('');
+  });
+}
+
+/** A heart node: a gnarled root cup holding an orb (dark when dormant, gold when lit, per ramp). */
+const NODE = [
+  '................',
+  '................',
+  '.......00.......',
+  '......0330......',
+  '.....033220.....',
+  '.....032221.....',
+  '.....022211.....',
+  '......0110......',
+  '.B..BBBBBBBB..B.',
+  '.Bd.BhdddddB.dB.',
+  '..Bd.BhddddB.B..',
+  '...BdBhddddBd...',
+  '....BBdddddB....',
+  '.....BdBBdB.....',
+  '....BB.BB.BB....',
+  '...BBB.BB.BBB...',
+];
+
 const STATIONS = {
+  lure: { pattern: LURE, ramp: 'rose' },
+  lever: { pattern: LEVER, ramp: 'bark' },
+  lever_open: { pattern: LEVER_OPEN, ramp: 'bark' },
+  brazier: { pattern: BRAZIER, ramp: 'ember' },
+  brazier_out: { pattern: BRAZIER_OUT, ramp: 'stone' },
+  prism_left: { pattern: prism(true), ramp: 'cyan' },
+  prism_right: { pattern: prism(false), ramp: 'cyan' },
+  node: { pattern: NODE, ramp: 'gloam' },
   workbench: { pattern: WORKBENCH, ramp: 'bark' },
   furnace: { pattern: FURNACE, ramp: 'stone' },
   anvil: { pattern: ANVIL, ramp: 'moonSilver' },
@@ -540,5 +675,6 @@ export function drawStation(
     R: PALETTE.gold[3],
     S: stone[0],
     s: stone[2],
+    W: stone[3],
   });
 }

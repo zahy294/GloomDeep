@@ -10,6 +10,7 @@ import { Depth } from './depth';
 import { itemIcon } from './itemIcons';
 import { TextureKey } from './scenes/keys';
 import { spriteFrame } from './spriteFrames';
+import { isBossBody } from './BossRenderer';
 
 const SHEET = 'enemies';
 const ARROW_ICON = itemIcon(itemId('wooden_arrow'));
@@ -117,7 +118,8 @@ export class CombatRenderer {
       const enemy = this.enemies[i];
       if (!image || !eye) continue;
       const def = enemy ? ENEMIES[enemy.type] : undefined;
-      if (!enemy || !def) {
+      // Bosses are drawn by the BossRenderer (their own sheet).
+      if (!enemy || !def || isBossBody(enemy.type)) {
         image.setVisible(false);
         eye.setVisible(false);
         continue;

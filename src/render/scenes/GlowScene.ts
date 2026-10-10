@@ -76,5 +76,6 @@ export class GlowScene extends Phaser.Scene {
   /** Follows the world camera exactly (same zoom, whole-pixel scroll). */
   follow(camera: Phaser.Cameras.Scene2D.Camera): void {
     this.cameras.main.setScroll(camera.scrollX, camera.scrollY);
+    if (this.cameras.main.zoom !== camera.zoom) this.cameras.main.setZoom(camera.zoom);
   }
 }

@@ -9,6 +9,9 @@ import { buyPrice, openOffers, sellPrice } from '../sim/systems/TradeSystem';
 import type { Town } from '../sim/systems/TownSystem';
 import type { EscortView, JournalView, ShopView, TownView, UiBridge } from '../ui/bridge';
 
+/** The journal's story section (M12, BossPresenter.story). */
+export type StorySource = () => JournalView['story'];
+
 const GLIMMER = itemId('glimmer');
 /** Percent shown for a price factor's difference from 1. */
 const PERCENT = 100;
@@ -30,6 +33,7 @@ export class TownPresenter {
     private readonly sim: Simulation,
     private readonly bridge: UiBridge,
     private readonly notify: (text: string) => void,
+    private readonly story: StorySource = () => [],
   ) {
     const { events } = sim;
     this.offs.push(
@@ -186,11 +190,12 @@ export class TownPresenter {
         summary: q.summary,
         done: this.sim.quests.state(q.key) === 'done',
       })),
+      story: this.story(),
     };
     this.bridge.set({ journal: view });
   }
 
-  private banner(title: string, sub: string): void {
+  banner(title: string, sub: string): void {
     this.bridge.set({ banner: { title, sub, id: ++this.bannerId } });
   }
 }

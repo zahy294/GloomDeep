@@ -64,6 +64,16 @@ export interface DebugParams {
   reclaim: readonly string[];
   /** `near=<npc>`: start beside that townsperson (where their routine has them). */
   near: string | null;
+  /** M12: `boss=<key>` starts inside that boss's arena (the fight and its intro begin). */
+  boss: string | null;
+  /** `arena=<key>`: starts just outside that arena's door (no fight). */
+  arena: string | null;
+  /** `beaten=<key>,<key>`: those bosses are already beaten (wards broken, festivals due). */
+  beaten: readonly string[];
+  /** `dimming=1`: tonight is a Dimming night, already at full strength. */
+  dimming: boolean;
+  /** `bossphase=<n>`: with `boss=`, the fight starts at once (no intro) in phase n (0-based). */
+  bossPhase: number | null;
 }
 
 export const DEBUG_SPOTS = [
@@ -76,6 +86,7 @@ export const DEBUG_SPOTS = [
   'canopyhold',
   'citadel',
   'road',
+  'ward',
 ] as const;
 export type DebugSpot = (typeof DEBUG_SPOTS)[number];
 
@@ -131,5 +142,10 @@ export function parseDebugParams(search: string): DebugParams {
     quest: nameParam(params, 'quest'),
     near: nameParam(params, 'near'),
     reclaim: (params.get('reclaim') ?? '').split(',').filter((k) => /^[\w-]+$/.test(k)),
+    boss: nameParam(params, 'boss'),
+    arena: nameParam(params, 'arena'),
+    beaten: (params.get('beaten') ?? '').split(',').filter((k) => /^[\w-]+$/.test(k)),
+    dimming: params.get('dimming') === '1',
+    bossPhase: intParam(params, 'bossphase'),
   };
 }

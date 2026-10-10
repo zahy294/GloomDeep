@@ -4,6 +4,7 @@
  * outlined in the darkest shade of their own ramp (plan 2.9.1). Most motion comes from code
  * (squash, bob, flap); the second frame is a pose change.
  */
+import { BOSSES } from '../../src/data/bosses';
 import { ENEMIES } from '../../src/data/enemies';
 import { spriteAsset } from '../../src/data/spriteAssets';
 import { createImage, type RgbaImage } from './image';
@@ -66,7 +67,41 @@ const DRAW: Record<string, (s: Sprite, f: 0 | 1) => void> = {
       s.rect(x, 18, 1, (x + (f ? 1 : 0)) % 4 === 1 ? 4 : 2, 'gloam', 1);
     s.outline().eye(10, 9, 'moonSilver').eye(14, 9, 'moonSilver');
   },
+  lumen_moth: (s, f) => {
+    // Wings first so the honey body sits on top; frame 1 sweeps them down.
+    const wy = f ? 15 : 9;
+    s.blob(7, wy, 4.5, f ? 3.5 : 4.5, 'rose').blob(17, wy, 4.5, f ? 3.5 : 4.5, 'rose');
+    s.blob(12, 13, 2, 4, 'honey');
+    s.set(10, 8, 'honey', 2).set(14, 8, 'honey', 2).set(9, 7, 'honey', 3).set(15, 7, 'honey', 3);
+    s.outline().eye(7, wy, 'honey').eye(17, wy, 'honey');
+  },
+  mire_lurker: (s, f) => {
+    // A squat mud frog with reed tufts on its back; frame 1 is mid-hop, stretched with legs out.
+    if (f) {
+      s.blob(12, 15, 6, 6, 'mud').rect(4, 19, 5, 2, 'mud', 1).rect(15, 19, 5, 2, 'mud', 1);
+      s.rect(3, 21, 4, 2, 'mud', 1).rect(17, 21, 4, 2, 'mud', 1);
+    } else {
+      s.blob(12, 18, 8, 5, 'mud').blob(12, 14, 5, 3.5, 'mud');
+      s.rect(4, 20, 5, 3, 'mud', 1).rect(15, 20, 5, 3, 'mud', 1);
+    }
+    const top = f ? 8 : 9;
+    s.rect(9, top, 1, 5, 'moss', 2)
+      .rect(13, top - 1, 1, 6, 'moss', 3)
+      .rect(15, top, 1, 4, 'moss', 2);
+    s.outline().eye(9, 12, 'mint').eye(15, 12, 'mint');
+  },
+  gloam_tendril: (s, f) => {
+    // A writhing root tip rising from the bottom edge, swaying between frames.
+    for (let i = 0; i < 10; i++) {
+      const x = 12 + Math.round(Math.sin(i / 2 + f * 1.6) * 3);
+      s.rect(x - 1, 22 - i * 2, 3, 2, 'gloam', i > 6 ? 3 : 2);
+    }
+    const tipX = 12 + Math.round(Math.sin(4.5 + f * 1.6) * 3);
+    s.blob(tipX, 3, 2.5, 3, 'gloam').outline().eye(tipX, 3, 'rose');
+  },
 };
+
+const BOSS_ENEMIES: ReadonlySet<string> = new Set(BOSSES.map((b) => b.enemy));
 
 /** The `enemies` placeholder sheet: one row of 24×24 frames, two per creature. */
 export function buildEnemies(): RgbaImage {
@@ -74,6 +109,8 @@ export function buildEnemies(): RgbaImage {
   if (!def) throw new Error('enemies is missing from SPRITE_ASSETS');
   const out = createImage(def.frameWidth * def.frames, def.frameHeight);
   for (const enemy of ENEMIES) {
+    // Boss bodies live in the 80×80 `bosses` sheet (placeholderBosses.ts).
+    if (BOSS_ENEMIES.has(enemy.key)) continue;
     const draw = DRAW[enemy.key];
     if (!draw) throw new Error(`No placeholder drawing for enemy ${enemy.key}`);
     for (const f of [0, 1] as const) {

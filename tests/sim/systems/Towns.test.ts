@@ -133,6 +133,7 @@ describe('DialogueSystem', () => {
     cleansed: 0,
     night: false,
     festival: false,
+    dimming: false,
     ...over,
   });
   it('uses the last entry whose condition holds, cycling its lines and restarting on change', () => {
@@ -144,7 +145,7 @@ describe('DialogueSystem', () => {
     pip.scared = true;
     expect(nextLine(pip, ctx())).toMatch(/lamps are out/);
     pip.scared = false;
-    expect(nextLine(pip, ctx({ festival: true }))).toMatch(/Festival of Lanterns/);
+    expect(nextLine(pip, ctx({ festival: true }))).toMatch(/festival/i);
     expect(nextLine(createNpc(3, 'nobody', 0, 0), ctx())).toBe('');
   });
 });

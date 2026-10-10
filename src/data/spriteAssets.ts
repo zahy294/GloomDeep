@@ -72,8 +72,13 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     placeholder: 'sprites/enemies.png',
     frameWidth: 24,
     frameHeight: 24,
-    frames: 18,
+    frames: 24,
   },
+  /**
+   * Boss bodies (M12): two 80×80 frames each, frame = the boss enemy's `frame` in
+   * src/data/enemies.ts (+1 for the alternate pose); body centred, standing on the bottom edge.
+   */
+  { id: 'bosses', placeholder: 'sprites/bosses.png', frameWidth: 80, frameHeight: 80, frames: 8 },
   /** Critters (src/data/critters.ts `frame`): two 16×16 frames each (M10). */
   {
     id: 'critters',
@@ -98,13 +103,13 @@ export const SPRITE_ASSETS: readonly SpriteAssetDef[] = [
     frameHeight: 32,
     frames: 2,
   },
-  /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote, sky lantern, spark. */
+  /** Particle textures: leaf, petal, raindrop, spore, ember, firefly, mote, sky lantern, spark, boss shots (dust, bolt, shard, orb, slam). */
   {
     id: 'particles',
     placeholder: 'sprites/particles.png',
     frameWidth: 8,
     frameHeight: 8,
-    frames: 9,
+    frames: 14,
   },
   ...PARALLAX_ASSETS,
   {
@@ -132,4 +137,10 @@ export const PARTICLE_FRAME = {
   mote: 6,
   skyLantern: 7,
   spark: 8,
+  /** Hostile boss shots (M12). */
+  dust: 9,
+  bolt: 10,
+  shard: 11,
+  orb: 12,
+  slam: 13,
 } as const;

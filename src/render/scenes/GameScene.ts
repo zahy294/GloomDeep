@@ -76,6 +76,24 @@ import { CombatRenderer } from '../CombatRenderer';
 import { LifeRenderer } from '../LifeRenderer';
 import { TownRenderer } from '../TownRenderer';
 import { TownPresenter } from '../TownPresenter';
+import { BossPresenter } from '../BossPresenter';
+import { BossRenderer } from '../BossRenderer';
+import { arenaSpot, beatBosses, startDimming, startFight, wardSpot } from '../../sim/debugBosses';
+import type { SfxKind } from '../../data/audio';
+import type { SimEvents } from '../../sim/events';
+
+/** The sound for each boss-fight moment (M12). */
+const BOSS_ACTION_SOUND: Record<SimEvents['bossAction']['kind'], SfxKind> = {
+  stunned: 'stun',
+  flood: 'flood',
+  drain: 'drain',
+  slam: 'slam',
+  prism: 'prism',
+  nodeLit: 'nodeLit',
+  nodeChoked: 'nodeChoked',
+  volley: 'bossVolley',
+  cracked: 'stun',
+};
 import {
   besideResident,
   lightRoads,
@@ -173,6 +191,8 @@ export class GameScene extends Phaser.Scene {
   private lifeView!: LifeRenderer;
   private townView!: TownRenderer;
   private townUi!: TownPresenter;
+  private bossUi!: BossPresenter;
+  private bossView!: BossRenderer;
   /** Null for debug starts, which are never saved. */
   private meta: WorldMeta | null = null;
   private paused = false;
@@ -381,9 +401,23 @@ export class GameScene extends Phaser.Scene {
       (npc) => sim.quests.marker(npc),
     );
     this.townView = new TownRenderer(this, this.glowScene, sim);
-    this.townUi = new TownPresenter(sim, this.bridge, (text) => this.notify(text));
+    this.townUi = new TownPresenter(
+      sim,
+      this.bridge,
+      (text) => this.notify(text),
+      () => this.bossUi.story(),
+    );
+    this.bossUi = new BossPresenter(
+      sim,
+      this.bridge,
+      (text) => this.notify(text),
+      (title, sub) => this.townUi.banner(title, sub),
+    );
     sim.events.on('playerHurt', () =>
       this.cameraDirector.shake(COMBAT_VIEW.hurtShake, COMBAT_VIEW.hurtShakeSeconds),
+    );
+    this.bossView = new BossRenderer(this, this.glowScene, sim, (amplitude, seconds) =>
+      this.cameraDirector.shake(amplitude, seconds),
     );
     this.glow = new GlowRenderer(
       this.glowScene,
@@ -460,6 +494,7 @@ export class GameScene extends Phaser.Scene {
         sim.enqueue({ type: 'sell', npc: npcId, item, count }),
       ),
       this.bridge.commands.on('toggleJournal', () => this.townUi.toggleJournal()),
+      this.bridge.commands.on('closeEnding', () => this.bossUi.closeEnding()),
     ];
     this.listenToVillage();
     sim.events.on('inventoryChanged', () => this.publishInventory());
@@ -486,6 +521,8 @@ export class GameScene extends Phaser.Scene {
       this.lifeView.destroy();
       this.townView.destroy();
       this.townUi.destroy();
+      this.bossUi.destroy();
+      this.bossView.destroy();
       this.foliage.destroy();
       this.reflections.destroy();
       this.waterfalls.destroy();
@@ -687,6 +724,16 @@ export class GameScene extends Phaser.Scene {
     events.on('districtReclaimed', () => audio.effect('arrive'));
     events.on('roadLit', () => audio.effect('quest'));
     events.on('festivalStarted', () => audio.effect('firework'));
+    events.on('bossIntro', () => audio.effect('bossIntro'));
+    events.on('bossPhase', () => audio.effect('bossPhase'));
+    events.on('bossDefeated', () => audio.effect('bossDefeated'));
+    events.on('bossAction', ({ kind }) => {
+      const sound = BOSS_ACTION_SOUND[kind];
+      if (sound) audio.effect(sound);
+    });
+    events.on('dimmingStarted', () => audio.effect('dimmingToll'));
+    events.on('dimmingEnded', () => audio.effect('quest'));
+    events.on('shadeWave', () => audio.effect('shadeWave'));
     // A colony of bats takes off together: one flutter, not one per bat.
     let lastFlutter = -Infinity;
     events.on('critterStartled', ({ type }) => {
@@ -798,15 +845,20 @@ export class GameScene extends Phaser.Scene {
     this.activity.aimX = input.aimX;
     this.activity.aimY = input.aimY;
     this.playerView.update(alpha, delta / 1000, this.activity);
+    // A boss's intro: the camera looks at it and zooms in (M12).
+    const bossFocus = this.bossView.focus();
     this.cameraDirector.update(
-      this.playerView.feetX(alpha),
-      this.playerView.feetY(alpha) - body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
-      body.vx,
-      body.vy,
+      bossFocus?.x ?? this.playerView.feetX(alpha),
+      bossFocus?.y ??
+        this.playerView.feetY(alpha) - body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
+      bossFocus ? 0 : body.vx,
+      bossFocus ? 0 : body.vy,
       delta / 1000,
     );
 
     const cam = this.cameras.main;
+    const zoom = this.bossView.zoom();
+    if (cam.zoom !== zoom) cam.setZoom(zoom);
     this.view.x = cam.scrollX;
     this.view.y = cam.scrollY;
     this.view.width = cam.width;
@@ -859,6 +911,7 @@ export class GameScene extends Phaser.Scene {
     this.lightEffects.update(alpha, delta / 1000, this.sim.time);
     this.materials.update(this.view, alpha, delta / 1000, this.sim.time);
     this.combatView.update(alpha, delta / 1000, this.sim.time);
+    this.bossView.update(alpha, delta / 1000, this.sim.time);
     this.lifeView.update(alpha, delta / 1000, this.sim.time);
     this.townView.update(alpha, delta / 1000, this.sim.time, this.view);
     this.fx.update(delta / 1000);
@@ -935,6 +988,22 @@ export class GameScene extends Phaser.Scene {
       caravans: this.sim.roads.roads.flatMap((r) =>
         r.caravan ? [{ x: r.caravan.x, y: r.caravan.y }] : [],
       ),
+      boss: this.bossProbe(),
+      arenas: this.sim.bosses.arenas.map((a) => ({ key: a.def.key, state: a.state })),
+      dimming: this.sim.dimming.strength,
+    };
+  }
+
+  private bossProbe(): GameProbe['boss'] {
+    const a = this.sim.bosses.active;
+    const boss = a?.boss;
+    if (!a || !boss) return null;
+    return {
+      key: a.def.key,
+      state: a.state,
+      phase: a.phase,
+      health: boss.health / (ENEMIES[boss.type]?.maxHealth ?? 1),
+      status: this.sim.bosses.run(a)?.status() ?? '',
     };
   }
 
@@ -983,6 +1052,7 @@ export class GameScene extends Phaser.Scene {
       if (this.debugOpen) this.publishDebug();
       this.publishHud();
       this.townUi.update();
+      this.bossUi.update();
       this.checkVillagePanels();
       this.refreshStations();
       // How much of the view the Gloam covers drains the colour grade (eased, a few times a second).
@@ -1010,7 +1080,7 @@ export class GameScene extends Phaser.Scene {
     const lensKey = ownedLenses(this.sim.inventory)
       .map((l) => l.key)
       .join(',');
-    const town = this.townUi.hud();
+    const town = { ...this.townUi.hud(), dimming: this.bossUi.dimming() };
     const townKey = JSON.stringify(town);
     if (
       hud &&
@@ -1096,6 +1166,12 @@ export class GameScene extends Phaser.Scene {
       feet = { x: fx, y: sim.world.groundRow(fx) };
     } else if (spot === 'village') {
       feet = this.stampVillage(sim, Math.floor(generated.spawnX / TILE_SIZE));
+    } else if (spot === 'ward') {
+      feet = wardSpot(sim);
+    } else if (this.params.boss || this.params.arena) {
+      const key = this.params.boss ?? this.params.arena ?? '';
+      feet = arenaSpot(sim, key, this.params.boss !== null);
+      if (!feet) console.warn(`No arena for ${key} in this world`);
     } else if (this.params.near) {
       feet = besideResident(sim, this.params.near);
       if (!feet) console.warn(`No townsperson near=${this.params.near}`);
@@ -1118,6 +1194,12 @@ export class GameScene extends Phaser.Scene {
     if (this.params.roadLit) lightRoads(sim);
     if (this.params.reclaim.length > 0) relightDistricts(sim, this.params.reclaim);
     if (this.params.festival) startFestival(sim);
+    // M12 boss and Dimming starts.
+    if (this.params.beaten.length > 0) beatBosses(sim, this.params.beaten);
+    if (this.params.dimming) startDimming(sim);
+    if (this.params.boss && this.params.bossPhase !== null) {
+      startFight(sim, this.params.boss, this.params.bossPhase);
+    }
     if (this.params.quest && !sim.quests.accept(this.params.quest)) {
       console.warn(`Unknown or unavailable quest=${this.params.quest}`);
     }

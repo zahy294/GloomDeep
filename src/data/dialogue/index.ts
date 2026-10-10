@@ -61,6 +61,54 @@ export const DIALOGUE: readonly DialogueEntry[] = [
     when: { cleansedMin: 0.6 },
     lines: ['I can feel the Heartlight stirring again. You have done more than I dared hope.'],
   },
+  // M12: the way down, boss by boss, and the Dimming nights.
+  {
+    npc: 'dryad',
+    when: { flags: ['dimming:1'] },
+    lines: [
+      'You saw the dawn after a Dimming night. Each one, the sun dims a little further.',
+      'The Dimming will not stop while the Gloam has a heart. Go down, Lamplighter.',
+    ],
+  },
+  {
+    npc: 'dryad',
+    when: { dimming: true },
+    lines: [
+      'The sky is dimming. Stay in the light; the shades rise in waves on nights like this.',
+      'Lit homes hold. Keep your lantern burning until the dawn.',
+    ],
+  },
+  {
+    npc: 'dryad',
+    when: { flags: ['boss:moth_matriarch'] },
+    lines: [
+      'The Matriarch is gone and her moths are only moths again. Canopyhold will celebrate.',
+      'The ward over the Moonstone Hollows has broken. Cold light waits down there, and a Warden.',
+    ],
+  },
+  {
+    npc: 'dryad',
+    when: { flags: ['boss:mire_sovereign'] },
+    lines: [
+      'The Mire breathes. Hulda the ferrywoman will come up to your village, if you have a home for her.',
+    ],
+  },
+  {
+    npc: 'dryad',
+    when: { flags: ['boss:hollow_warden'] },
+    lines: [
+      'The deep ward has fallen. Below it lies the Gloam Heart, wrapped round my taproot.',
+      'Light its root-lamps, one by one. It cannot bear to be seen.',
+    ],
+  },
+  {
+    npc: 'dryad',
+    when: { flags: ['boss:gloam_heart'] },
+    lines: [
+      'The Heartlight burns. I feel it in every leaf. Thank you, Lamplighter.',
+      'The Gloam cannot grow now. What is left of it, your light will burn away in time.',
+    ],
+  },
   {
     npc: 'dryad',
     when: { flags: ['road:canopy_road'] },
@@ -216,10 +264,53 @@ export const DIALOGUE: readonly DialogueEntry[] = [
     npc,
     when: { festival: true },
     lines: [
-      'The Festival of Lanterns! Every light we have, all at once. Look up!',
+      'A festival! Every light we have, all at once. Look up!',
       'Tonight we send our lanterns to the sky, so the Heartlight sees we are still here.',
     ],
   })),
+  // M12: a Dimming night in a bright town (a vigil at the plaza) and in a dark one.
+  ...[
+    'innkeeper',
+    'merchant',
+    'lampwright',
+    'caravaneer',
+    'courier',
+    'child',
+    'ropewright',
+    'weaver',
+  ].flatMap((npc): DialogueEntry[] => [
+    {
+      npc,
+      when: { dimming: true, scared: false },
+      lines: [
+        'A Dimming night. We keep vigil together, lamps high, until the dawn.',
+        'Our streets are bright enough to hold. Stay close to the light, Lamplighter.',
+      ],
+    },
+    {
+      npc,
+      when: { dimming: true, scared: true },
+      lines: [
+        'The sun has gone out of the sky and the lamps are low… they will come for the dark streets.',
+        'Light the lamps, please! On a Dimming night half-lit is no better than dark.',
+      ],
+    },
+  ]),
+
+  // M12: Hulda, up from the Mire once its Sovereign has fallen.
+  {
+    npc: 'ferrywoman',
+    lines: [
+      'Forty years I poled folk across that black water. Now the Mire is still, and so am I.',
+      'Moth lures, crystals, buckets of good water. A ferrywoman always has something to trade.',
+      'You pulled the sluices on the Sovereign? Clever. It always hated the light.',
+    ],
+  },
+  {
+    npc: 'ferrywoman',
+    when: { dimming: true },
+    lines: ['A Dimming night. On the Mire we tied our lamps to the boats and sang till dawn.'],
+  },
 
   // The Rootdeep Citadel (only there once their district is reclaimed).
   {

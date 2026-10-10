@@ -43,6 +43,11 @@ export interface GameProbe {
   quests: string[];
   towns: { key: string; x0: number; y0: number; light: number; festival: string }[];
   caravans: { x: number; y: number }[];
+  /** M12: the fight in progress (key, state, phase, health share, script status), or null. */
+  boss: { key: string; state: string; phase: number; health: number; status: string } | null;
+  /** Arenas placed in this world (key, state) and the Dimming's strength 0..1. */
+  arenas: { key: string; state: string }[];
+  dimming: number;
 }
 
 /** Hooks main.ts exposes for Playwright screenshots (tools/shot.ts) and console debugging. */

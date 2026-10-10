@@ -62,6 +62,11 @@ describe('parseDebugParams', () => {
     festival: false,
     quest: null,
     reclaim: [],
+    boss: null,
+    arena: null,
+    beaten: [],
+    dimming: false,
+    bossPhase: null,
     near: null,
   };
 
@@ -94,6 +99,11 @@ describe('parseDebugParams', () => {
       festival: false,
       quest: null,
       reclaim: [],
+      boss: null,
+      arena: null,
+      beaten: [],
+      dimming: false,
+      bossPhase: null,
       near: null,
     });
   });

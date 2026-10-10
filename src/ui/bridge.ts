@@ -58,6 +58,46 @@ export interface HudView {
   town: TownView | null;
   /** Someone following the player through the dark (escort quest), or null. */
   escort: EscortView | null;
+  /**
+   * M12: the Dimming, e.g. "Dimming night" while one is on, "Dimming night tonight" on its day,
+   * "Dimming night in 2 days" before; null once they are over.
+   */
+  dimming: DimmingView | null;
+}
+
+/** The Dimming's HUD badge (M12). */
+export interface DimmingView {
+  text: string;
+  /** A Dimming night is on now (the badge pulses). */
+  on: boolean;
+}
+
+/** The boss bar (M12): shown while a fight is on. */
+export interface BossBarView {
+  name: string;
+  epithet: string;
+  /** 0..1 health left. */
+  health: number;
+  /** Current phase (0-based) and how many there are (pips). */
+  phase: number;
+  phases: number;
+  /** A short hint, e.g. "Stunned! Strike now" or "3 of 6 root-lamps lit"; '' for none. */
+  status: string;
+  /** The boss is in its intro (the title card shows; the bar fills in). */
+  intro: boolean;
+}
+
+/** The boss's title card (M12): a large centred name and epithet that fades; `id` per showing. */
+export interface TitleCardView {
+  title: string;
+  sub: string;
+  id: number;
+}
+
+/** The ending (M12): shown once the Gloam Heart falls. */
+export interface EndingView {
+  title: string;
+  lines: readonly string[];
 }
 
 /** The town around the player (M11): its name and how well lit it is. */
@@ -114,6 +154,11 @@ export interface ShopView {
 /** The quest journal (M11). */
 export interface JournalView {
   quests: readonly { key: string; title: string; summary: string; done: boolean }[];
+  /**
+   * M12 — the way down: each boss whose way is open, how to find it (`where`: e.g. "212 tiles
+   * east, 140 down"; '' when beaten) and whether it has fallen.
+   */
+  story: readonly { key: string; title: string; text: string; where: string; done: boolean }[];
 }
 
 /** A big centred title that fades (entering a town, a district reclaimed, a festival). */
@@ -185,6 +230,10 @@ export interface UiState {
   /** Null unless the quest journal is open. */
   journal: JournalView | null;
   banner: BannerView | null;
+  /** M12: the boss bar while a fight is on, the boss's title card, and the ending. */
+  boss: BossBarView | null;
+  titleCard: TitleCardView | null;
+  ending: EndingView | null;
   /** Seconds until the player respawns, or null while alive. */
   respawnIn: number | null;
   /** Pack folder the game loaded (icons are cut from its tile atlas). */
@@ -227,6 +276,8 @@ export interface UiCommands {
   /** Sell `count` of an item (the stall offers whole stacks). */
   sell: { npcId: number; item: number; count: number };
   toggleJournal: Record<string, never>;
+  /** Close the ending card and keep playing (M12). */
+  closeEnding: Record<string, never>;
   saveAndQuit: Record<string, never>;
 }
 
