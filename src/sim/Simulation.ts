@@ -22,6 +22,10 @@ import { VILLAGE } from '../data/roads';
 import { nextLine } from './systems/DialogueSystem';
 import { ProgressionSystem } from './systems/ProgressionSystem';
 import { DimmingSystem, dimmingFlag } from './systems/DimmingSystem';
+import { BossSystem } from './systems/BossSystem';
+import type { BossContext } from './systems/bosses/types';
+import { createEnemy } from './entities/Enemy';
+import { enemyIndex } from '../data/enemies';
 import { bossFlag } from '../data/bosses';
 import { TownSystem } from './systems/TownSystem';
 import { RoadSystem } from './systems/RoadSystem';
@@ -170,7 +174,11 @@ export class Simulation {
   readonly dimming: DimmingSystem;
   private waveTimer = 0;
   private readonly wavePayload = { count: 0 };
+  private readonly actionPayload: { kind: SimEvents['bossAction']['kind']; x: number; y: number } =
+    { kind: 'stunned', x: 0, y: 0 };
   readonly arenaPlaces: readonly TownPlace[];
+  /** Boss arenas and the fight in progress (M12). */
+  readonly bosses: BossSystem;
   private readonly talkPayload = {
     npcId: 0,
     key: '',
@@ -354,6 +362,49 @@ export class Simulation {
       events: this.events,
       safe: (x: number, y: number) => this.beacons.covers(x, y) || this.towns.protects(x, y),
     };
+    const bossContext: BossContext = {
+      world: this.world,
+      player: this.player,
+      input: this.input,
+      inventory: this.inventory,
+      events: this.events,
+      enemies: this.enemies,
+      shots: [],
+      random: this.random,
+      lanternLit: () => lanternLit(this.player),
+      lens: () => lensByKey(this.player.lens),
+      lightAt: (x, y) => this.lightAtTile(x, y),
+      spawn: (key, feetX, feetY) => {
+        const enemy = createEnemy(this.nextEnemyId++, enemyIndex(key), feetX, feetY);
+        this.enemies.push(enemy);
+        return enemy;
+      },
+      nextId: () => this.nextEnemyId++,
+      remove: (enemy) => {
+        const i = this.enemies.indexOf(enemy);
+        if (i >= 0) {
+          this.enemies[i] = this.enemies[this.enemies.length - 1] ?? enemy;
+          this.enemies.pop();
+        }
+      },
+      burn: (enemy, amount) =>
+        hitEnemy(this.combat, this.combatContext, enemy, amount, 0, 0, 'light'),
+      blocked: (need) => this.blocked(need),
+      action: (kind, x, y) => {
+        this.actionPayload.kind = kind;
+        this.actionPayload.x = x;
+        this.actionPayload.y = y;
+        this.events.emit('bossAction', this.actionPayload);
+      },
+    };
+    this.bosses = new BossSystem(
+      this.world,
+      this.events,
+      this.progression,
+      bossContext,
+      (amount, dir) => hurtPlayer(this.combatContext, amount, dir),
+      this.arenaPlaces,
+    );
     this.weather = new Weather(options.seed ?? 0);
     this.light = new LightSystem(
       this.world,
@@ -456,6 +507,7 @@ export class Simulation {
     sim.towns.restore(save.towns);
     sim.quests.restore(save.quests);
     sim.dimming.restore(save.day, save.dimmingsSurvived, save.dayFraction);
+    sim.bosses.restore();
     return sim;
   }
 
@@ -593,6 +645,7 @@ export class Simulation {
       this.flares.length +
       this.enemies.length +
       this.projectiles.length +
+      this.bosses.shots.length +
       this.falling.blocks.length +
       this.critters.critters.length +
       this.settlement.npcs.length +
@@ -698,6 +751,7 @@ export class Simulation {
     this.wispLights.length = 0;
     if (this.wisps.wisp) this.wispLights.push(this.wisps.wisp);
     this.roads.lights(this.wispLights);
+    this.bosses.lights(this.wispLights);
     if (this.player.bounced) {
       this.bouncedPayload.x = pb.x + pb.width / 2;
       this.bouncedPayload.y = pb.y + pb.height;
@@ -723,6 +777,7 @@ export class Simulation {
       const def = ENEMIES[enemy.type];
       if (def) updateEnemyAI(enemy, def, this.player, !this.player.dead, this.world, dt);
     }
+    this.bosses.update(dt);
     updateCombat(this.combat, this.combatContext, dt);
     if (this.combat.hitLanded) this.hitStop = COMBAT.hitStop;
     if (this.spawnsEnabled) {
@@ -951,6 +1006,10 @@ export class Simulation {
 
   /** Right-click on a town fixture: refuel a lamp, ride a lift, relight a dormant beacon. */
   private useTile(x: number, y: number): boolean {
+    if (this.bosses.use(x, y)) {
+      this.events.emit('inventoryChanged', NO_PAYLOAD);
+      return true;
+    }
     const lamp = this.towns.lampAt(x, y);
     if (lamp) {
       if (lamp.fuel >= 1) return true;

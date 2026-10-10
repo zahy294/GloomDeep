@@ -216,6 +216,47 @@ export interface SimEvents {
   dimmingEnded: { readonly survived: number };
   /** A wave of shades rose around the player during a Dimming night. */
   shadeWave: { readonly count: number };
+  /**
+   * M12 boss fights. `bossIntro`: the player stepped into an arena and its boss appears (x, y =
+   * its centre, pixels; the camera zooms in and the title card shows). `bossPhase`: its health
+   * fell to the next phase (from 0). `bossDefeated`: it fell (`reward`: what changed).
+   * `bossReset`: the fight was lost or left; the arena is as it was.
+   */
+  bossIntro: {
+    readonly key: string;
+    readonly name: string;
+    readonly epithet: string;
+    readonly x: number;
+    readonly y: number;
+  };
+  bossPhase: { readonly key: string; readonly phase: number };
+  bossDefeated: {
+    readonly key: string;
+    readonly name: string;
+    readonly reward: string;
+    readonly x: number;
+    readonly y: number;
+  };
+  bossReset: { readonly key: string };
+  /**
+   * Something happened in a fight worth a sound or a shake (pixels): the Matriarch stunned by a
+   * lure, a flood rising or a sluice draining, a slam, a prism turned, a root-lamp lit or choked,
+   * a volley loosed.
+   */
+  bossAction: {
+    readonly kind:
+      | 'stunned'
+      | 'flood'
+      | 'drain'
+      | 'slam'
+      | 'prism'
+      | 'nodeLit'
+      | 'nodeChoked'
+      | 'volley'
+      | 'cracked';
+    readonly x: number;
+    readonly y: number;
+  };
 }
 
 type Listener<T> = (payload: T) => void;
