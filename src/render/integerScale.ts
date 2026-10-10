@@ -13,10 +13,17 @@ export interface ViewSize {
  * rows cropped (down to DISPLAY.minHeight) when the window is too short for all 540. Working in
  * device pixels keeps game pixels square even at 125%/150% OS display scaling.
  */
-export function viewSize(cssW: number, cssH: number, devicePixelRatio: number): ViewSize {
+export function viewSize(
+  cssW: number,
+  cssH: number,
+  devicePixelRatio: number,
+  /** The largest zoom allowed (the settings' display scale), or Infinity. */
+  maxZoom = Infinity,
+): ViewSize {
   const deviceW = cssW * devicePixelRatio;
   const deviceH = cssH * devicePixelRatio;
-  for (let zoom = Math.floor(deviceW / DISPLAY.width); zoom >= DISPLAY.minZoom; zoom--) {
+  const fits = Math.floor(deviceW / DISPLAY.width);
+  for (let zoom = Math.min(fits, maxZoom); zoom >= DISPLAY.minZoom; zoom--) {
     const rows = Math.floor(deviceH / zoom);
     if (rows >= DISPLAY.minHeight) {
       // Even, so the camera centre stays on a whole game pixel.
@@ -32,10 +39,21 @@ export function viewSize(cssW: number, cssH: number, devicePixelRatio: number): 
  * DOM overlay to match. Phaser's FIT mode would allow fractional scales, so we drive the size and
  * zoom ourselves in Scale.NONE mode. Cameras at full size follow a resize automatically.
  */
-export function keepIntegerScale(game: Phaser.Game, overlay: HTMLElement): () => void {
+export function keepIntegerScale(
+  game: Phaser.Game,
+  overlay: HTMLElement,
+  /** The settings' display scale ('auto' = the largest that fits). */
+  scale: () => 'auto' | number = () => 'auto',
+): { apply: () => void; stop: () => void } {
   const apply = () => {
     const dpr = window.devicePixelRatio || 1;
-    const { zoom: deviceZoom, height } = viewSize(window.innerWidth, window.innerHeight, dpr);
+    const wanted = scale();
+    const { zoom: deviceZoom, height } = viewSize(
+      window.innerWidth,
+      window.innerHeight,
+      dpr,
+      wanted === 'auto' ? Infinity : wanted,
+    );
     // Phaser sets the canvas CSS size to width × zoom, so pass the zoom in CSS pixels.
     const cssZoom = deviceZoom / dpr;
     if (game.scale.height !== height) game.scale.resize(DISPLAY.width, height);
@@ -49,5 +67,5 @@ export function keepIntegerScale(game: Phaser.Game, overlay: HTMLElement): () =>
 
   apply();
   window.addEventListener('resize', apply);
-  return () => window.removeEventListener('resize', apply);
+  return { apply, stop: () => window.removeEventListener('resize', apply) };
 }

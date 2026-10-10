@@ -1,3 +1,5 @@
+import { useState } from 'preact/hooks';
+import { Credits } from './Credits';
 import type { BossBarView, EndingView, TitleCardView, UiBridge } from './bridge';
 import { pointerGuard } from './ItemIcon';
 
@@ -55,6 +57,8 @@ export function TitleCard({ card }: { card: TitleCardView }) {
 
 /** The ending: shown once the final boss falls; "Keep playing" closes it. */
 export function EndingCard({ bridge, ending }: { bridge: UiBridge; ending: EndingView }) {
+  const [credits, setCredits] = useState(false);
+  if (credits) return <Credits onClose={() => setCredits(false)} />;
   return (
     <div class="ending-card interactive" {...pointerGuard(bridge)}>
       <div class="ending-title">{ending.title}</div>
@@ -63,9 +67,14 @@ export function EndingCard({ bridge, ending }: { bridge: UiBridge; ending: Endin
           {line}
         </p>
       ))}
-      <button class="panel-button" onClick={() => bridge.commands.emit('closeEnding', {})}>
-        Keep playing
-      </button>
+      <div class="title-buttons">
+        <button class="panel-button" onClick={() => setCredits(true)}>
+          Credits
+        </button>
+        <button class="panel-button" onClick={() => bridge.commands.emit('closeEnding', {})}>
+          Keep playing
+        </button>
+      </div>
     </div>
   );
 }

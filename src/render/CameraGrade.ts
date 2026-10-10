@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { ATMOSPHERE, DIMMING_FX, GLOAM, GRADE } from '../config';
+import { ATMOSPHERE, DIMMING_FX, GLOAM, GRADE, PHOTO } from '../config';
 import type { BiomeVisual } from '../data/biomeVisuals';
 import { mixColor } from './atmosphereMath';
 import { blendColor, blendNumber } from './biomeBlend';
@@ -153,6 +153,14 @@ export class CameraGrade {
       p.tint = mixColor(p.tint, DIMMING_FX.tint, dim * DIMMING_FX.tintMix);
       p.saturation *= 1 - dim * (1 - DIMMING_FX.saturation);
       p.brightness *= 1 - dim * (1 - DIMMING_FX.brightness);
+    }
+    // A photo-mode filter preset (M13) on top of everything.
+    const photo = PHOTO.presets[visual.photoPreset];
+    if (visual.photoPreset !== 'none') {
+      p.tint = mixColor(p.tint, photo.tint, photo.tintMix);
+      p.saturation *= photo.saturation;
+      p.contrast *= photo.contrast;
+      p.brightness *= photo.brightness;
     }
     gradeMatrix(p, this.matrix);
 

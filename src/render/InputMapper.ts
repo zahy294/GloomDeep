@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { DEFAULT_BINDINGS, HOTBAR_KEYS, MOUSE_BINDINGS } from '../data/keybindings';
+import type { Settings } from '../settings';
 import type { SimCommand } from '../sim/commands';
 import { ACTIONS, type Action, type ActionState } from '../sim/input';
 
@@ -25,21 +26,12 @@ export class InputMapper {
     private readonly scene: Phaser.Scene,
     private readonly actions: ActionState,
     enqueue: (command: SimCommand) => void,
+    /** The settings' key bindings (M13); the defaults for anything they don't list. */
+    keys: Partial<Settings['keys']> = {},
   ) {
+    if (!scene.input.keyboard) throw new Error('Keyboard input is disabled in the game config');
+    this.setKeys(keys);
     const keyboard = scene.input.keyboard;
-    if (!keyboard) throw new Error('Keyboard input is disabled in the game config');
-    for (const action of ACTIONS) {
-      this.bindings.push({
-        action,
-        keys: (DEFAULT_BINDINGS[action] ?? []).map((name) => {
-          const key = keyboard.addKey(name, true);
-          // Polling isDown once per frame misses taps shorter than a frame; latch the edge too.
-          key.on(Phaser.Input.Keyboard.Events.DOWN, () => this.actions.press(action));
-          return key;
-        }),
-        mouse: MOUSE_BINDINGS[action] ?? null,
-      });
-    }
 
     HOTBAR_KEYS.forEach((name, slot) => {
       keyboard.on(`keydown-${name}`, () => enqueue({ type: 'selectSlot', slot }));
@@ -57,6 +49,32 @@ export class InputMapper {
       for (const binding of this.bindings) for (const key of binding.keys) key.removeAllListeners();
       scene.input.off(Phaser.Input.Events.POINTER_WHEEL, onWheel);
     });
+  }
+
+  /** (Re)binds the actions' keys: the settings menu applies changes at once (M13). */
+  setKeys(keys: Partial<Settings['keys']>): void {
+    const keyboard = this.scene.input.keyboard;
+    if (!keyboard) return;
+    for (const binding of this.bindings) {
+      for (const key of binding.keys) {
+        key.removeAllListeners();
+        key.reset();
+      }
+    }
+    this.bindings.length = 0;
+    for (const action of ACTIONS) {
+      this.bindings.push({
+        action,
+        keys: (keys[action] ?? DEFAULT_BINDINGS[action] ?? []).map((name) => {
+          const key = keyboard.addKey(name, true);
+          // Polling isDown once per frame misses taps shorter than a frame; latch the edge too.
+          key.on(Phaser.Input.Keyboard.Events.DOWN, () => this.actions.press(action));
+          return key;
+        }),
+        mouse: MOUSE_BINDINGS[action] ?? null,
+      });
+    }
+    this.actions.releaseAll();
   }
 
   /** Call once per frame, before advancing the simulation. */

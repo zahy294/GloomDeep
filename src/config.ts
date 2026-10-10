@@ -921,6 +921,53 @@ export const BOSS_VIEW = {
   phaseShakeSeconds: 0.6,
 } as const;
 
+/**
+ * Photo mode (M13, src/render/PhotoMode.ts): camera speed (px/s, ×fastFactor with Shift), the
+ * saved PNG's whole-number upscale, and the filter presets (mixed into the camera grade).
+ */
+export const PHOTO = {
+  panSpeed: 320,
+  fastFactor: 3,
+  saveScale: 4,
+  presets: {
+    none: { label: 'None', tint: 0xffffff, tintMix: 0, saturation: 1, contrast: 1, brightness: 1 },
+    warm: {
+      label: 'Warm',
+      tint: 0xffc890,
+      tintMix: 0.25,
+      saturation: 1.1,
+      contrast: 1.05,
+      brightness: 1.04,
+    },
+    cold: {
+      label: 'Cold',
+      tint: 0x9ab8ff,
+      tintMix: 0.25,
+      saturation: 0.9,
+      contrast: 1.05,
+      brightness: 0.98,
+    },
+    dream: {
+      label: 'Dream',
+      tint: 0xf0a0d0,
+      tintMix: 0.2,
+      saturation: 1.3,
+      contrast: 0.92,
+      brightness: 1.08,
+    },
+    noir: {
+      label: 'Noir',
+      tint: 0xffffff,
+      tintMix: 0,
+      saturation: 0,
+      contrast: 1.25,
+      brightness: 1,
+    },
+  },
+} as const;
+
+export type PhotoPresetKey = keyof typeof PHOTO.presets;
+
 /** Dimming nights on screen (sky aurora, colour grade). */
 export const DIMMING_FX = {
   /** Grade at full strength: tint mixed in, saturation and brightness multipliers. */
@@ -1877,4 +1924,50 @@ export const TOWN_VIEW = {
   fireworkFlashAlpha: 0.8,
   sparkHaloPx: 14,
   sparkHaloAlpha: 0.5,
+} as const;
+
+/** The animated title backdrop (TitleScene): a night forest with drifting tree lines and fireflies. */
+export const TITLE_SCENE = {
+  groundRows: 3,
+  /** Sky gradient, top to horizon. */
+  skyTop: 0x050d14,
+  skyHorizon: 0x1d4e52,
+  /** Tints for the four parallax layers (0 = farthest) and their sideways drift, pixels/second. */
+  layerTints: [0x3c6a78, 0x2a5260, 0x1c3d48, 0x112a33],
+  layerAlpha: [0.55, 0.7, 0.85, 1],
+  layerSpeeds: [1.5, 3.5, 7, 12],
+  /** How far each layer's base sits below the ground top, pixels (hides the texture's bottom edge). */
+  layerSink: [-6, 0, 4, 10],
+  groundTint: 0x4f666c,
+  /** Stars: count, twinkle speed and alpha range. */
+  stars: { count: 36, maxHeightFraction: 0.5, twinkleSpeed: 1.6, alphaMin: 0.15, alphaMax: 0.8 },
+  moon: { x: 0.78, y: 0.2, haloScale: 5, haloAlpha: 0.25 },
+  fireflies: {
+    count: 26,
+    color: 0xe8e08a,
+    /** Wander radius (pixels), wander speed, pulse speed. */
+    drift: 22,
+    speed: 0.35,
+    pulseSpeed: 1.8,
+    haloScale: 0.7,
+    haloAlpha: 0.6,
+    /** Vertical band the fireflies live in, as fractions of the view height from the top. */
+    bandTop: 0.3,
+    bandBottom: 0.9,
+  },
+  /** Big soft teal glows on the forest floor. */
+  groundGlows: { count: 4, color: 0x2fb2b8, scale: 9, alpha: 0.16, pulseSpeed: 0.5 },
+  /** Max frame step, so a tab switch does not teleport the drift. */
+  maxStepSeconds: 0.1,
+  seed: 0x7171,
+} as const;
+
+/** The loading bar BootScene shows while assets load. */
+export const LOADING_VIEW = {
+  barWidth: 160,
+  barHeight: 6,
+  border: 1,
+  /** Gap between the game name and the bar, and the name's text size in pixels. */
+  gap: 10,
+  textPx: 16,
 } as const;

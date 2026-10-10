@@ -1256,3 +1256,124 @@ body {
 .new-world .field.checkbox > span {
   min-width: 0;
 }
+
+/* Credits */
+.credits-panel {
+  width: calc(var(--px) * 220);
+  text-align: center;
+}
+
+.credits-tagline,
+.credits-thanks {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.credits-thanks {
+  color: var(--gold);
+}
+
+.credits-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 1);
+}
+
+.credits-role {
+  color: var(--glow);
+}
+
+/* Keep the title readable over the animated backdrop. */
+.title-screen .tagline,
+.title-screen .prompt {
+  text-shadow: 0 0 calc(var(--px) * 3) rgb(5 8 10 / 0.9);
+}
+
+/* M13: settings, photo mode, title buttons. */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 3);
+  width: calc(var(--px) * 300);
+  max-height: calc(var(--px) * 320);
+  padding: calc(var(--px) * 6);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+}
+
+.settings-tabs,
+.settings-choices,
+.title-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--px) * 2);
+}
+
+.title-buttons {
+  justify-content: center;
+  margin-top: calc(var(--px) * 6);
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 3);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--px) * 4);
+}
+
+.settings-row > span:first-child {
+  min-width: calc(var(--px) * 60);
+  color: var(--ink-dim);
+}
+
+.settings-row input[type='range'] {
+  flex: 1;
+  accent-color: var(--glow);
+}
+
+.settings-value {
+  min-width: calc(var(--px) * 18);
+  text-align: right;
+}
+
+.menu-button.small {
+  padding: calc(var(--px) * 1.5) calc(var(--px) * 4);
+  font-size: calc(var(--px) * 6);
+}
+
+.key-button {
+  min-width: calc(var(--px) * 46);
+  padding: calc(var(--px) * 1) calc(var(--px) * 3);
+  font: inherit;
+  color: var(--glow);
+  background: rgb(5 8 10 / 0.8);
+  border: var(--px) solid rgb(149 164 192 / 0.4);
+  cursor: pointer;
+}
+
+.key-button.listening {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.photo-panel {
+  position: absolute;
+  right: calc(var(--px) * 6);
+  top: calc(var(--px) * 6);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 3);
+  width: calc(var(--px) * 170);
+  padding: calc(var(--px) * 5);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  font-size: calc(var(--px) * 6);
+}

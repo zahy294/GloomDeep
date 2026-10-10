@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../src/settings';
 import { WORLD_SIZES } from '../../src/config';
 import { WorldFlow, type GameStart, type WorldStore } from '../../src/flow/WorldFlow';
 import { SAVE_VERSION } from '../../src/persistence/saveFormat';
@@ -22,6 +23,8 @@ const initial: UiState = {
   journal: null,
   banner: null,
   guide: false,
+  settings: DEFAULT_SETTINGS,
+  photo: null,
   boss: null,
   titleCard: null,
   ending: null,

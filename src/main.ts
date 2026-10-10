@@ -17,8 +17,11 @@ import { SaveStore } from './persistence/SaveStore';
 import { App } from './ui/App';
 import { generateWorldAsync } from './workers/worldgen/worldgenClient';
 import { UiBridge } from './ui/bridge';
+import { loadSettings, saveSettings } from './settings';
 
 const debug = parseDebugParams(window.location.search);
+// `?quality=` overrides the saved quality for this session only (it is never saved).
+const settings = loadSettings();
 const bridge = new UiBridge({
   screen: 'boot',
   showUi: debug.showUi,
@@ -34,6 +37,8 @@ const bridge = new UiBridge({
   journal: null,
   banner: null,
   guide: false,
+  settings,
+  photo: null,
   boss: null,
   titleCard: null,
   ending: null,
@@ -100,7 +105,12 @@ const game = new Phaser.Game({
 });
 
 scenes = game.scene;
-keepIntegerScale(game, uiRoot);
+const rescale = keepIntegerScale(game, uiRoot, () => bridge.state.settings.scale);
+bridge.commands.on('changeSettings', ({ settings: next }) => {
+  saveSettings(next);
+  bridge.set({ settings: next });
+  rescale.apply();
+});
 render(h(App, { bridge }), uiRoot);
 
 // Type declared in src/types/window.d.ts.

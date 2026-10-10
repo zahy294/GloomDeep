@@ -1,4 +1,4 @@
-import { BIOME_BLEND, TILE_SIZE, TIME_OF_DAY_FX } from '../config';
+import { BIOME_BLEND, TILE_SIZE, TIME_OF_DAY_FX, type PhotoPresetKey } from '../config';
 import { LIQUID } from '../data/biomes';
 import type { DaySample } from '../sim/dayCycle';
 import type { QualityFeatures } from '../settings';
@@ -43,6 +43,8 @@ export class VisualState {
   gloam = 0;
   /** 0..1: a Dimming night's strength (M12): auroras in the sky, a violet grade. */
   dimming = 0;
+  /** Photo mode's filter preset (M13; PHOTO.presets key), 'none' otherwise. */
+  photoPreset: PhotoPresetKey = 'none';
 
   private readonly target = new Float32Array(VISUALS.length);
   private first = true;

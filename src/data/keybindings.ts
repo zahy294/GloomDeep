@@ -48,6 +48,10 @@ export const UI_KEYS = {
   toggleJournal: 'J',
   /** The Lamplighter's Guide: what to do and how. */
   toggleGuide: 'H',
+  /** Photo mode (M13): toggle the panel. */
+  photoPanel: 'TAB',
+  /** Photo mode on/off (rebindable in the settings). */
+  togglePhoto: 'P',
   /** Closes the inventory panel, otherwise opens/closes the pause menu. */
   pause: 'ESC',
 } as const;

@@ -1,4 +1,5 @@
 import { AUDIO } from '../config';
+import type { Volumes } from '../settings';
 import { SOUND_DESIGN, type SfxKind, type Timbre } from '../data/audio';
 
 /** One combat sound: an optional filtered noise burst and an optional pitch-swept tone. */
@@ -54,6 +55,10 @@ export class AudioDirector {
   private readonly master: GainNode;
   private readonly musicBus: GainNode;
   private readonly ambienceBus: GainNode;
+  /** Sound effects (M13: their own volume). */
+  private readonly sfxBus: GainNode;
+  /** The settings' volumes (M13), multiplying the AUDIO mix. */
+  private volume: Volumes = { master: 1, music: 1, ambience: 1, sfx: 1 };
   private readonly noise: AudioBuffer;
   private readonly beds: { wind: GainNode; rain: GainNode; rumble: GainNode };
   private readonly windFilter: BiquadFilterNode;
@@ -73,6 +78,7 @@ export class AudioDirector {
     this.master = this.gain(AUDIO.master, destination);
     this.musicBus = this.gain(AUDIO.music, this.master);
     this.ambienceBus = this.gain(AUDIO.ambience, this.master);
+    this.sfxBus = this.gain(1, this.master);
     this.noise = this.makeNoise();
 
     const d = SOUND_DESIGN;
@@ -149,23 +155,34 @@ export class AudioDirector {
     const d: SfxDef = SOUND_DESIGN.sfx[kind];
     const t = this.ctx.currentTime;
     if (d.noise)
-      this.noiseBurst(t, d.noise.type, d.noise.hz, d.noise.decay, d.noise.gain, this.master);
+      this.noiseBurst(t, d.noise.type, d.noise.hz, d.noise.decay, d.noise.gain, this.sfxBus);
     if (d.tone) {
       const osc = this.ctx.createOscillator();
       osc.type = d.tone.type;
       osc.frequency.setValueAtTime(d.tone.from, t);
       osc.frequency.exponentialRampToValueAtTime(d.tone.to, t + d.tone.decay);
-      this.envelope(osc, t, SOUND_DESIGN.sfxAttack, d.tone.decay, d.tone.gain, this.master);
+      this.envelope(osc, t, SOUND_DESIGN.sfxAttack, d.tone.decay, d.tone.gain, this.sfxBus);
     }
   }
 
   setPaused(paused: boolean): void {
     this.paused = paused;
     this.master.gain.setTargetAtTime(
-      paused ? 0 : AUDIO.master,
+      paused ? 0 : AUDIO.master * this.volume.master,
       this.ctx.currentTime,
       AUDIO.pauseFade,
     );
+  }
+
+  /** The settings' volumes (M13), applied at once. */
+  setVolumes(volume: Volumes): void {
+    this.volume = { ...volume };
+    const t = this.ctx.currentTime;
+    if (!this.paused)
+      this.master.gain.setTargetAtTime(AUDIO.master * volume.master, t, AUDIO.pauseFade);
+    this.musicBus.gain.setTargetAtTime(AUDIO.music * volume.music, t, AUDIO.pauseFade);
+    this.ambienceBus.gain.setTargetAtTime(AUDIO.ambience * volume.ambience, t, AUDIO.pauseFade);
+    this.sfxBus.gain.setTargetAtTime(volume.sfx, t, AUDIO.pauseFade);
   }
 
   destroy(): void {

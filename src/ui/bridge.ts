@@ -1,6 +1,7 @@
 import { EventBus } from '../sim/events';
 import type { SlotButton } from '../sim/inventory/Inventory';
 import type { WorldSizeKey } from '../sim/world/worldData';
+import type { Settings } from '../settings';
 
 export type { WorldSizeKey };
 
@@ -92,6 +93,16 @@ export interface TitleCardView {
   title: string;
   sub: string;
   id: number;
+}
+
+/** Photo mode (M13): its controls' values. */
+export interface PhotoView {
+  /** Time of day 0..1 shown by the slider. */
+  dayFraction: number;
+  /** Filter preset key (PHOTO.presets). */
+  preset: string;
+  /** The panel is hidden (only a small hint shows). */
+  panelHidden: boolean;
 }
 
 /** The ending (M12): shown once the Gloam Heart falls. */
@@ -232,6 +243,10 @@ export interface UiState {
   banner: BannerView | null;
   /** The guide (H) is open; the world waits while it is. */
   guide: boolean;
+  /** M13: the player's settings (quality, volume, scale, keys). */
+  settings: Settings;
+  /** M13: photo mode is on (the HUD hides; the photo panel shows unless hidden). */
+  photo: PhotoView | null;
   /** M12: the boss bar while a fight is on, the boss's title card, and the ending. */
   boss: BossBarView | null;
   titleCard: TitleCardView | null;
@@ -281,6 +296,14 @@ export interface UiCommands {
   toggleJournal: Record<string, never>;
   /** Open or close the guide. */
   toggleGuide: Record<string, never>;
+  /** M13: settings changed (the whole new set; it is saved and applied at once). */
+  changeSettings: { settings: Settings };
+  /** M13 photo mode: leave it, set the time of day or the filter, hide the panel, save a PNG. */
+  photoExit: Record<string, never>;
+  photoTime: { dayFraction: number };
+  photoPreset: { preset: string };
+  photoPanel: { hidden: boolean };
+  photoSave: Record<string, never>;
   /** Close the ending card and keep playing (M12). */
   closeEnding: Record<string, never>;
   saveAndQuit: Record<string, never>;

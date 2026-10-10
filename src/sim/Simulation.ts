@@ -602,6 +602,26 @@ export class Simulation {
     return this.elapsed;
   }
 
+  /**
+   * Photo mode (M13): nothing moves, but the light follows the time of day the photographer
+   * picked (and the camera, through `input.setFocus`). Only the sun and the light grid update.
+   */
+  relight(dt: number): void {
+    this.setDayFraction(this.dayFraction); // a fresh sample, so the Dimming is applied once
+    this.dimming.apply(this.day);
+    this.weather.applyToSun(this.day, this.sunNow);
+    this.light.update(
+      dt,
+      this.elapsed,
+      this.sunNow,
+      this.player,
+      this.input,
+      this.flares,
+      this.fireLights,
+      this.wispLights,
+    );
+  }
+
   /** Jumps to a time of day (debug keys and `?time=`). */
   setDayFraction(fraction: number): void {
     this.dayFraction = ((fraction % 1) + 1) % 1;

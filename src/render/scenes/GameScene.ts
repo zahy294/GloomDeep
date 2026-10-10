@@ -15,6 +15,8 @@ import {
   MATERIALS_VIEW,
   VILLAGE_UI,
   LIFE_VIEW,
+  PHOTO,
+  type PhotoPresetKey,
 } from '../../config';
 import { CRITTERS } from '../../data/critters';
 import { prefabByKey } from '../../data/prefabs';
@@ -78,6 +80,8 @@ import { TownRenderer } from '../TownRenderer';
 import { TownPresenter } from '../TownPresenter';
 import { BossPresenter } from '../BossPresenter';
 import { BossRenderer } from '../BossRenderer';
+import { downloadScaledPng, PhotoMode } from '../PhotoMode';
+import { keyName, type UiKey } from '../../settings';
 import { arenaSpot, beatBosses, startDimming, startFight, wardSpot } from '../../sim/debugBosses';
 import type { SfxKind } from '../../data/audio';
 import type { SimEvents } from '../../sim/events';
@@ -219,6 +223,7 @@ export class GameScene extends Phaser.Scene {
   /** A brand-new world: point the player at the guide once it has loaded. */
   private welcome = false;
   private guideOpen = false;
+  private photo!: PhotoMode;
 
   constructor(
     private readonly bridge: UiBridge,
@@ -292,9 +297,16 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SceneKey.Front, { visual: this.visual });
     this.frontScene = this.scene.get(SceneKey.Front) as FrontScene;
     this.audio = this.createAudio();
+    this.audio?.setVolumes(this.bridge.state.settings.volume);
 
     const sim = this.sim;
-    this.inputMapper = new InputMapper(this, sim.input, (command) => sim.enqueue(command));
+    this.inputMapper = new InputMapper(
+      this,
+      sim.input,
+      (command) => sim.enqueue(command),
+      this.bridge.state.settings.keys,
+    );
+    this.photo = new PhotoMode(this);
     this.walls = new ChunkRenderer(this, world, sim.events, {
       layer: 'bg',
       textureKey: TextureKey.walls,
@@ -445,21 +457,38 @@ export class GameScene extends Phaser.Scene {
       sim.enqueue({ type: 'setDayFraction', value: next });
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.pause}`, () => {
-      if (this.guideOpen) this.setGuide(false);
+      if (this.photo.active) this.setPhoto(false);
+      else if (this.guideOpen) this.setGuide(false);
       else if (this.inventoryOpen) this.toggleInventory();
       else if (this.talkingTo >= 0 || this.travelFrom || this.townUi.panelOpen)
         this.closeVillagePanels();
       else this.setPaused(!this.paused);
     });
-    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleInventory}`, () => {
-      if (!this.paused) this.toggleInventory();
+    // The rebindable UI keys (M13 settings): matched by the key's name on every key press.
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      const name = keyName(event.code);
+      if (!name) return;
+      const keys = this.bridge.state.settings.keys;
+      const is = (what: UiKey) => keys[what].includes(name);
+      if (this.photo.active) {
+        if (is('togglePhoto')) this.setPhoto(false);
+        else if (name === UI_KEYS.photoPanel) this.setPhotoPanel(!this.photo.panelHidden);
+        return;
+      }
+      if (is('togglePhoto')) {
+        if (!this.paused && !this.guideOpen) this.setPhoto(true);
+      } else if (is('toggleInventory')) {
+        if (!this.paused && !this.guideOpen) this.toggleInventory();
+      } else if (is('toggleJournal')) {
+        if (!this.paused && !this.guideOpen) this.townUi.toggleJournal();
+      } else if (is('toggleGuide')) {
+        this.setGuide(!this.guideOpen);
+      }
     });
-    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleJournal}`, () => {
-      if (!this.paused && !this.guideOpen) this.townUi.toggleJournal();
-    });
-    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleGuide}`, () => this.setGuide(!this.guideOpen));
     const onVisibility = () => {
       if (document.visibilityState !== 'hidden' || this.quitting) return;
+      // Photo mode changes the clock: put it back before saving.
+      this.setPhoto(false);
       this.saveNow().catch((error: unknown) => console.error('Save on hide failed', error));
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -504,6 +533,26 @@ export class GameScene extends Phaser.Scene {
       ),
       this.bridge.commands.on('toggleJournal', () => this.townUi.toggleJournal()),
       this.bridge.commands.on('closeEnding', () => this.bossUi.closeEnding()),
+      // M13: settings apply at once (quality on the next world), and photo mode's controls.
+      this.bridge.commands.on('changeSettings', ({ settings }) => {
+        this.inputMapper.setKeys(settings.keys);
+        this.audio?.setVolumes(settings.volume);
+      }),
+      this.bridge.commands.on('photoExit', () => this.setPhoto(false)),
+      this.bridge.commands.on('photoTime', ({ dayFraction }) => {
+        if (!this.photo.active) return;
+        this.photo.dayFraction = dayFraction;
+        sim.setDayFraction(dayFraction);
+        this.publishPhoto();
+      }),
+      this.bridge.commands.on('photoPreset', ({ preset }) => {
+        if (!this.photo.active || !Object.hasOwn(PHOTO.presets, preset)) return;
+        this.photo.preset = preset;
+        this.visual.photoPreset = preset as PhotoPresetKey;
+        this.publishPhoto();
+      }),
+      this.bridge.commands.on('photoPanel', ({ hidden }) => this.setPhotoPanel(hidden)),
+      this.bridge.commands.on('photoSave', () => this.savePhoto()),
     ];
     this.listenToVillage();
     sim.events.on('inventoryChanged', () => this.publishInventory());
@@ -764,6 +813,57 @@ export class GameScene extends Phaser.Scene {
     return audio;
   }
 
+  /**
+   * Photo mode (M13): the world holds still, the UI hides and the camera flies free. Leaving puts
+   * the clock and the colour grade back as they were.
+   */
+  private setPhoto(on: boolean): void {
+    if (on === this.photo.active || this.quitting) return;
+    const cam = this.cameras.main;
+    if (on) {
+      if (this.inventoryOpen) this.toggleInventory();
+      this.closeVillagePanels();
+      this.photo.enter(
+        cam.scrollX + cam.width / 2,
+        cam.scrollY + cam.height / 2,
+        this.sim.dayFraction,
+      );
+      this.cursor.visible = false;
+      this.publishPhoto();
+    } else {
+      this.photo.exit();
+      this.sim.setDayFraction(this.photo.savedFraction);
+      this.visual.photoPreset = 'none';
+      this.cursor.visible = true;
+      this.bridge.set({ photo: null });
+    }
+    this.sim.input.releaseAll();
+  }
+
+  private setPhotoPanel(hidden: boolean): void {
+    if (!this.photo.active) return;
+    this.photo.panelHidden = hidden;
+    this.publishPhoto();
+  }
+
+  private publishPhoto(): void {
+    const p = this.photo;
+    this.bridge.set({
+      photo: { dayFraction: p.dayFraction, preset: p.preset, panelHidden: p.panelHidden },
+    });
+  }
+
+  /** Saves what the canvas shows (the DOM panel isn't in it), scaled up crisply. */
+  private savePhoto(): void {
+    if (!this.photo.active) return;
+    this.game.renderer.snapshot((image) => {
+      if (!(image instanceof HTMLImageElement)) return;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      downloadScaledPng(image, PHOTO.saveScale, `gloamdeep-${stamp}.png`);
+      this.notify('Photo saved');
+    });
+  }
+
   /** Opens or closes the guide; the world holds still while it is open. */
   private setGuide(open: boolean): void {
     if (this.quitting || open === this.guideOpen) return;
@@ -837,8 +937,16 @@ export class GameScene extends Phaser.Scene {
     if (this.throwPress && !this.input.activePointer.isDown) this.throwPress = false;
     this.inputMapper.mouseBlocked =
       this.throwPress || (this.inventoryOpen && this.sim.inventory.cursor !== null);
-    this.inputMapper.update();
-    this.sim.update(delta);
+    if (this.photo.active) {
+      // Photo mode: nothing moves but the camera, and the light follows the chosen time.
+      const cam = this.cameras.main;
+      const world = this.sim.world;
+      this.photo.update(delta / 1000, cam.zoom, world.width * TILE_SIZE, world.height * TILE_SIZE);
+      this.sim.relight(delta / 1000);
+    } else {
+      this.inputMapper.update();
+      this.sim.update(delta);
+    }
 
     const alpha = this.sim.alpha;
     const body = this.sim.player.body;
@@ -867,14 +975,18 @@ export class GameScene extends Phaser.Scene {
     this.playerView.update(alpha, delta / 1000, this.activity);
     // A boss's intro: the camera looks at it and zooms in (M12).
     const bossFocus = this.bossView.focus();
-    this.cameraDirector.update(
-      bossFocus?.x ?? this.playerView.feetX(alpha),
-      bossFocus?.y ??
-        this.playerView.feetY(alpha) - body.height / 2 - CAMERA.surfaceLift * this.visual.outdoors,
-      bossFocus ? 0 : body.vx,
-      bossFocus ? 0 : body.vy,
-      delta / 1000,
-    );
+    if (this.photo.active) this.cameraDirector.snapTo(this.photo.x, this.photo.y);
+    else
+      this.cameraDirector.update(
+        bossFocus?.x ?? this.playerView.feetX(alpha),
+        bossFocus?.y ??
+          this.playerView.feetY(alpha) -
+            body.height / 2 -
+            CAMERA.surfaceLift * this.visual.outdoors,
+        bossFocus ? 0 : body.vx,
+        bossFocus ? 0 : body.vy,
+        delta / 1000,
+      );
 
     const cam = this.cameras.main;
     const zoom = this.bossView.zoom();
