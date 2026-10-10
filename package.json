@@ -14,6 +14,7 @@
     "shot": "npm run build && tsx tools/shot.ts",
     "perf": "npm run build && tsx tools/perf.ts",
     "bench:light": "tsx tools/light-bench.ts",
+    "shots:readme": "npm run build && tsx tools/readme-shots.ts",
     "deploy:pages": "npm run build && tsx tools/deploy-pages.ts",
     "package:itch": "npm run build && tsx tools/package-itch.ts",
     "art:placeholder": "tsx tools/gen-placeholder-art.ts",
