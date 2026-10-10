@@ -376,6 +376,7 @@ export class Simulation {
       lightAt: (x, y) => this.lightAtTile(x, y),
       spawn: (key, feetX, feetY) => {
         const enemy = createEnemy(this.nextEnemyId++, enemyIndex(key), feetX, feetY);
+        enemy.summoned = true;
         this.enemies.push(enemy);
         return enemy;
       },

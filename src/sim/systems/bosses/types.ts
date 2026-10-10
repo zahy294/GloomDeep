@@ -90,6 +90,13 @@ export interface BossContext {
   action(kind: SimEvents['bossAction']['kind'], x: number, y: number): void;
 }
 
+/** How many creatures of a type a boss has called up and are still about. */
+export function summonedCount(enemies: readonly Enemy[], type: number): number {
+  let n = 0;
+  for (const e of enemies) if (e.summoned && e.type === type) n++;
+  return n;
+}
+
 /** What the renderer and HUD read about the fight in progress (per script). */
 export type BossView =
   | {
@@ -133,6 +140,8 @@ export interface BossRun {
   update(dt: number): void;
   /** Its health fell into a new phase. */
   phaseChanged(phase: number): void;
+  /** The player struck it (not light burns). */
+  hit(): void;
   /** Right-click on an arena fixture at tile (x, y); true if it was one. Works outside fights too. */
   use(x: number, y: number): boolean;
   /** Puts the arena back as it was (a fight lost or left, or a world loaded). */

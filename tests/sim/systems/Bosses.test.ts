@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { BOSS, LUMEN, TILE_SIZE } from '../../../src/config';
-import { bossByKey, type BossDef, type MireDef, type WardenDef } from '../../../src/data/bosses';
+import {
+  bossByKey,
+  type BossDef,
+  type MireDef,
+  type MothDef,
+  type WardenDef,
+} from '../../../src/data/bosses';
 import { ENEMIES } from '../../../src/data/enemies';
 import { itemId } from '../../../src/data/items';
 import { prefabByKey } from '../../../src/data/prefabs';
@@ -188,6 +194,12 @@ describe('The Moth Matriarch', () => {
     sim.player.lanternOn = false;
     step(sim, 1);
     expect(run?.view.script === 'moth' && run.view.lost).toBe(true);
+    // Shot from the dark, she turns on you for a while.
+    strike(sim, arena, 1);
+    step(sim, 0.5);
+    expect(run?.view.script === 'moth' && run.view.lost).toBe(false);
+    step(sim, (def('moth_matriarch') as MothDef).hitMemory + 1);
+    expect(run?.view.script === 'moth' && run.view.lost).toBe(true);
 
     // A lure on the floor under her: she dives into it and drops, stunned and soft.
     const lx = Math.floor((arena.bounds.x0 + arena.bounds.x1) / 2);
@@ -236,6 +248,32 @@ describe('The Mire Sovereign', () => {
     expect(sim.bosses.use(lever[0], lever[1])).toBe(true);
     expect(view()?.target).toBe(Math.max(0, before - d.drainRows));
     expect(sim.world.get(lever[0], lever[1])).toBe(tileId(d.leverOpen));
+  });
+
+  it('in the murk under the night sky: only braziers or the lantern light it up', () => {
+    const { sim, arena } = arenaWorld('mire_sovereign');
+    const d = def('mire_sovereign') as MireDef;
+    sim.setDayFraction(0); // midnight: moonlight alone must not count
+    for (let y = arena.bounds.y0; y <= arena.bounds.y1; y++) {
+      for (let x = arena.bounds.x0; x <= arena.bounds.x1; x++) {
+        const id = sim.world.get(x, y);
+        if (id === tileId(d.brazier) || id === tileId(d.brazierOut)) sim.world.set(x, y, AIR);
+      }
+    }
+    startFight(sim, arena);
+    sim.player.lanternOn = false;
+    const boss = arena.boss;
+    if (!boss) throw new Error('no boss');
+    step(sim, d.sinkSeconds + 0.3);
+    const run = sim.bosses.run(arena);
+    expect(run?.view.script === 'mire' && run.view.murk).toBe(true);
+    expect(boss.damageTaken).toBe(d.murkDamage);
+    // The lantern's cone on it.
+    sim.player.lumen = LUMEN.max;
+    sim.player.lanternOn = true;
+    sim.input.setAim(boss.body.x + boss.body.width / 2, boss.body.y + boss.body.height / 2);
+    step(sim, 0.1);
+    expect(boss.damageTaken).toBe(1);
   });
 
   it('barely feels blows in the murk, fully when lit, and nothing beneath the water', () => {
@@ -296,6 +334,32 @@ describe('The Hollow Warden', () => {
     put(sim, Math.floor(handX / T), prismY + 2);
     expect(sim.bosses.use(Math.floor(handX / T), prismY)).toBe(true);
     expect(sim.world.get(Math.floor(handX / T), prismY)).toBe(tileId('prism_back'));
+  });
+});
+
+describe('The Hollow Warden in its own hall', () => {
+  it('a beam off the ledge prism comes down on it while it walks the floor', () => {
+    const { sim, arena } = arenaWorld('hollow_warden');
+    const d = def('hollow_warden') as WardenDef;
+    startFight(sim, arena);
+    const boss = arena.boss;
+    if (!boss) throw new Error('no boss');
+    const { x0, y0 } = arena.place;
+    // The shipped layout: a "/" prism at (13, 27) over the west ledge; floor at row 36.
+    expect(sim.world.get(x0 + 13, y0 + 27)).toBe(tileId('prism_slash'));
+    put(sim, x0 + 30, y0 + 35);
+    sim.player.facing = -1;
+    sim.player.lumen = LUMEN.max;
+    sim.player.lanternOn = true;
+    sim.input.setAim((x0 + 13.5) * T, (y0 + 27.5) * T);
+    for (let i = 0; i < 20; i++) {
+      boss.body.x = (x0 + 15.3) * T;
+      boss.body.y = (y0 + 36) * T - boss.body.height;
+      boss.body.vx = 0;
+      boss.body.vy = 0;
+      step(sim, 1 / 60);
+    }
+    expect(boss.damageTaken).toBe(d.crackedDamage);
   });
 });
 

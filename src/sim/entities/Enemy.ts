@@ -30,6 +30,8 @@ export interface Enemy {
   damageTaken: number;
   /** Touching it does no harm right now (a stunned or rising boss). */
   harmless: boolean;
+  /** Called up by a boss (M12): counted against its caps, and gone when the fight ends. */
+  summoned: boolean;
 }
 
 /** Spawned with its feet at (feetX, feetY), pixels. */
@@ -55,5 +57,6 @@ export function createEnemy(id: number, type: number, feetX: number, feetY: numb
     idleTime: 0,
     damageTaken: 1,
     harmless: false,
+    summoned: false,
   };
 }

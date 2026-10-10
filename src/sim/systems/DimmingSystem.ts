@@ -8,12 +8,13 @@ const smooth = (t: number) => {
   return c * c * (3 - 2 * c);
 };
 
+const channel = (a: number, b: number, t: number, shift: number) => {
+  const x = (a >> shift) & 0xff;
+  return Math.round(x + (((b >> shift) & 0xff) - x) * t);
+};
+
 function mix(a: number, b: number, t: number): number {
-  const ch = (shift: number) => {
-    const x = (a >> shift) & 0xff;
-    return Math.round(x + (((b >> shift) & 0xff) - x) * t);
-  };
-  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+  return (channel(a, b, t, 16) << 16) | (channel(a, b, t, 8) << 8) | channel(a, b, t, 0);
 }
 
 /** The flag set at the end of the n-th Dimming night survived (n from 1). */
@@ -122,7 +123,8 @@ export class DimmingSystem {
     this.day = day;
     this.survived = survived;
     this.lastFraction = dayFraction;
-    this.warnedDay = day;
+    // Loaded before the warning time: it still comes.
+    this.warnedDay = dayFraction >= DIMMING.warnAt ? day : day - 1;
     const morning = dayFraction < DIMMING.endsAt;
     this.strength = this.isDimmingNight(morning ? day - 1 : day) ? strengthAt(dayFraction) : 0;
     this.wasOn = this.strength > 0;

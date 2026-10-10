@@ -89,7 +89,7 @@ export class BossSystem {
   readonly shots: HostileShot[];
   private readonly runs = new Map<Arena, BossRun>();
   private checkTimer = 0;
-  private readonly unsubscribe: () => void;
+  private readonly unsubscribe: (() => void)[];
 
   constructor(
     private readonly world: World,
@@ -108,14 +108,20 @@ export class BossSystem {
       this.arenas.push(arena);
       this.runs.set(arena, createRun(arena, ctx));
     }
-    this.unsubscribe = events.on('enemyDied', ({ id }) => {
-      const a = this.active;
-      if (a?.boss && a.boss.id === id) this.win(a);
-    });
+    this.unsubscribe = [
+      events.on('enemyDied', ({ id }) => {
+        const a = this.active;
+        if (a?.boss && a.boss.id === id) this.win(a);
+      }),
+      events.on('enemyHit', ({ id, source }) => {
+        const a = this.active;
+        if (a?.boss && a.boss.id === id && source !== 'light') this.runs.get(a)?.hit();
+      }),
+    ];
   }
 
   destroy(): void {
-    this.unsubscribe();
+    for (const off of this.unsubscribe) off();
   }
 
   run(arena: Arena): BossRun | undefined {
@@ -168,7 +174,8 @@ export class BossSystem {
       }
       if (a.state === 'fight' && boss) {
         this.runs.get(a)?.update(dt);
-        this.updatePhase(a, boss);
+        // The script's own burn may have ended the fight this step.
+        if (this.active === a) this.updatePhase(a, boss);
       }
     }
     this.updateShots(dt);
@@ -230,9 +237,8 @@ export class BossSystem {
   private updatePhase(a: Arena, boss: Enemy): void {
     const share = boss.health / (ENEMIES[boss.type]?.maxHealth ?? 1);
     let phase = 0;
-    a.def.phases.forEach((p, i) => {
-      if (share <= p.at) phase = i;
-    });
+    const phases = a.def.phases;
+    for (let i = 0; i < phases.length; i++) if (share <= (phases[i]?.at ?? 0)) phase = i;
     if (phase <= a.phase) return;
     a.phase = phase;
     this.runs.get(a)?.phaseChanged(phase);
@@ -275,7 +281,7 @@ export class BossSystem {
     const enemies = this.ctx.enemies;
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      if (!e || !ENEMIES[e.type]?.bound) continue;
+      if (!e || !(e.summoned || ENEMIES[e.type]?.bound)) continue;
       const tx = Math.floor((e.body.x + e.body.width / 2) / TILE_SIZE);
       const ty = Math.floor((e.body.y + e.body.height / 2) / TILE_SIZE);
       if (inside(a.bounds, tx, ty, BOSS.leaveMargin + BOSS.minionSpread)) this.ctx.remove(e);

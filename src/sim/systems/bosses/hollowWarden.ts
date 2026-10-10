@@ -5,7 +5,9 @@ import { lightByKey } from '../../../data/lights';
 import { TILES, tileId } from '../../../data/tiles';
 import { createCollisionResult, moveAndCollide } from '../../physics/tileCollision';
 import { LANTERN_HAND } from '../lanternCone';
-import type { Arena, BossContext, BossRun } from './types';
+import { summonedCount, type Arena, type BossContext, type BossRun } from './types';
+
+const BOTH_WAYS = [-1, 1] as const;
 
 const T = TILE_SIZE;
 const GLOW = lightByKey('warden_glow');
@@ -159,7 +161,7 @@ export function createWardenRun(arena: Arena<WardenDef>, ctx: BossContext): Boss
         if (onGround && slamT >= def.slamEvery && Math.abs(px - cx) <= def.slamRange * T) {
           slamT = 0;
           const fy = body.y + body.height - T / 2;
-          for (const dir of [-1, 1]) {
+          for (const dir of BOTH_WAYS) {
             ctx.shots.push({
               kind: 'slam',
               x: cx + (dir * body.width) / 2,
@@ -223,6 +225,7 @@ export function createWardenRun(arena: Arena<WardenDef>, ctx: BossContext): Boss
         if (burnT >= BURN_EVERY) {
           ctx.burn(boss, def.beamDps * burnT);
           burnT = 0;
+          if (!arena.boss) return; // the burn brought it down
         }
       } else {
         burnT = 0;
@@ -232,9 +235,7 @@ export function createWardenRun(arena: Arena<WardenDef>, ctx: BossContext): Boss
         minionT += dt;
         if (minionT >= def.minionEvery) {
           minionT = 0;
-          let alive = 0;
-          for (const e of ctx.enemies) if (e.type === minionType) alive++;
-          if (alive < def.minionCap) {
+          if (summonedCount(ctx.enemies, minionType) < def.minionCap) {
             const x = b.x0 + 2 + Math.floor(ctx.random() * (b.x1 - b.x0 - 4));
             ctx.spawn(def.minion, (x + 0.5) * T, (b.y1 + 1) * T);
           }
@@ -242,6 +243,7 @@ export function createWardenRun(arena: Arena<WardenDef>, ctx: BossContext): Boss
       }
     },
     phaseChanged() {},
+    hit() {},
     use(x, y) {
       const into = FLIPS_TO[ctx.world.get(x, y)] ?? -1;
       if (into < 0) return false;

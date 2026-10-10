@@ -5,7 +5,7 @@ import { lightByKey } from '../../../data/lights';
 import { prefabByKey } from '../../../data/prefabs';
 import { tileId } from '../../../data/tiles';
 import { AIR } from '../../world/World';
-import type { Arena, BossContext, BossRun } from './types';
+import { summonedCount, type Arena, type BossContext, type BossRun } from './types';
 
 const GLOW = lightByKey('moth_glow');
 const T = TILE_SIZE;
@@ -50,10 +50,16 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
   const light = { x: 0, y: 0, light: GLOW };
   const b = arena.bounds;
 
+  /** Her centre now (one reused object). */
+  const c = { x: 0, y: 0 };
   const centre = () => {
     const body = arena.boss?.body;
-    return body ? { x: body.x + body.width / 2, y: body.y + body.height / 2 } : { x: 0, y: 0 };
+    c.x = body ? body.x + body.width / 2 : 0;
+    c.y = body ? body.y + body.height / 2 : 0;
+    return c;
   };
+  /** Seconds she still knows where the player is after being struck. */
+  let memory = 0;
   const setMode = (m: Mode) => {
     view.mode = m;
     t = 0;
@@ -86,7 +92,7 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
     const px = pb.x + pb.width / 2;
     const py = pb.y + pb.height / 2;
     const near = Math.hypot(px - c.x, py - c.y) <= def.blindRange * T;
-    hasTarget = !ctx.player.dead && (ctx.lanternLit() || near);
+    hasTarget = !ctx.player.dead && (ctx.lanternLit() || near || memory > 0);
     view.lost = !hasTarget;
     if (hasTarget) {
       targetX = px;
@@ -139,6 +145,7 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
       const speed = def.speed[p] ?? def.speed[0] ?? 0;
       t += dt;
       seekT += dt;
+      memory = Math.max(0, memory - dt);
       if (seekT >= BOSS.checkSeconds && view.mode !== 'dive') {
         seekT = 0;
         seek();
@@ -157,7 +164,7 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
             speed,
             dt,
           );
-          if (hasTarget && t >= (def.circleSeconds[p] ?? 2)) {
+          if (hasTarget && t >= (def.circleSeconds[p] ?? def.circleSeconds[0] ?? 0)) {
             const dx = targetX - c.x;
             const dy = targetY - c.y;
             const d = Math.hypot(dx, dy) || 1;
@@ -231,8 +238,7 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
         minionT += dt;
         if (minionT >= def.minionEvery) {
           minionT = 0;
-          let alive = 0;
-          for (const e of ctx.enemies) if (e.type === minionType) alive++;
+          let alive = summonedCount(ctx.enemies, minionType);
           for (let k = 0; k < def.minionsPerCall && alive < def.minionCap; k++, alive++) {
             ctx.spawn(def.minion, c.x + (ctx.random() - 0.5) * BOSS.minionSpread * T, c.y);
           }
@@ -242,12 +248,17 @@ export function createMothRun(arena: Arena<MothDef>, ctx: BossContext): BossRun 
     phaseChanged() {
       minionT = def.minionEvery; // call the moths at once
     },
+    hit() {
+      // Struck from the dark: she turns on whoever did it.
+      memory = def.hitMemory;
+    },
     use() {
       return false;
     },
     reset() {
       setMode('circle');
       view.lost = false;
+      memory = 0;
       for (const [x, y] of startLures) {
         if (ctx.world.get(x, y) === AIR) ctx.world.set(x, y, lure);
       }

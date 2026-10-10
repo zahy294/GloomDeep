@@ -124,6 +124,34 @@ describe('Boss arenas and wards (M12 world generation)', () => {
     expect(reachesSky(warden.x0 + 35, warden.y0 + 20, false)).toBe(false);
   });
 
+  it('keeps the corridors into the deep arenas open on bigger worlds (no gravel poured in)', () => {
+    for (const [size, seed] of [
+      ['medium', 1],
+      ['large', 1],
+    ] as const) {
+      const { width: w, height: h } = WORLD_SIZES[size];
+      const g = generateWorld(w, h, seed);
+      for (const a of g.arenas) {
+        const d = BOSSES.find((b) => b.key === a.key);
+        if (!d || d.placement.kind === 'surface') continue;
+        const gates = prefabByKey(d.arena).objects.filter((o) => o.kind === 'gate');
+        // The gate a tunnel came into: one with open cells just outside it.
+        const open = gates.some((gate) => {
+          const gx = a.x0 + gate.x0;
+          const gy = a.y0 + gate.y0;
+          const out = gate.x0 === 0 ? -1 : 1;
+          for (let k = 1; k <= 4; k++) {
+            for (let dy = 0; dy < 2; dy++) {
+              if (SOLID[g.arrays.fg[(gy - dy) * w + gx + out * k] ?? 0]) return false;
+            }
+          }
+          return true;
+        });
+        expect(open, `${size} ${seed} ${a.key}`).toBe(true);
+      }
+    }
+  }, 120000);
+
   it('is the same for the same seed', () => {
     expect(generateWorld(W, H, 42).arenas).toEqual(world.arenas);
   });

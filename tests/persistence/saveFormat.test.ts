@@ -268,6 +268,7 @@ describe('performance', () => {
       `4200x1200 save round trip: ${ms.toFixed(0)} ms, ${(zipped.length / 1e6).toFixed(1)} MB gzipped`,
     );
     expect(out.arrays.fg.length).toBe(4200 * 1200);
-    expect(ms).toBeLessThan(3000);
+    // ~1 s on its own; the bound leaves room for the world-generation tests running alongside.
+    expect(ms).toBeLessThan(5000);
   });
 });

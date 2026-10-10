@@ -3,7 +3,11 @@ import { LIQUID } from '../../../data/biomes';
 import type { MireDef } from '../../../data/bosses';
 import { ENEMIES } from '../../../data/enemies';
 import { tileId } from '../../../data/tiles';
-import type { Arena, BossContext, BossRun } from './types';
+import { createCone, inCone, lanternCone } from '../lanternCone';
+import { summonedCount, type Arena, type BossContext, type BossRun } from './types';
+
+/** Both ways along the water (waves). */
+const BOTH_WAYS = [-1, 1] as const;
 
 const T = TILE_SIZE;
 const FULL = 255;
@@ -14,7 +18,8 @@ const DRAIN_RATE = 2;
  * The Mire Sovereign (plan 1.4): it floods its pool with dark water. It sinks and rises in turn;
  * risen, it spits arcing water bolts (and from phase 2 rolls a wave along the water). Every few
  * seconds the water rises; braziers under it drown and go out, and the Sovereign only feels your
- * blows fully when it is lit (light at its body ≥ litLight) — so pull the sluice levers to drain
+ * blows fully when it is lit — a burning brazier within `brazierReach` tiles or your lantern's cone
+ * on it (sky light doesn't count: it is used to the moon) — so pull the sluice levers to drain
  * the pool, keep the braziers above the flood and your lantern on it.
  */
 export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun {
@@ -88,6 +93,17 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
     }
   };
 
+  const cone = createCone();
+  /** Lit by a burning brazier near it, or by the lantern's cone. */
+  const litNow = (tx: number, ty: number): boolean => {
+    const r2 = def.brazierReach * def.brazierReach;
+    for (const [x, y] of braziers) {
+      if (ctx.world.get(x, y) === brazier && (x - tx) ** 2 + (y - ty) ** 2 <= r2) return true;
+    }
+    if (!ctx.lanternLit()) return false;
+    return inCone(lanternCone(ctx.player, ctx.input, ctx.lens(), cone), tx, ty);
+  };
+
   const bodyAt = (submerged: boolean) => {
     const body = arena.boss?.body;
     if (!body) return;
@@ -103,7 +119,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
     const dx = pb.x + pb.width / 2 - sx;
     const dy = pb.y + pb.height / 2 - sy;
     // A lob: flight time from the horizontal distance, then the upward speed that lands it.
-    const time = Math.min(1.5, Math.max(0.5, Math.abs(dx) / def.boltSpeed));
+    const time = Math.min(def.boltMaxTime, Math.max(def.boltMinTime, Math.abs(dx) / def.boltSpeed));
     ctx.shots.push({
       kind: 'bolt',
       x: sx,
@@ -122,7 +138,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
     const body = arena.boss?.body;
     if (!body) return;
     const life = ((pool.x1 - pool.x0) * T) / def.waveSpeed;
-    for (const dir of [-1, 1]) {
+    for (const dir of BOTH_WAYS) {
       ctx.shots.push({
         kind: 'wave',
         x: body.x + body.width / 2,
@@ -156,7 +172,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
       t += dt;
       // Floods and drains.
       floodT += dt;
-      if (floodT >= (def.floodEvery[p] ?? def.floodEvery[0] ?? 10)) {
+      if (floodT >= (def.floodEvery[p] ?? def.floodEvery[0] ?? 0)) {
         floodT = 0;
         view.target = Math.min(maxLevel, view.target + def.floodRows);
         ctx.action('flood', boss.body.x + boss.body.width / 2, surfaceY());
@@ -176,7 +192,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
       if (mode === 'under') {
         // Swims under the dark water towards the player's side.
         const cx = boss.body.x + boss.body.width / 2;
-        const step = Math.sign(px - cx) * Math.min(Math.abs(px - cx), (def.boltSpeed / 3) * dt);
+        const step = Math.sign(px - cx) * Math.min(Math.abs(px - cx), def.swimSpeed * dt);
         boss.body.x += step;
         boss.body.x = Math.max(
           pool.x0 * T,
@@ -201,7 +217,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
         view.submerged = false;
         const tx = Math.floor((boss.body.x + boss.body.width / 2) / T);
         const ty = Math.floor((boss.body.y + boss.body.height / 2) / T);
-        const lit = (ctx.lightAt(tx, ty) ?? 0) >= def.litLight;
+        const lit = litNow(tx, ty);
         view.murk = !lit;
         boss.damageTaken = lit ? 1 : def.murkDamage;
         const bolts = def.bolts[p] ?? def.bolts[0] ?? 1;
@@ -220,9 +236,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
         minionT += dt;
         if (minionT >= def.minionEvery) {
           minionT = 0;
-          let alive = 0;
-          for (const e of ctx.enemies) if (e.type === minionType) alive++;
-          if (alive < def.minionCap) {
+          if (summonedCount(ctx.enemies, minionType) < def.minionCap) {
             // On a ledge above the water: drop in from just under the rim.
             const x = pool.x0 + 2 + Math.floor(ctx.random() * (pool.x1 - pool.x0 - 4));
             ctx.spawn(def.minion, (x + 0.5) * T, (pool.y0 + 1) * T);
@@ -231,6 +245,7 @@ export function createMireRun(arena: Arena<MireDef>, ctx: BossContext): BossRun 
       }
     },
     phaseChanged() {},
+    hit() {},
     use(x, y) {
       const l = levers.find((k) => k.x === x && k.y === y);
       if (!l) return false;

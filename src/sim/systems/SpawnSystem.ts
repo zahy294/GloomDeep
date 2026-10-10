@@ -48,7 +48,8 @@ export class SpawnSystem {
     const py = (player.body.y + player.body.height / 2) / TILE_SIZE;
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
-      if (!e || ENEMIES[e.type]?.bound) continue; // a boss fight's creatures stay until it ends
+      // A boss fight's creatures stay until it ends.
+      if (!e || e.summoned || ENEMIES[e.type]?.bound) continue;
       const ex = (e.body.x + e.body.width / 2) / TILE_SIZE;
       const ey = (e.body.y + e.body.height / 2) / TILE_SIZE;
       if (Math.hypot(ex - px, ey - py) > SPAWN.despawnTiles) {

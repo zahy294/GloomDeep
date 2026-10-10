@@ -64,8 +64,10 @@ export interface MothDef extends BossBase {
   /** Seconds stunned after diving into a lure, and the damage multiplier while stunned. */
   readonly stunSeconds: number;
   readonly stunnedDamage: number;
-  /** With the lantern out she can't see you farther away than this (tiles). */
+  /** With the lantern out she can't see you farther away than this (tiles)... */
   readonly blindRange: number;
+  /** ...unless you struck her in the last this-many seconds. */
+  readonly hitMemory: number;
   /** Dust: seconds between falling dust motes (0 = none), per phase; their damage and speed. */
   readonly dustEvery: readonly number[];
   readonly dustDamage: number;
@@ -102,9 +104,16 @@ export interface MireDef extends BossBase {
   readonly boltDamage: number;
   readonly boltSpeed: number;
   readonly boltGravity: number;
-  /** Light at its body (brightest channel) at which it takes full damage; otherwise `murkDamage`. */
-  readonly litLight: number;
+  /**
+   * It takes full damage while a burning brazier is within this many tiles of it or the lantern's
+   * cone is on it; otherwise `murkDamage`.
+   */
+  readonly brazierReach: number;
   readonly murkDamage: number;
+  /** Swimming speed under water (px/s), and the shortest and longest flight of a bolt (s). */
+  readonly swimSpeed: number;
+  readonly boltMinTime: number;
+  readonly boltMaxTime: number;
   /** Phase ≥ waveP: a wave rolls along the water each time it rises (damage, speed px/s). */
   readonly wavePhase: number;
   readonly waveDamage: number;
@@ -131,8 +140,6 @@ export interface WardenDef extends BossBase {
   readonly beamRangeScale: number;
   readonly bounceRange: number;
   readonly bounces: number;
-  /** Right-clicking a prism turns it within this many tiles. */
-  readonly prismReach: number;
   /** Slam: when within `slamRange` tiles, every `slamEvery` s, a shockwave each way along the floor. */
   readonly slamRange: number;
   readonly slamEvery: number;
@@ -209,6 +216,7 @@ export const BOSSES: readonly BossDef[] = [
     stunSeconds: 3.5,
     stunnedDamage: 2,
     blindRange: 4,
+    hitMemory: 4,
     dustEvery: [0, 1.2, 0.6],
     dustDamage: 9,
     dustFall: 70,
@@ -246,8 +254,11 @@ export const BOSSES: readonly BossDef[] = [
     boltDamage: 14,
     boltSpeed: 260,
     boltGravity: 420,
-    litLight: 70,
+    brazierReach: 7,
     murkDamage: 0.2,
+    swimSpeed: 90,
+    boltMinTime: 0.5,
+    boltMaxTime: 1.5,
     wavePhase: 1,
     waveDamage: 16,
     waveSpeed: 150,
@@ -283,7 +294,6 @@ export const BOSSES: readonly BossDef[] = [
     beamRangeScale: 1.5,
     bounceRange: 20,
     bounces: 4,
-    prismReach: 5,
     slamRange: 6,
     slamEvery: 3.5,
     slamDamage: 18,

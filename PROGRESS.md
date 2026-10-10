@@ -62,15 +62,26 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 - **Mire water is set by the script** (rows of full cells in the pool), not by pumping liquid: deterministic and leak-free. The liquid simulation still moves it around the platforms.
 - **The Warden's beam is a line along the cursor** (the cone's axis), traced in quarter-tile steps; prisms reflect at their centre.
 - **Surviving a Dimming night = reaching its dawn**, alive or not (you respawn anyway). The reward is Lumen crystals and the story flag the Dryad reads, rather than a gate on the bosses.
-- **The intro zooms the World and Glow cameras to ×2** (integer, so pixels stay crisp); the Front scene is screen-space.
+- **The intro cuts the World and Glow cameras to ×2** (whole steps only, so pixels stay crisp); the Front scene is screen-space.
+- **Not as the plan's render table describes:** the aurora is ribbons of Graphics strips in the Sky scene, not a `NoiseSimplex2D` with a gradient-map filter. A Dimming night has no slow pulsing vignette, and the Gloam veins keep their normal pulse. The aurora was cheaper to get right here (no extra filter pass); the filter version, the vignette pulse and faster veins are left for the M13 polish pass.
 
 ### Reviewer pass
 
-(see below)
+Nothing blocking; "Done when" confirmed (20 seeds across all sizes: all four arenas placed, wards whole, the deep arenas reachable only through their wards). Fixed:
+- **Must-fix: the Mire Sovereign's murk never happened under the open sky.** Moonlight alone kept the light at its body over the old threshold of 70, so braziers and levers didn't matter. It now counts only a burning brazier within 7 tiles or the lantern's cone on it. Test: at midnight, with no braziers and the lantern off, it is in the murk; with the lantern on it, it takes full damage.
+- **Gravel could plug a deep arena's tunnel corridor** on large worlds: settling poured it in. Loose silt and gravel over every way-down corridor is firmed to stone (the Citadel's too). The test checks the gates on medium and large worlds and fails without the fix.
+- **Boss minions weren't the fight's.** Creatures a boss calls up are now marked `summoned`: only they count against its caps (natural Mire lurkers, mites or wave shades no longer block a summons), and they all go when the fight ends.
+- **The Matriarch was harmless to someone shooting from the dark.** Struck, she turns on the attacker for 4 s (`hitMemory`). Test added.
+- **A fight ran one more step after a burn kill** (the Warden's beam): the phase check and the rest of its step now stop once it falls.
+- **The unused `prismReach`** was removed, and a test now cracks the Warden with the shipped hall layout (the "/" prism over the west ledge brings a beam down onto it walking the floor).
+- **Per-frame allocations** (the Matriarch's centre, the Heart's lit-lamp list, volley direction arrays, the Dimming colour mix, the intro focus point, the phase loop) and unnamed numbers in the Mire script (swim speed, bolt flight times) moved to data.
+- **Smaller:** loading a world on a Dimming day before the warning time still gets the warning.
+
+Not changed (logged): tendrils the player kills linger in the Heart's target map until the fight resets (harmless); if the Heart falls between midnight and dawn of a Dimming night, that night counts as survived.
 
 ### Known issues
 
-- The two "4200×1200 save encodes quickly" timing tests can fail when the whole suite runs in parallel on this machine (≈3.4 s); they pass on their own in about 1 s.
+- The two "4200×1200 save encodes quickly" timing tests took ≈3.3 s with M12's world-generation tests running alongside (≈1 s on their own), over their 3 s bound; the bound is now 5 s.
 - **Placeholder art:** the bosses are simple shape sprites and the Hollow Warden's and Gloam Heart's chambers are very dark; the aurora is blocky ribbons.
 - **Bosses don't collide with tiles:** the Matriarch and the Heart's tendrils fly through rock; the Warden walks.
 - Old (pre-v5) worlds can't reach the bosses.

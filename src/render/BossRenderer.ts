@@ -98,23 +98,28 @@ export class BossRenderer {
     for (const s of this.shots) s.destroy();
   }
 
-  /** During the intro: where the camera should look (pixels), else null. */
+  /** During the intro: where the camera should look (pixels; one reused object), else null. */
   focus(): { x: number; y: number } | null {
     const a = this.sim.bosses.active;
     const b = a?.boss?.body;
     if (!a || !b || a.state !== 'intro') return null;
-    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    this.focusPoint.x = b.x + b.width / 2;
+    this.focusPoint.y = b.y + b.height / 2;
+    return this.focusPoint;
   }
 
-  /** Camera zoom wanted now: in during the intro, back out as it ends. */
+  private readonly focusPoint = { x: 0, y: 0 };
+
+  /**
+   * Camera zoom wanted now: cut in to BOSS_VIEW.introZoom after the first `introEase` of the
+   * intro and back out for its last — whole steps only, so the pixel art stays crisp.
+   */
   zoom(): number {
     const a = this.sim.bosses.active;
     if (!a || a.state !== 'intro') return 1;
     const t = a.timer / BOSS.introSeconds;
     const ease = BOSS_VIEW.introEase;
-    // In over the first `ease` of the intro, held, out over the last `ease`.
-    const k = t < ease ? t / ease : t > 1 - ease ? (1 - t) / ease : 1;
-    return 1 + (BOSS_VIEW.introZoom - 1) * Math.max(0, Math.min(1, k));
+    return t >= ease && t <= 1 - ease ? BOSS_VIEW.introZoom : 1;
   }
 
   update(alpha: number, dt: number, time: number): void {

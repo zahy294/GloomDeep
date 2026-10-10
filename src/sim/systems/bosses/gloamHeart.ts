@@ -5,7 +5,7 @@ import { ITEMS, itemId } from '../../../data/items';
 import { lightByKey } from '../../../data/lights';
 import { tileId } from '../../../data/tiles';
 import type { Enemy } from '../../entities/Enemy';
-import type { Arena, BossContext, BossRun } from './types';
+import { summonedCount, type Arena, type BossContext, type BossRun } from './types';
 
 const T = TILE_SIZE;
 const GLOW = lightByKey('heart_glow');
@@ -46,12 +46,15 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
   let homeY = 0;
   const glow = { x: 0, y: 0, light: GLOW };
 
+  /** Indices of the lit lamps (one reused list). */
+  const lit: number[] = [];
   const litLamps = (): number[] => {
-    const out: number[] = [];
-    lamps.forEach(([x, y], i) => {
-      if (ctx.world.get(x, y) === nodeLit) out.push(i);
-    });
-    return out;
+    lit.length = 0;
+    for (let i = 0; i < lamps.length; i++) {
+      const lamp = lamps[i];
+      if (lamp && ctx.world.get(lamp[0], lamp[1]) === nodeLit) lit.push(i);
+    }
+    return lit;
   };
   const choke = (i: number) => {
     const lamp = lamps[i];
@@ -122,10 +125,9 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
         if (e && e.type === tendrilType) moveTendril(e, dt);
       }
       tendrilT += dt;
-      if (tendrilT >= (def.tendrilEvery[p] ?? def.tendrilEvery[0] ?? 8) && lit.length > 0) {
+      if (tendrilT >= (def.tendrilEvery[p] ?? def.tendrilEvery[0] ?? 0) && lit.length > 0) {
         tendrilT = 0;
-        let alive = 0;
-        for (const e of ctx.enemies) if (e.type === tendrilType) alive++;
+        const alive = summonedCount(ctx.enemies, tendrilType);
         const target = pick(lit);
         if (alive < def.tendrilCap && target !== undefined) {
           const t = ctx.spawn(def.tendril, cx, cy + boss.body.height / 2);
@@ -133,7 +135,7 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
         }
       }
       orbT += dt;
-      if (orbT >= (def.orbEvery[p] ?? def.orbEvery[0] ?? 5)) {
+      if (orbT >= (def.orbEvery[p] ?? def.orbEvery[0] ?? 0)) {
         orbT = 0;
         const turn = ctx.random() * Math.PI * 2;
         for (let k = 0; k < def.orbs; k++) {
@@ -157,9 +159,7 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
         minionT += dt;
         if (minionT >= def.minionEvery) {
           minionT = 0;
-          let alive = 0;
-          for (const e of ctx.enemies) if (e.type === minionType) alive++;
-          if (alive < def.minionCap) {
+          if (summonedCount(ctx.enemies, minionType) < def.minionCap) {
             const a = ctx.random() * Math.PI * 2;
             const r = BOSS.minionSpread * T;
             ctx.spawn(def.minion, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
@@ -167,6 +167,7 @@ export function createHeartRun(arena: Arena<HeartDef>, ctx: BossContext): BossRu
         }
       }
     },
+    hit() {},
     phaseChanged() {
       // A surge: the dark lashes out and chokes lamps at once.
       for (let k = 0; k < def.surgeChokes; k++) {

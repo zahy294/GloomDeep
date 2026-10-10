@@ -5,7 +5,7 @@ import { TILES, tileId } from '../../data/tiles';
 import { TOWNS, type TownDef } from '../../data/towns';
 import { stampPrefabAt } from '../../sim/world/prefabs';
 import { prefabGroundRow, type Prefab } from '../../sim/world/tiled';
-import { AIR, stepRandom, type GenContext, type PlacedTown } from './context';
+import { AIR, stepRandom, T, type GenContext, type PlacedTown } from './context';
 
 const SOLID = Uint8Array.from(TILES, (t) => (t.solid ? 1 : 0));
 /** The corridor into an underground town's gate gets a floor of this where it has none. */
@@ -136,6 +136,12 @@ export function carveWayDown(
       const i = cy * ctx.width + cx;
       ctx.fg[i] = AIR;
       ctx.liquid[i] = 0;
+    }
+    // Firm loose silt and gravel over the corridor, or settling would pour it in and plug it.
+    const roof = floor - cfg.corridorHeight;
+    for (let cy = roof - WORLDGEN.caveEntrances.firmRing; cy < roof; cy++) {
+      const i = cy * ctx.width + cx;
+      if (cy >= 0 && (ctx.fg[i] === T.silt || ctx.fg[i] === T.gravel)) ctx.fg[i] = T.stone;
     }
     // A floor to walk on all the way in.
     if (SOLID[ctx.fg[floor * ctx.width + cx] ?? AIR] !== 1)
