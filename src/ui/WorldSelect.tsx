@@ -47,12 +47,14 @@ function NewWorldForm({ bridge, worlds }: { bridge: UiBridge; worlds: WorldListE
   const [name, setName] = useState(() => defaultWorldName(worlds));
   const [seed, setSeed] = useState('');
   const [size, setSize] = useState<WorldSizeKey>('medium');
+  const [starterKit, setStarterKit] = useState(true);
   const submit = (e: Event) => {
     e.preventDefault();
     bridge.commands.emit('createWorld', {
       name: name.trim() || defaultWorldName(worlds),
       seed: parseSeed(seed),
       size,
+      starterKit,
     });
   };
   return (
@@ -90,6 +92,14 @@ function NewWorldForm({ bridge, worlds }: { bridge: UiBridge; worlds: WorldListE
           </label>
         ))}
       </fieldset>
+      <label class="field checkbox">
+        <input
+          type="checkbox"
+          checked={starterKit}
+          onChange={(e) => setStarterKit(e.currentTarget.checked)}
+        />
+        <span>Starter kit (wooden sword, torches, planks)</span>
+      </label>
       <button type="submit" class="menu-button primary">
         Create
       </button>

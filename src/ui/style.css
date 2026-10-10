@@ -1168,3 +1168,91 @@ body {
 .journal-fallen {
   color: var(--rose-light);
 }
+
+/* The Lamplighter's Guide (H): pages on the left, the page on the right. */
+.guide-panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 3);
+  width: calc(var(--px) * 400);
+  height: calc(var(--px) * 300);
+  padding: calc(var(--px) * 6);
+  background: var(--panel);
+  border: var(--px) solid var(--panel-edge);
+  box-shadow: 0 0 calc(var(--px) * 12) rgb(118 230 224 / 0.15);
+  font-size: calc(var(--px) * 6);
+}
+
+.guide-body {
+  display: flex;
+  flex: 1;
+  gap: calc(var(--px) * 6);
+  min-height: 0;
+}
+
+.guide-pages {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--px) * 1.5);
+  width: calc(var(--px) * 90);
+  flex-shrink: 0;
+}
+
+.guide-tab {
+  padding: calc(var(--px) * 2) calc(var(--px) * 3);
+  font: inherit;
+  text-align: left;
+  color: var(--ink-dim);
+  background: transparent;
+  border: var(--px) solid transparent;
+  cursor: pointer;
+}
+
+.guide-tab:hover {
+  color: var(--ink);
+  border-color: rgb(118 230 224 / 0.25);
+}
+
+.guide-tab.active {
+  color: var(--gold);
+  border-color: var(--panel-edge);
+  background: rgb(118 230 224 / 0.08);
+}
+
+.guide-page {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: calc(var(--px) * 3);
+}
+
+.guide-title {
+  margin-bottom: calc(var(--px) * 3);
+  font-size: calc(var(--px) * 9);
+  letter-spacing: 0.08em;
+  color: var(--rose-light);
+}
+
+.guide-line {
+  margin: 0 0 calc(var(--px) * 3);
+  line-height: 1.5;
+}
+
+.guide-keys {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.guide-keys td {
+  padding: calc(var(--px) * 1.2) calc(var(--px) * 2);
+  border-bottom: var(--px) solid rgb(149 164 192 / 0.15);
+  vertical-align: top;
+}
+
+.guide-key {
+  white-space: nowrap;
+  color: var(--glow);
+}
+
+.new-world .field.checkbox > span {
+  min-width: 0;
+}

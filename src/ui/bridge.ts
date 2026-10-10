@@ -230,6 +230,8 @@ export interface UiState {
   /** Null unless the quest journal is open. */
   journal: JournalView | null;
   banner: BannerView | null;
+  /** The guide (H) is open; the world waits while it is. */
+  guide: boolean;
   /** M12: the boss bar while a fight is on, the boss's title card, and the ending. */
   boss: BossBarView | null;
   titleCard: TitleCardView | null;
@@ -259,7 +261,8 @@ export interface UiCommands {
   /** The mouse is over an interactive panel, so clicks must not mine/place in the world. */
   pointerOverUi: { over: boolean };
   openWorlds: Record<string, never>;
-  createWorld: { name: string; seed: number | null; size: WorldSizeKey };
+  /** `starterKit`: begin with a sword, more torches and planks. */
+  createWorld: { name: string; seed: number | null; size: WorldSizeKey; starterKit: boolean };
   playWorld: { id: string };
   deleteWorld: { id: string };
   backToTitle: Record<string, never>;
@@ -276,6 +279,8 @@ export interface UiCommands {
   /** Sell `count` of an item (the stall offers whole stacks). */
   sell: { npcId: number; item: number; count: number };
   toggleJournal: Record<string, never>;
+  /** Open or close the guide. */
+  toggleGuide: Record<string, never>;
   /** Close the ending card and keep playing (M12). */
   closeEnding: Record<string, never>;
   saveAndQuit: Record<string, never>;

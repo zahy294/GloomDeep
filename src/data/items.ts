@@ -621,6 +621,16 @@ export interface ItemCount {
 export const STARTING_INVENTORY: readonly ItemCount[] = [{ item: 'torch', count: 10 }];
 
 /**
+ * The optional starter kit, ticked when creating a world: a blade for the first nights, more
+ * torches, and planks for a first shelter.
+ */
+export const STARTER_KIT: readonly ItemCount[] = [
+  { item: 'elderwood_sword', count: 1 },
+  { item: 'torch', count: 10 },
+  { item: 'elderwood_planks', count: 50 },
+];
+
+/**
  * Debug kits added on top of the starting inventory with `?kit=<key>` (screenshots and testing).
  * `build` is the M2–M5 building kit.
  */

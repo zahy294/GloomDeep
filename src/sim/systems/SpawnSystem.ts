@@ -27,6 +27,8 @@ export interface SpawnContext {
   events: EventBus<SimEvents>;
   /** Beacons' safe circles: nothing spawns inside. */
   safe: (x: number, y: number) => boolean;
+  /** Share of spawn ticks that go ahead (1 normally; less during a boss fight, M12). */
+  rate: number;
 }
 
 /**
@@ -61,6 +63,7 @@ export class SpawnSystem {
     this.timer += dt;
     if (this.timer < SPAWN.interval) return;
     this.timer = 0;
+    if (ctx.rate < 1 && ctx.random() >= ctx.rate) return;
     if (!ctx.region || enemies.length >= SPAWN.maxEnemies) return;
     this.alive.fill(0);
     for (const e of enemies) this.alive[e.type] = (this.alive[e.type] ?? 0) + 1;

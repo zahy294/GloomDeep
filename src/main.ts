@@ -33,6 +33,7 @@ const bridge = new UiBridge({
   shop: null,
   journal: null,
   banner: null,
+  guide: false,
   boss: null,
   titleCard: null,
   ending: null,

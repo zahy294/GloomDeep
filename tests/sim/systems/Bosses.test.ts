@@ -115,6 +115,16 @@ describe('Boss fights (M12)', () => {
     expect(boss?.damageTaken).toBe(0);
   });
 
+  it('keeps wild creatures from spawning while the fight is on', () => {
+    const { sim, arena } = arenaWorld('moth_matriarch');
+    const spawn = (sim as unknown as { spawnContext: { rate: number } }).spawnContext;
+    startFight(sim, arena);
+    // Spawning is off in these tests; the rate is what the spawner would use.
+    (sim as unknown as { spawnsEnabled: boolean }).spawnsEnabled = true;
+    step(sim, 0.1);
+    expect(spawn.rate).toBe(BOSS.wildSpawns);
+  });
+
   it('a lost fight puts the arena back: dying ends it, the doors open, the boss is gone', () => {
     const { sim, arena } = arenaWorld('moth_matriarch');
     startFight(sim, arena);

@@ -21,6 +21,7 @@ const initial: UiState = {
   shop: null,
   journal: null,
   banner: null,
+  guide: false,
   boss: null,
   titleCard: null,
   ending: null,
@@ -100,7 +101,12 @@ describe('WorldFlow', () => {
     bridge.subscribe((s) => {
       if (s.generation) progress.push(s.generation.progress);
     });
-    bridge.commands.emit('createWorld', { name: 'Glade', seed: 42, size: 'small' });
+    bridge.commands.emit('createWorld', {
+      name: 'Glade',
+      seed: 42,
+      size: 'small',
+      starterKit: true,
+    });
     await settle();
 
     expect(screens).toContain('generating');
@@ -114,6 +120,7 @@ describe('WorldFlow', () => {
     expect(start?.kind).toBe('new');
     if (start?.kind !== 'new') return;
     expect(start.world).toBe(fakeWorld);
+    expect(start.starterKit).toBe(true);
     expect(start.meta).toMatchObject({
       name: 'Glade',
       seed: 42,
@@ -127,7 +134,12 @@ describe('WorldFlow', () => {
 
   it('a world created without a seed gets one from the random source', async () => {
     const { bridge, gen } = setup();
-    bridge.commands.emit('createWorld', { name: 'X', seed: null, size: 'medium' });
+    bridge.commands.emit('createWorld', {
+      name: 'X',
+      seed: null,
+      size: 'medium',
+      starterKit: true,
+    });
     await settle();
     expect(gen).toHaveBeenCalledWith(
       expect.objectContaining({ seed: Math.floor(0.5 * 0x7fffffff) }),
@@ -140,14 +152,14 @@ describe('WorldFlow', () => {
     const { bridge, started, gen } = setup(
       () => new Promise<GeneratedWorld>((resolve) => (finish = resolve)),
     );
-    bridge.commands.emit('createWorld', { name: 'A', seed: 1, size: 'small' });
-    bridge.commands.emit('createWorld', { name: 'B', seed: 2, size: 'small' });
+    bridge.commands.emit('createWorld', { name: 'A', seed: 1, size: 'small', starterKit: true });
+    bridge.commands.emit('createWorld', { name: 'B', seed: 2, size: 'small', starterKit: true });
     finish(fakeWorld);
     await settle();
     expect(gen).toHaveBeenCalledTimes(1);
     expect(started).toHaveLength(1);
     // Once done, creating works again.
-    bridge.commands.emit('createWorld', { name: 'C', seed: 3, size: 'small' });
+    bridge.commands.emit('createWorld', { name: 'C', seed: 3, size: 'small', starterKit: true });
     finish(fakeWorld);
     await settle();
     expect(started).toHaveLength(2);
@@ -156,7 +168,7 @@ describe('WorldFlow', () => {
   it('a failed generation returns to the world list with an error', async () => {
     const { bridge, started, menus } = setup(() => Promise.reject(new Error('boom')));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    bridge.commands.emit('createWorld', { name: 'A', seed: 1, size: 'small' });
+    bridge.commands.emit('createWorld', { name: 'A', seed: 1, size: 'small', starterKit: true });
     await settle();
     expect(started).toHaveLength(0);
     expect(menus.at(-1)).toBe('worlds');

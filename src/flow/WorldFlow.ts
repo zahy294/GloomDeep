@@ -7,7 +7,7 @@ import type { WorldgenProgress } from '../workers/worldgen/worldgenClient';
 
 /** How the game scene gets its world. `debug` = a `?scene=game` start that is never saved. */
 export type GameStart =
-  | { kind: 'new'; meta: WorldMeta; world: GeneratedWorld }
+  | { kind: 'new'; meta: WorldMeta; world: GeneratedWorld; starterKit: boolean }
   | { kind: 'saved'; save: SaveState }
   | { kind: 'debug' };
 
@@ -51,7 +51,10 @@ export class WorldFlow {
     const { commands } = deps.bridge;
     commands.on('openWorlds', () => void this.openWorlds());
     commands.on('backToTitle', () => this.deps.scenes.showMenu('title'));
-    commands.on('createWorld', ({ name, seed, size }) => void this.createWorld(name, seed, size));
+    commands.on(
+      'createWorld',
+      ({ name, seed, size, starterKit }) => void this.createWorld(name, seed, size, starterKit),
+    );
     commands.on('playWorld', ({ id }) => void this.playWorld(id));
     commands.on('deleteWorld', ({ id }) => void this.deleteWorld(id));
   }
@@ -62,7 +65,12 @@ export class WorldFlow {
     this.deps.scenes.showMenu('worlds');
   }
 
-  async createWorld(name: string, seed: number | null, sizeKey: WorldSizeKey): Promise<void> {
+  async createWorld(
+    name: string,
+    seed: number | null,
+    sizeKey: WorldSizeKey,
+    starterKit = true,
+  ): Promise<void> {
     if (!this.begin()) return;
     const { bridge, generate, scenes } = this.deps;
     const size = WORLD_SIZES[sizeKey];
@@ -86,7 +94,7 @@ export class WorldFlow {
         playTime: 0,
       };
       bridge.set({ generation: null });
-      scenes.startGame({ kind: 'new', meta, world });
+      scenes.startGame({ kind: 'new', meta, world, starterKit });
     } catch (error) {
       console.error('World generation failed', error);
       bridge.set({ generation: null });

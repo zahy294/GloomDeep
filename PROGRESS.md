@@ -4,6 +4,14 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## After M12 — playtest requests (2026-10-10)
+
+- **No wild creatures during boss fights:** while a fight is on, ordinary spawns stop (`BOSS.wildSpawns`, 0 = none; raise it to let some through) and Dimming-night shade waves wait. The boss's own creatures still come.
+- **Starter kit:** a "Starter kit" checkbox on the new-world form (on by default) adds an elderwood sword, 10 more torches and 50 elderwood planks (`STARTER_KIT` in src/data/items.ts) on top of the usual 10 torches.
+- **The Lamplighter's Guide** (H, or Guide in the pause menu): pages on the goal, controls, light and the Gloam, crafting, homes, towns, Dimming nights and the bosses (`src/ui/guideContent.ts`). The world holds still while it is open. A new world shows "Press H for the Lamplighter's Guide".
+
+---
+
 ## M12 — Bosses and Dimming nights ✅ (2026-10-10)
 
 ### Built

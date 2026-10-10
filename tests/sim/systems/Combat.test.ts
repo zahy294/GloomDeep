@@ -246,6 +246,7 @@ describe('spawning', () => {
       focusX: 50,
       focusY: 40,
       day: false,
+      rate: 1,
       random: mulberry32(7),
       nextId: (() => {
         let id = 1;
@@ -256,6 +257,14 @@ describe('spawning', () => {
     };
     return ctx;
   }
+
+  it('nothing wild spawns while a spawn rate of 0 holds (a boss fight)', () => {
+    const held = spawnSetup(0);
+    held.rate = 0;
+    const spawner = new SpawnSystem();
+    for (let i = 0; i < 400; i++) spawner.update(held, 0.5);
+    expect(held.enemies).toHaveLength(0);
+  });
 
   it('shades appear only in darkness, and never on screen', () => {
     const dark = spawnSetup(0);

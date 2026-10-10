@@ -4,6 +4,7 @@ import { BossBar, EndingCard, TitleCard } from './BossBar';
 import { DebugOverlay } from './DebugOverlay';
 import { BannerOverlay, Hud, NoticeView } from './Hud';
 import { Journal } from './Journal';
+import { Guide } from './Guide';
 import { Shop } from './Shop';
 import { Generating } from './Generating';
 import { Hotbar, InventoryScreen } from './Inventory';
@@ -60,6 +61,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
     worlds,
     generation,
     paused,
+    guide,
     error,
   } = useUiState(bridge);
   if (!showUi) return null;
@@ -77,7 +79,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
           {debug ? (
             <DebugOverlay info={debug} />
           ) : (
-            <div class="game-hint">F3: debug · E: inventory · J: journal</div>
+            <div class="game-hint">H: guide · E: inventory · J: journal · F3: debug</div>
           )}
           {hud && <Hud hud={hud} />}
           {notice && <NoticeView key={notice.id} notice={notice} />}
@@ -100,6 +102,7 @@ export function App({ bridge }: { bridge: UiBridge }) {
           )}
           {ending && <EndingCard bridge={bridge} ending={ending} />}
           {paused && <PauseMenu bridge={bridge} error={error} />}
+          {guide && <Guide bridge={bridge} />}
         </>
       );
     default:

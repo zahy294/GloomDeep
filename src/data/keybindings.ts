@@ -46,6 +46,8 @@ export const UI_KEYS = {
   toggleInventory: 'E',
   /** The quest journal (M11). */
   toggleJournal: 'J',
+  /** The Lamplighter's Guide: what to do and how. */
+  toggleGuide: 'H',
   /** Closes the inventory panel, otherwise opens/closes the pause menu. */
   pause: 'ESC',
 } as const;

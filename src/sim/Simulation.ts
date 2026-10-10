@@ -1,4 +1,5 @@
 import {
+  BOSS,
   COMBAT,
   DIMMING,
   FIRE,
@@ -361,6 +362,7 @@ export class Simulation {
       nextId: () => this.nextEnemyId++,
       events: this.events,
       safe: (x: number, y: number) => this.beacons.covers(x, y) || this.towns.protects(x, y),
+      rate: 1,
     };
     const bossContext: BossContext = {
       world: this.world,
@@ -788,6 +790,8 @@ export class Simulation {
       sc.focusX = (Number.isFinite(this.input.focusX) ? this.input.focusX : b.x) / TILE_SIZE;
       sc.focusY = (Number.isFinite(this.input.focusY) ? this.input.focusY : b.y) / TILE_SIZE;
       sc.day = Math.max(this.day.sunR, this.day.sunG, this.day.sunB) >= SPAWN.daylightSun;
+      // A boss fight keeps the wild creatures away (M12 playtest).
+      sc.rate = this.bosses.active ? BOSS.wildSpawns : 1;
       this.spawner.update(sc, dt);
       this.updateWaves(dt);
       const cc = this.critterContext;
@@ -803,7 +807,7 @@ export class Simulation {
 
   /** A Dimming night at full strength sends waves of shades (M12). */
   private updateWaves(dt: number): void {
-    if (this.dimming.strength < 1 || this.player.dead) {
+    if (this.dimming.strength < 1 || this.player.dead || this.bosses.active) {
       this.waveTimer = 0;
       return;
     }

@@ -25,6 +25,9 @@ export function PauseMenu({ bridge, error }: { bridge: UiBridge; error: string |
         >
           Resume
         </button>
+        <button class="menu-button" onClick={() => bridge.commands.emit('toggleGuide', {})}>
+          Guide
+        </button>
         <button class="menu-button" onClick={() => bridge.commands.emit('saveAndQuit', {})}>
           Save &amp; quit
         </button>

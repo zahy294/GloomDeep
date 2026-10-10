@@ -22,7 +22,7 @@ import { stampPrefab } from '../../sim/world/prefabs';
 import { ENEMIES } from '../../data/enemies';
 import { createEnemy } from '../../sim/entities/Enemy';
 import { NAMED_TIMES } from '../../data/dayCycle';
-import { DEBUG_KITS, itemById } from '../../data/items';
+import { DEBUG_KITS, itemById, STARTER_KIT } from '../../data/items';
 import { lensByKey } from '../../data/lenses';
 import { loadSettings, qualityFeatures } from '../../settings';
 import { LANTERN_HAND } from '../../sim/systems/LightSystem';
@@ -216,6 +216,9 @@ export class GameScene extends Phaser.Scene {
   private dialogueId = 0;
   /** The current mouse press threw a held stack (see POINTER_DOWN in create). */
   private throwPress = false;
+  /** A brand-new world: point the player at the guide once it has loaded. */
+  private welcome = false;
+  private guideOpen = false;
 
   constructor(
     private readonly bridge: UiBridge,
@@ -250,10 +253,13 @@ export class GameScene extends Phaser.Scene {
     // `?kit=` adds a debug kit to new and debug worlds (never to a saved world).
     const kit = this.params.kit ? DEBUG_KITS[this.params.kit] : undefined;
     if (kit && start.kind !== 'saved') this.sim.giveItems(kit);
+    if (start.kind === 'new' && start.starterKit) this.sim.giveItems(STARTER_KIT);
+    this.welcome = start.kind === 'new';
     // The world now lives in the simulation (loadArrays copies). Drop the scene manager's reference
     // to the start data, or the generated/saved arrays (tens of MB) stay alive for the session.
     this.sys.settings.data = {};
     this.paused = false;
+    this.guideOpen = false;
     this.quitting = false;
     this.sessionSeconds = 0;
     this.autosaveTimer = 0;
@@ -439,7 +445,8 @@ export class GameScene extends Phaser.Scene {
       sim.enqueue({ type: 'setDayFraction', value: next });
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.pause}`, () => {
-      if (this.inventoryOpen) this.toggleInventory();
+      if (this.guideOpen) this.setGuide(false);
+      else if (this.inventoryOpen) this.toggleInventory();
       else if (this.talkingTo >= 0 || this.travelFrom || this.townUi.panelOpen)
         this.closeVillagePanels();
       else this.setPaused(!this.paused);
@@ -448,8 +455,9 @@ export class GameScene extends Phaser.Scene {
       if (!this.paused) this.toggleInventory();
     });
     this.input.keyboard?.on(`keydown-${UI_KEYS.toggleJournal}`, () => {
-      if (!this.paused) this.townUi.toggleJournal();
+      if (!this.paused && !this.guideOpen) this.townUi.toggleJournal();
     });
+    this.input.keyboard?.on(`keydown-${UI_KEYS.toggleGuide}`, () => this.setGuide(!this.guideOpen));
     const onVisibility = () => {
       if (document.visibilityState !== 'hidden' || this.quitting) return;
       this.saveNow().catch((error: unknown) => console.error('Save on hide failed', error));
@@ -471,6 +479,7 @@ export class GameScene extends Phaser.Scene {
       ),
       this.bridge.commands.on('pointerOverUi', ({ over }) => this.setPointerOverUi(over)),
       this.bridge.commands.on('resume', () => this.setPaused(false)),
+      this.bridge.commands.on('toggleGuide', () => this.setGuide(!this.guideOpen)),
       this.bridge.commands.on('saveAndQuit', () => void this.saveAndQuit()),
       this.bridge.commands.on('travelTo', ({ x, y }) => {
         sim.enqueue({ type: 'travel', x, y });
@@ -555,11 +564,13 @@ export class GameScene extends Phaser.Scene {
       screen: 'game',
       inventoryOpen: false,
       paused: false,
+      guide: false,
       error: null,
       notice: null,
       icons: this.iconRects(),
     });
     this.publishInventory();
+    if (this.welcome) this.notify('New to the forest? Press H for the Lamplighter’s Guide');
     // A new world is saved straight away, so it is in the list even if the tab closes now.
     if (this.saveOnStart) {
       this.saveNow().catch((error: unknown) => console.error('First save failed', error));
@@ -753,6 +764,15 @@ export class GameScene extends Phaser.Scene {
     return audio;
   }
 
+  /** Opens or closes the guide; the world holds still while it is open. */
+  private setGuide(open: boolean): void {
+    if (this.quitting || open === this.guideOpen) return;
+    this.guideOpen = open;
+    if (!this.paused) this.audio?.setPaused(open);
+    this.sim.input.releaseAll();
+    this.bridge.set({ guide: open });
+  }
+
   private setPaused(paused: boolean): void {
     if (this.quitting || paused === this.paused) return;
     this.paused = paused;
@@ -803,7 +823,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
-    if (this.paused || this.quitting) return;
+    if (this.paused || this.guideOpen || this.quitting) return;
     const start = performance.now();
     if (this.meta) {
       this.sessionSeconds += delta / 1000;

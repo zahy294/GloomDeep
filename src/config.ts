@@ -840,6 +840,11 @@ export const BOSS = {
   minionSpread: 6,
   /** The fight ends if the player is this many tiles outside the arena rectangle. */
   leaveMargin: 2,
+  /**
+   * Share of ordinary creature spawns that still happen while a fight is on (0 = none; the
+   * boss's own creatures always come). Dimming-night shade waves wait until the fight is over.
+   */
+  wildSpawns: 0,
 } as const;
 
 /**
