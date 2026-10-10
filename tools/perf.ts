@@ -10,11 +10,22 @@ import { readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
+import { LIGHT } from '../src/config';
+import { tileId } from '../src/data/tiles';
 
-const SCENES: readonly { name: string; query: string }[] = [
+/** `torchSpacing`: fill every n-th empty cell around the view with a torch once it has loaded. */
+const SCENES: readonly { name: string; query: string; torchSpacing?: number }[] = [
   { name: 'surface noon', query: '?scene=game&time=noon' },
   { name: 'surface night, rain', query: '?scene=game&time=night&rain=1' },
   { name: 'cave', query: '?scene=game&spot=cave&time=night' },
+  // Stress: a torch every 4th / every 2nd empty cell over the whole light region.
+  { name: 'torch field (every 4th cell), night', query: '?scene=game&time=night', torchSpacing: 4 },
+  { name: 'torch field (every 2nd cell), night', query: '?scene=game&time=night', torchSpacing: 2 },
+  {
+    name: 'cave full of torches (every 2nd cell)',
+    query: '?scene=game&spot=cave&time=night',
+    torchSpacing: 2,
+  },
   { name: 'Canopyhold night', query: '?scene=game&spot=canopyhold&time=night' },
   { name: 'Dimming night', query: '?scene=game&dimming=1' },
   {
@@ -24,6 +35,10 @@ const SCENES: readonly { name: string; query: string }[] = [
   },
 ];
 const SETTLE_MS = 6000;
+const TORCH = tileId('torch');
+/** The light region (the view, its border and the margin that feeds light in). */
+const REGION_W = LIGHT.innerWidth + LIGHT.margin * 2;
+const REGION_H = LIGHT.innerHeight + LIGHT.margin * 2;
 const SAMPLE_MS = 4000;
 const SAMPLES = 8;
 
@@ -58,7 +73,40 @@ try {
     await page.waitForFunction(() => (window.gloamdeep?.probe()?.steps ?? 0) > 60, undefined, {
       timeout: 60000,
     });
+    let torches = 0;
+    if (scene.torchSpacing) {
+      torches = await page.evaluate(
+        ([spacing, torch, w, h]) => {
+          type Sim = {
+            world: {
+              get(x: number, y: number): number;
+              set(x: number, y: number, id: number): void;
+              inBounds(x: number, y: number): boolean;
+            };
+            player: { body: { x: number; y: number } };
+          };
+          const game = window.gloamdeep?.game;
+          const sim = (game?.scene.getScene('Game') as unknown as { simulation: Sim } | null)
+            ?.simulation;
+          if (!sim) return 0;
+          const cx = Math.floor(sim.player.body.x / 16);
+          const cy = Math.floor(sim.player.body.y / 16);
+          let n = 0;
+          for (let y = cy - Math.floor(h / 2); y < cy + h / 2; y += spacing) {
+            for (let x = cx - Math.floor(w / 2); x < cx + w / 2; x += spacing) {
+              if (!sim.world.inBounds(x, y) || sim.world.get(x, y) !== 0) continue;
+              sim.world.set(x, y, torch);
+              n++;
+            }
+          }
+          return n;
+        },
+        [scene.torchSpacing, TORCH, REGION_W, REGION_H] as const,
+      );
+    }
     await page.waitForTimeout(SETTLE_MS);
+    // Placing hundreds of tiles rebuilds chunks once: measure only the steady state after it.
+    await page.evaluate(() => window.gloamdeep?.resetFrameStats());
     const draws: number[] = [];
     let cpu = 0;
     let cpuMax = 0;
@@ -74,7 +122,7 @@ try {
     }
     const maxDraws = draws.length > 0 ? Math.max(...draws) : -1;
     console.log(
-      `${scene.name}: draw calls max ${maxDraws}, light update avg ${light.toFixed(2)} ms, ` +
+      `${scene.name}${torches ? ` (${torches} torches)` : ''}: draw calls max ${maxDraws}, light update avg ${light.toFixed(2)} ms, ` +
         `frame CPU avg ${cpu.toFixed(2)} ms (worst ${cpuMax.toFixed(1)} ms), downloaded ${(bytes / MB).toFixed(1)} MB`,
     );
     await page.close();
