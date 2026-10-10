@@ -4,6 +4,74 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ---
 
+## M13 — Polish and release ✅ (2026-10-10; final art check left for later, as asked)
+
+### Built
+
+- **Settings menu** (`src/settings.ts`, `src/ui/Settings.tsx`), from the title screen and the pause menu. It has three tabs, and every change is saved at once (localStorage).
+  - **Video:** quality (Low / Medium / High; takes effect the next time you enter a world) and display scale (Auto, or ×1–×6: still whole numbers only; Auto is the largest that fits).
+  - **Audio:** master, music, ambience and effects volume, applied live. Effects now have their own bus.
+  - **Controls:** every keyboard action (walk, jump, climb, drop, back-wall mode, lantern, lens) and the UI keys (inventory, journal, guide, photo). Each has two slots: click a slot and press a key; right-click clears a slot; Reset keys restores the defaults.
+    - Binding a key takes it away from any other control.
+    - Esc, the hotbar digits and F3 can't be bound.
+    - New bindings apply at once in game (the InputMapper rebinds).
+- **Photo mode** (P, rebindable; `src/render/PhotoMode.ts`, `src/ui/PhotoPanel.tsx`):
+  - The world holds still and the HUD hides. The camera flies free (WASD/arrows, Shift for faster, or drag with the mouse).
+  - **Panel:** a time-of-day slider (the light follows: only the sun and light grid update), filter presets (None, Warm, Cold, Dream, Noir, mixed into the camera grade), Hide (Tab) for a clean view, and Save PNG. Saving takes the canvas only, upscaled ×4 crisply, and downloads `gloamdeep-<time>.png`.
+  - Leaving (P or Esc) puts the clock and grade back. Hiding the tab leaves photo mode first, so a save never stores the photo's time.
+- **Title screen:** an animated night forest behind the title (`TitleScene`): sky gradient, twinkling stars, a haloed moon, four drifting tree-line layers, ground glows and 26 wandering fireflies (about 90 objects, nothing allocated per frame). Settings and Credits buttons sit under the prompt.
+- **Loading screen:** "GLOAMDEEP" and a progress bar while assets load (BootScene). World generation already had its own progress screen.
+- **Credits** (`src/ui/Credits.tsx`), from the title screen and the ending card.
+- **Performance pass** (`npm run perf`: builds, opens six heavy scenes headless, reads the F3 numbers). Plan 2.10's budget, against the worst of the six scenes:
+
+  | Budget | Measured |
+  |---|---|
+  | < 100 draw calls | 35–40 |
+  | Light update ≤ 4 ms | 0.15–0.75 ms |
+  | Download < 10 MB | 3.1 MB in total (1.3 MB zipped) |
+  | Frame CPU (simulation + chunk rendering) | 0.5–1 ms average, worst 3.3 ms |
+
+  Nothing needed optimising.
+- **Deploy:**
+  - **GitHub Pages:** `npm run deploy:pages` builds and force-pushes dist/ as the only commit of the `gh-pages` branch.
+  - **itch.io:** `npm run package:itch` writes `release/gloamdeep-html5.zip` (index.html at the root; upload as an HTML5 game). With butler: `butler push dist <user>/<game>:html5`.
+- **New shots:** `settings-controls`, `credits`, `guide`, `photo-mode` (it also checks the world holds still).
+
+### Done-when check
+
+| Item | Result |
+|---|---|
+| A new player can open the link and play for an hour without bugs that break the game | Deployed (see below). All 79 shots pass, including a full new-world → boss → Heartlight test chain from M12. A real hour-long playtest is yours to do |
+| 60 FPS on integrated graphics | Not measurable here: headless Chromium renders on the CPU (SwiftShader). Draw calls, light time and CPU per frame are all far inside the budget, and Low quality drops every extra pass. Check on a real low-end laptop |
+| Every asset approved; no placeholders | **Skipped as asked** (the final art check is left for later) |
+| typecheck, test, lint, build | ✅ 578 tests |
+
+### Decisions and deviations
+
+- **Quality applies on the next world entry.** Rebuilding every renderer live would need a scene restart mid-game; a note in the menu says so.
+- **Photo mode changes the time directly** (render layer → `sim.setDayFraction` and `sim.relight`), since the simulation doesn't step there. It is restored on leaving, and photo mode can't be saved into.
+- **The photo is the canvas only:** the name tags and markers drawn in the canvas stay in; the DOM panel never does.
+- **GitHub Pages from a `gh-pages` branch** pushed by a local script (no GitHub CLI or Actions setup here).
+- **itch.io upload needs your account:** the zip and butler command are ready.
+- **Credits list the real runtime dependencies** (Phaser 4, TypeScript, Vite, Preact, idb). simplex-noise isn't used.
+
+### Reviewer pass
+
+(see below)
+
+### Known issues
+
+- FPS on a real integrated GPU is unmeasured (see above).
+- The world-select screen dims the animated title backdrop heavily (the panel's backdrop alpha).
+- Key rebinding covers the keyboard only (the mouse buttons and wheel are fixed).
+
+### Next step
+
+**M14 — More towns** (Sporehaven and Mirewatch), plus the final art check when the art is ready. Waiting for the user.
+
+---
+
+
 ## After M12 — playtest requests (2026-10-10)
 
 - **No wild creatures during boss fights:** while a fight is on, ordinary spawns stop (`BOSS.wildSpawns`, 0 = none; raise it to let some through) and Dimming-night shade waves wait. The boss's own creatures still come.

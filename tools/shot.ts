@@ -1001,6 +1001,59 @@ const BOSS_SHOTS: Shot[] = [
   },
 ];
 
+/** M13: settings, credits, the guide and photo mode. */
+const POLISH_SHOTS: Shot[] = [
+  {
+    name: 'settings-controls',
+    query: '',
+    prepare: async (page) => {
+      await waitForScreen(page, 'title');
+      await page.locator('button', { hasText: 'Settings' }).click();
+      await page.locator('button', { hasText: 'Controls' }).click();
+      await page.waitForSelector('.key-button', { timeout: TIMEOUT_MS });
+      report.push(`settings: ${await page.locator('.key-button').count()} key buttons`);
+    },
+  },
+  {
+    name: 'credits',
+    query: '',
+    prepare: async (page) => {
+      await waitForScreen(page, 'title');
+      await page.locator('button', { hasText: 'Credits' }).click();
+      await page.waitForTimeout(400);
+    },
+  },
+  {
+    name: 'guide',
+    query: '?scene=game&time=noon',
+    prepare: async (page) => {
+      await waitForPlayerReady(page);
+      await page.keyboard.press('h');
+      await page.waitForSelector('.guide-panel', { timeout: TIMEOUT_MS });
+      await page.locator('button', { hasText: 'Bosses and the way down' }).click();
+    },
+  },
+  {
+    // Photo mode at dusk, the camera moved off the player, with the Cold filter.
+    name: 'photo-mode',
+    query: '?scene=game&time=sunset',
+    prepare: async (page) => {
+      await waitForLight(page);
+      await page.keyboard.press('p');
+      await page.waitForSelector('.photo-panel', { timeout: TIMEOUT_MS });
+      await page.locator('button', { hasText: 'Cold' }).click();
+      await holdKey(page, 'ArrowRight', 800);
+      await page.waitForTimeout(800);
+      const p = (await probe(page)) as GameProbe;
+      const steps = p.steps;
+      await page.waitForTimeout(500);
+      const q = (await probe(page)) as GameProbe;
+      check(q.steps === steps, 'the world should hold still in photo mode');
+      report.push(`photo mode: world frozen at step ${steps}, camera at ${Math.round(q.cameraX)}`);
+    },
+  },
+];
+
 const TOWN_SHOTS: Shot[] = [
   {
     name: 'canopyhold-day',
@@ -1133,6 +1186,7 @@ const SHOTS: Shot[] = [
   ...LIFE_SHOTS,
   ...TOWN_SHOTS,
   ...BOSS_SHOTS,
+  ...POLISH_SHOTS,
   // M10: a cave entrance near the spawn, and inside it, looking down the switchbacks.
   {
     name: 'cave-entrance',
