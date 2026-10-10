@@ -45,7 +45,7 @@ export function planTowns(ctx: GenContext): void {
 }
 
 /** Flattens the surface under a prefab to the height at its middle, easing in at the sides. */
-function levelGround(ctx: GenContext, x0: number, prefab: Prefab): number {
+export function levelGround(ctx: GenContext, x0: number, prefab: Prefab): number {
   const x1 = x0 + prefab.width - 1;
   const level = ctx.surface[Math.floor((x0 + x1) / 2)] ?? 0;
   const blend = WORLDGEN.townBlendWidth;
@@ -59,63 +59,102 @@ function levelGround(ctx: GenContext, x0: number, prefab: Prefab): number {
 }
 
 /**
+ * A way down from the surface to a gate (an underground town's or a boss arena's): a switchback
+ * tunnel opening `townTunnel.mouthOffset` columns out from the gate (in direction `out`), winding
+ * within its band of columns, ending in a corridor into the gate.
+ */
+export interface WayDown {
+  /** The gate: column and the row its feet stand in. */
+  readonly x: number;
+  readonly feetY: number;
+  /** Which way the tunnel lies from the gate (away from the structure). */
+  readonly out: 1 | -1;
+}
+
+/** The columns a way down's switchbacks keep to (inclusive), and the rows from its mouth down. */
+export function wayDownBand(
+  ctx: GenContext,
+  way: WayDown,
+): { x0: number; x1: number; y0: number; y1: number } {
+  const cfg = WORLDGEN.townTunnel;
+  const inner = way.x + way.out * (WORLDGEN.townMargin + 1);
+  const far = way.x + way.out * (cfg.mouthOffset + cfg.band);
+  const x0 = Math.max(2, Math.min(inner, far));
+  const x1 = Math.min(ctx.width - 3, Math.max(inner, far));
+  let top = ctx.height;
+  for (let x = x0; x <= x1; x++) top = Math.min(top, ctx.surface[x] ?? top);
+  return { x0, x1, y0: top - WORLDGEN.caveEntrances.mouthRadius, y1: way.feetY + 1 };
+}
+
+/** The way down to an underground town: from its gate nearest the spawn, outwards. */
+export function townWayDown(ctx: GenContext, town: PlacedTown): WayDown | null {
+  const def = TOWNS.find((t) => t.key === town.key);
+  if (!def || def.placement.kind !== 'underground') return null;
+  const gate = nearestGate(def, town, ctx.width / 2);
+  if (!gate) return null;
+  // Outward from the gate: the direction away from the town.
+  const out = gate.x < (town.x0 + town.x1) / 2 ? -1 : 1;
+  return { x: gate.x, feetY: gate.feetY, out };
+}
+
+/**
+ * Carves a way down. `carveTunnel` is the cave entrances' carver (it never cuts protected
+ * areas); the corridor is cut straight in, with a floor of `floorTile` where it has none.
+ */
+export function carveWayDown(
+  ctx: GenContext,
+  way: WayDown,
+  random: () => number,
+  carveTunnel: (cx: number, cy: number, radius: number) => void,
+  floorTile = FLOOR,
+): void {
+  const cfg = WORLDGEN.townTunnel;
+  const tunnel = WORLDGEN.caveEntrances;
+  const { x0: lo, x1: hi } = wayDownBand(ctx, way);
+  let x = way.x + way.out * cfg.mouthOffset;
+  let y = (ctx.surface[Math.round(x)] ?? 0) - 1;
+  ctx.caveMouths.push(Math.round(x));
+  let dir: 1 | -1 = random() < 0.5 ? -1 : 1;
+  let slope = tunnel.minSlope + random() * (tunnel.maxSlope - tunnel.minSlope);
+  for (let step = 0; step < tunnel.maxSteps && y < way.feetY - 1; step++) {
+    const surface = ctx.surface[Math.round(x)] ?? 0;
+    carveTunnel(Math.round(x), Math.round(y), y < surface + 2 ? tunnel.mouthRadius : tunnel.radius);
+    slope = Math.min(
+      tunnel.maxSlope,
+      Math.max(tunnel.minSlope, slope + (random() - 0.5) * tunnel.turn),
+    );
+    x += Math.cos(slope) * dir;
+    y += Math.sin(slope);
+    if (x <= lo || x >= hi) dir = (x <= lo ? 1 : -1) as 1 | -1;
+  }
+  // The corridor: level with the gate's floor, straight in through the margin.
+  const floor = way.feetY + 1;
+  const from = Math.round(x);
+  const step = from < way.x ? 1 : -1;
+  for (let cx = from; cx !== way.x; cx += step) {
+    for (let cy = floor - cfg.corridorHeight; cy < floor; cy++) {
+      const i = cy * ctx.width + cx;
+      ctx.fg[i] = AIR;
+      ctx.liquid[i] = 0;
+    }
+    // A floor to walk on all the way in.
+    if (SOLID[ctx.fg[floor * ctx.width + cx] ?? AIR] !== 1)
+      ctx.fg[floor * ctx.width + cx] = floorTile;
+  }
+}
+
+/**
  * Step 4 (part) — the way down to each underground town: a switchback tunnel from the surface,
  * a little out from the town's gate nearest the spawn, ending in a corridor into that gate.
- * `carveTunnel` is the cave entrances' carver (it never cuts protected areas).
  */
 export function townTunnels(
   ctx: GenContext,
   carveTunnel: (cx: number, cy: number, radius: number) => void,
 ): void {
-  const cfg = WORLDGEN.townTunnel;
-  const tunnel = WORLDGEN.caveEntrances;
   const random = stepRandom(ctx, 22);
-  const centre = ctx.width / 2;
   for (const town of ctx.towns) {
-    const def = TOWNS.find((t) => t.key === town.key);
-    if (!def || def.placement.kind !== 'underground') continue;
-    const gate = nearestGate(def, town, centre);
-    if (!gate) continue;
-    // Outward from the gate: the direction away from the town.
-    const out = gate.x < (town.x0 + town.x1) / 2 ? -1 : 1;
-    const inner = gate.x + out * (WORLDGEN.townMargin + 1);
-    const far = gate.x + out * (cfg.mouthOffset + cfg.band);
-    const lo = Math.max(2, Math.min(inner, far));
-    const hi = Math.min(ctx.width - 3, Math.max(inner, far));
-    let x = gate.x + out * cfg.mouthOffset;
-    let y = (ctx.surface[Math.round(x)] ?? 0) - 1;
-    ctx.caveMouths.push(Math.round(x));
-    let dir: 1 | -1 = random() < 0.5 ? -1 : 1;
-    let slope = tunnel.minSlope + random() * (tunnel.maxSlope - tunnel.minSlope);
-    for (let step = 0; step < tunnel.maxSteps && y < gate.feetY - 1; step++) {
-      const surface = ctx.surface[Math.round(x)] ?? 0;
-      carveTunnel(
-        Math.round(x),
-        Math.round(y),
-        y < surface + 2 ? tunnel.mouthRadius : tunnel.radius,
-      );
-      slope = Math.min(
-        tunnel.maxSlope,
-        Math.max(tunnel.minSlope, slope + (random() - 0.5) * tunnel.turn),
-      );
-      x += Math.cos(slope) * dir;
-      y += Math.sin(slope);
-      if (x <= lo || x >= hi) dir = (x <= lo ? 1 : -1) as 1 | -1;
-    }
-    // The corridor: level with the gate's floor, straight in through the margin.
-    const floor = gate.feetY + 1;
-    const from = Math.round(x);
-    const step = from < gate.x ? 1 : -1;
-    for (let cx = from; cx !== gate.x; cx += step) {
-      for (let cy = floor - cfg.corridorHeight; cy < floor; cy++) {
-        const i = cy * ctx.width + cx;
-        ctx.fg[i] = AIR;
-        ctx.liquid[i] = 0;
-      }
-      // A floor to walk on all the way in.
-      if (SOLID[ctx.fg[floor * ctx.width + cx] ?? AIR] !== 1)
-        ctx.fg[floor * ctx.width + cx] = FLOOR;
-    }
+    const way = townWayDown(ctx, town);
+    if (way) carveWayDown(ctx, way, random, carveTunnel);
   }
 }
 

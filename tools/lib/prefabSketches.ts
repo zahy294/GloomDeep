@@ -279,8 +279,220 @@ export function citadel(): PrefabCanvas {
   return c;
 }
 
+/** Carves a filled ellipse of air out of the foreground (the back wall stays). */
+function hollow(c: PrefabCanvas, cx: number, cy: number, rx: number, ry: number): void {
+  c.ellipse('fg', cx, cy, rx, ry, '', true);
+}
+
+/**
+ * Doorways on both sides at floor level (`floor` = the floor row): a corridor `rows` tall cut
+ * from the map edge to `reach` columns in, a `door` rectangle (sealed in a fight) a few columns
+ * in, and a `gate` point on the edge where a tunnel arrives.
+ */
+function doorways(c: PrefabCanvas, floor: number, reach: number, rows = 4): void {
+  const W = c.width;
+  c.fill('fg', 0, floor - rows, reach, floor - 1, '');
+  c.fill('fg', W - 1 - reach, floor - rows, W - 1, floor - 1, '');
+  c.area('door', 'west', 3, floor - rows, 4, floor - 1);
+  c.area('door', 'east', W - 5, floor - rows, W - 4, floor - 1);
+  c.point('gate', 'west', 0, floor - 1);
+  c.point('gate', 'east', W - 1, floor - 1);
+}
+
+/**
+ * M12: the Moth Matriarch's nest, a great glowcap hollow in the Grottos. Glowing caps (bouncy)
+ * and branch ledges to fight from; two lures already set on the ledges.
+ */
+export function mothArena(): PrefabCanvas {
+  const W = 72;
+  const H = 40;
+  const FLOOR = 34;
+  const c = new PrefabCanvas(W, H);
+  c.fill('fg', 0, 0, W - 1, H - 1, 'stone');
+  c.fill('bg', 0, 0, W - 1, H - 1, 'stone');
+  hollow(c, 36, 19, 33, 17);
+  c.fill('fg', 2, FLOOR, W - 3, H - 1, 'stone');
+  c.fill('fg', 6, FLOOR, W - 7, FLOOR, 'moss');
+  doorways(c, FLOOR, 14);
+  // Mushrooms: stems behind, glowing caps you can bounce on.
+  for (const [x, top, w] of [
+    [12, 27, 5],
+    [55, 27, 5],
+    [33, 23, 6],
+  ] as const) {
+    c.fill('bg', x + Math.floor(w / 2), top + 1, x + Math.floor(w / 2), FLOOR - 1, 'living_wood');
+    c.fill('fg', x, top, x + w - 1, top, 'glowcap_flesh');
+  }
+  for (const [x0, x1, y] of [
+    [20, 27, 29],
+    [44, 51, 29],
+    [14, 21, 20],
+    [50, 57, 20],
+    [29, 42, 14],
+  ] as const) {
+    c.fill('fg', x0, y, x1, y, 'branch');
+  }
+  c.set('fg', 23, 28, 'moth_lure');
+  c.set('fg', 48, 28, 'moth_lure');
+  c.area('arena', 'nest', 2, 2, W - 3, FLOOR - 1);
+  c.area('trigger', 'nest', 16, 4, W - 17, FLOOR - 1);
+  c.point('boss', 'matriarch', 36, 8);
+  return c;
+}
+
+/**
+ * M12: the Mire Sovereign's pool, a sunken basin in the Weeping Mire open to the sky, with
+ * ledges at three heights, braziers on them, and a sluice lever on each side wall. Root
+ * palisades rise round the rim during the fight. Surface prefab: row 10 sits on the ground.
+ */
+export function mireArena(): PrefabCanvas {
+  const W = 84;
+  const H = 34;
+  const G = 10;
+  const BOTTOM = 26; // the pool's lowest water row
+  const c = new PrefabCanvas(W, H);
+  c.props.foundation = 'mud';
+  c.props.groundRow = G;
+  c.fill('fg', 0, G, W - 1, H - 1, 'mud');
+  c.fill('bg', 0, G + 1, W - 1, H - 1, 'mud');
+  c.fill('fg', 0, G, 7, G, 'mire_grass');
+  c.fill('fg', W - 8, G, W - 1, G, 'mire_grass');
+  c.fill('fg', 8, G, W - 9, BOTTOM, '');
+  c.fill('fg', 8, BOTTOM + 1, W - 9, BOTTOM + 2, 'peat');
+  for (const [x0, x1, y] of [
+    [14, 24, 22],
+    [59, 69, 22],
+    [30, 40, 17],
+    [43, 53, 17],
+    [18, 26, 13],
+    [57, 65, 13],
+    [8, 12, 15],
+    [W - 13, W - 9, 15],
+  ] as const) {
+    c.fill('fg', x0, y, x1, y, 'branch');
+  }
+  for (const [x, y] of [
+    [19, 21],
+    [64, 21],
+    [35, 16],
+    [48, 16],
+    [22, 12],
+    [61, 12],
+  ] as const) {
+    c.set('fg', x, y, 'mire_brazier');
+  }
+  c.set('fg', 9, 14, 'sluice_lever');
+  c.set('fg', W - 10, 14, 'sluice_lever');
+  c.area('door', 'west', 4, 0, 5, G - 1);
+  c.area('door', 'east', W - 6, 0, W - 5, G - 1);
+  c.area('pool', 'pool', 8, G + 1, W - 9, BOTTOM);
+  c.area('arena', 'pool', 4, 0, W - 5, BOTTOM);
+  c.area('trigger', 'pool', 8, G + 1, W - 9, BOTTOM);
+  c.point('boss', 'sovereign', 42, BOTTOM - 2);
+  return c;
+}
+
+/**
+ * M12: the Hollow Warden's hall, a crystal hall in the Moonstone Hollows. Prisms in the corners,
+ * on the ceiling and over the ledges turn a lantern beam; right-click one to turn it round.
+ */
+export function wardenArena(): PrefabCanvas {
+  const W = 70;
+  const H = 42;
+  const FLOOR = 36;
+  const c = new PrefabCanvas(W, H);
+  c.fill('fg', 0, 0, W - 1, H - 1, 'stone');
+  c.fill('bg', 0, 0, W - 1, H - 1, 'stone');
+  c.fill('fg', 3, 3, W - 4, FLOOR - 1, '');
+  doorways(c, FLOOR, 3);
+  // Crystal clusters on the walls and ceiling (their own cold light).
+  for (const [x, y] of [
+    [2, 10],
+    [2, 22],
+    [W - 3, 10],
+    [W - 3, 22],
+    [16, 2],
+    [27, 2],
+    [42, 2],
+    [53, 2],
+  ] as const) {
+    c.set('fg', x, y, 'moonstone_crystal');
+  }
+  for (const [x0, x1, y] of [
+    [9, 18, 28],
+    [W - 19, W - 10, 28],
+    [28, 41, 19],
+  ] as const) {
+    c.fill('fg', x0, y, x1, y, 'branch');
+  }
+  for (const [x, y, k] of [
+    [5, FLOOR - 1, 'prism_slash'],
+    [W - 6, FLOOR - 1, 'prism_back'],
+    [5, 4, 'prism_back'],
+    [W - 6, 4, 'prism_slash'],
+    [35, 4, 'prism_back'],
+    [13, 27, 'prism_slash'],
+    [W - 14, 27, 'prism_back'],
+    [35, 18, 'prism_slash'],
+  ] as const) {
+    c.set('fg', x, y, k);
+  }
+  c.area('arena', 'hall', 3, 3, W - 4, FLOOR - 1);
+  c.area('trigger', 'hall', 14, 3, W - 15, FLOOR - 1);
+  c.point('boss', 'warden', 35, FLOOR - 1);
+  return c;
+}
+
+/**
+ * M12: the Gloam Heart's chamber at the bottom of the world, round the World Tree's taproot.
+ * Six choked root-lamps on the floor and ledges; the whole chamber starts thick with Gloam.
+ */
+export function heartArena(): PrefabCanvas {
+  const W = 100;
+  const H = 56;
+  const FLOOR = 48;
+  const c = new PrefabCanvas(W, H);
+  c.fill('fg', 0, 0, W - 1, H - 1, 'gloam_veined_stone');
+  c.fill('bg', 0, 0, W - 1, H - 1, 'gloam_veined_stone');
+  hollow(c, 50, 25, 47, 25);
+  c.fill('fg', 2, FLOOR, W - 3, H - 1, 'obsidian');
+  doorways(c, FLOOR, 21);
+  // The taproot coming down out of the ceiling to the Heart.
+  c.fill('bg', 46, 0, 53, 30, 'living_wood');
+  c.fill('fg', 47, 1, 52, 6, 'rootwood');
+  for (const [x0, x1, y] of [
+    [14, 24, 38],
+    [75, 85, 38],
+    [26, 36, 28],
+    [63, 73, 28],
+    [36, 44, 18],
+    [55, 63, 18],
+  ] as const) {
+    c.fill('fg', x0, y, x1, y, 'branch');
+  }
+  for (const [x, y] of [
+    [26, FLOOR - 1],
+    [73, FLOOR - 1],
+    [19, 37],
+    [80, 37],
+    [31, 27],
+    [68, 27],
+  ] as const) {
+    c.set('fg', x, y, 'heart_node');
+  }
+  c.area('arena', 'heart', 3, 2, W - 4, FLOOR - 1);
+  c.area('trigger', 'heart', 22, 4, W - 23, FLOOR - 1);
+  c.area('gloam', 'heart', 0, 0, W - 1, H - 1, { gloam: 230 });
+  c.point('boss', 'heart', 50, 25);
+  return c;
+}
+
 export const SKETCHES: Readonly<Record<string, () => PrefabCanvas>> = {
   cottage,
   canopyhold,
   citadel,
+  moth_arena: mothArena,
+  mire_arena: mireArena,
+  warden_arena: wardenArena,
+  heart_arena: heartArena,
 };

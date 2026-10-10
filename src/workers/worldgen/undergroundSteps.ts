@@ -4,6 +4,7 @@ import { TILES, tileId } from '../../data/tiles';
 import { valueNoise2 } from '../../sim/random';
 import { fairyRings, flora } from './flora';
 import { townTunnels } from './towns';
+import { arenaTunnels } from './arenas';
 import { placeWaterfalls } from './waterfalls';
 import {
   AIR,
@@ -31,11 +32,18 @@ const VEILED_FORM = new Map(
   TILES.flatMap((t) => (t.veiled && !t.intangible ? [[tileId(t.veiled), t.id] as const] : [])),
 );
 const VEILED_PLATFORM = TILES.find((t) => t.intangible && t.veiled)?.id ?? -1;
+/** Wards (M12): no later step may replace them. */
+const SEALED = Uint8Array.from(TILES, (t) => (t.sealedUntil ? 1 : 0));
 
 /** Underground = below the soil (caves never cut the grass or soil near the surface). */
 function caveAllowed(ctx: GenContext, x: number, y: number): boolean {
   const surface = ctx.surface[x] ?? ctx.height;
-  return y - surface >= WORLDGEN.caveMinDepth && !inProtected(ctx, x, y) && y < ctx.height - 1;
+  return (
+    y - surface >= WORLDGEN.caveMinDepth &&
+    !inProtected(ctx, x, y) &&
+    y < ctx.height - 1 &&
+    SEALED[ctx.fg[y * ctx.width + x] ?? AIR] !== 1
+  );
 }
 
 function carve(ctx: GenContext, cx: number, cy: number, radius: number): void {
@@ -74,6 +82,7 @@ export function caves(ctx: GenContext): void {
 
   caveEntrances(ctx);
   townTunnels(ctx, (cx, cy, r) => carveTunnel(ctx, cx, cy, r));
+  arenaTunnels(ctx, (cx, cy, r) => carveTunnel(ctx, cx, cy, r));
 
   const random = stepRandom(ctx, 4);
   const worms = Math.round((width / 1000) * WORLDGEN.wormsPerThousandColumns);
@@ -367,7 +376,7 @@ function caveFeatures(ctx: GenContext): void {
       let j = face;
       const size = 1 + Math.floor(random() * WORLDGEN.featureClumpMax);
       for (let k = 0; k < size; k++) {
-        if (isSolidId(fg[j] ?? AIR)) fg[j] = feature;
+        if (isSolidId(fg[j] ?? AIR) && SEALED[fg[j] ?? AIR] !== 1) fg[j] = feature;
         const step = steps[Math.floor(random() * steps.length)] ?? 1;
         if (j + step > width && j + step < width * (height - 1)) j += step;
       }

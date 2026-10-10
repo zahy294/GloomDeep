@@ -5,13 +5,13 @@
  "name": "gloamdeep",
  "tilewidth": 16,
  "tileheight": 16,
- "tilecount": 73,
+ "tilecount": 86,
  "columns": 16,
  "margin": 0,
  "spacing": 0,
  "image": "gloamdeep.tileset.png",
  "imagewidth": 256,
- "imageheight": 80,
+ "imageheight": 96,
  "tiles": [
   {
    "id": 0,
@@ -740,6 +740,136 @@
      "name": "key",
      "type": "string",
      "value": "great_beacon"
+    }
+   ]
+  },
+  {
+   "id": 73,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "ward_stone_hollows"
+    }
+   ]
+  },
+  {
+   "id": 74,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "ward_stone_heart"
+    }
+   ]
+  },
+  {
+   "id": 75,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "arena_seal"
+    }
+   ]
+  },
+  {
+   "id": 76,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "moth_lure"
+    }
+   ]
+  },
+  {
+   "id": 77,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "sluice_lever"
+    }
+   ]
+  },
+  {
+   "id": 78,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "sluice_lever_open"
+    }
+   ]
+  },
+  {
+   "id": 79,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "mire_brazier"
+    }
+   ]
+  },
+  {
+   "id": 80,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "mire_brazier_out"
+    }
+   ]
+  },
+  {
+   "id": 81,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "prism_slash"
+    }
+   ]
+  },
+  {
+   "id": 82,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "prism_back"
+    }
+   ]
+  },
+  {
+   "id": 83,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "heart_node"
+    }
+   ]
+  },
+  {
+   "id": 84,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "heart_node_lit"
+    }
+   ]
+  },
+  {
+   "id": 85,
+   "properties": [
+    {
+     "name": "key",
+     "type": "string",
+     "value": "heartlight"
     }
    ]
   }

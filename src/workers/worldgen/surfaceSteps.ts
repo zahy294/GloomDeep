@@ -4,6 +4,7 @@ import { tileId } from '../../data/tiles';
 import { valueNoise1, valueNoise2 } from '../../sim/random';
 import { inTown, layerAt, noiseSeed, stepRandom, type GenContext } from './context';
 import { planTowns, stampTowns } from './towns';
+import { planArenas, stampArenas } from './arenas';
 import { ruins } from './flora';
 import { giantTrees } from './giantTrees';
 
@@ -93,6 +94,7 @@ export function biomePlacement(ctx: GenContext): void {
     ctx.layerTops[i] = i === 0 ? 0 : Math.round(height * layer.top);
   });
   planTowns(ctx);
+  planArenas(ctx);
 }
 
 /**
@@ -139,11 +141,12 @@ export function dirtAndStone(ctx: GenContext): void {
 }
 
 /**
- * Step 7 — structures: the town prefabs (M11), giant ancient trees (one at the edge of the starting
- * glade) and small rune ruins (one on the glade). Shrines and arenas (M12) plug in here.
+ * Step 7 — structures: the town prefabs (M11), the boss arenas and wards (M12), giant ancient
+ * trees (one at the edge of the starting glade) and small rune ruins (one on the glade).
  */
 export function structures(ctx: GenContext): void {
   stampTowns(ctx);
+  stampArenas(ctx);
   giantTrees(ctx);
   ruins(ctx);
 }

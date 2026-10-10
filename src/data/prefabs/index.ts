@@ -12,6 +12,10 @@ import {
 import canopyholdMap from './canopyhold.json';
 import citadelMap from './citadel.json';
 import cottageMap from './cottage.json';
+import heartArenaMap from './heart_arena.json';
+import mireArenaMap from './mire_arena.json';
+import mothArenaMap from './moth_arena.json';
+import wardenArenaMap from './warden_arena.json';
 import tileset from './gloamdeep.tileset.json';
 
 const TILESETS: Record<string, TiledTileset> = { 'gloamdeep.tileset.json': tileset };
@@ -21,6 +25,11 @@ const MAPS: Record<string, TiledMap> = {
   canopyhold: canopyholdMap as TiledMap,
   citadel: citadelMap as TiledMap,
   cottage: cottageMap as TiledMap,
+  // M12 boss arenas.
+  moth_arena: mothArenaMap as TiledMap,
+  mire_arena: mireArenaMap as TiledMap,
+  warden_arena: wardenArenaMap as TiledMap,
+  heart_arena: heartArenaMap as TiledMap,
 };
 
 export const PREFABS: Readonly<Record<string, Prefab>> = Object.fromEntries(

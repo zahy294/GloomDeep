@@ -33,6 +33,8 @@ export interface GenContext {
   towns: PlacedTown[];
   /** Boss arenas (M12), planned and stamped like towns; key = the boss key. */
   arenas: PlacedTown[];
+  /** The ways down (tunnels) to the underground arenas, planned with them, carved in step 4. */
+  arenaWays: { readonly x: number; readonly feetY: number; readonly out: 1 | -1 }[];
 }
 
 /** A town prefab's place in the world (tiles; x0/y0 is the prefab's top-left cell). */
@@ -42,6 +44,8 @@ export interface PlacedTown {
   readonly y0: number;
   readonly x1: number;
   readonly y1: number;
+  /** An arena on the surface (worldgen only: surface features keep clear of its columns). */
+  readonly surface?: boolean;
 }
 
 export function createContext(
@@ -70,6 +74,7 @@ export function createContext(
     caveMouths: [],
     towns: [],
     arenas: [],
+    arenaWays: [],
   };
 }
 
@@ -101,19 +106,26 @@ export function inSpawnArea(ctx: GenContext, x: number, y: number): boolean {
   return x >= a.x0 && x <= a.x1 && y >= a.y0 && y <= a.y1;
 }
 
-/** Inside a town's prefab rectangle, widened by `margin` tiles. */
+const inRect = (t: PlacedTown, x: number, y: number, margin: number) =>
+  x >= t.x0 - margin && x <= t.x1 + margin && y >= t.y0 - margin && y <= t.y1 + margin;
+
+/**
+ * Inside a town's or a boss arena's prefab rectangle (M12: arenas are kept like towns), widened
+ * by `margin` tiles.
+ */
 export function inTown(ctx: GenContext, x: number, y: number, margin = 0): boolean {
-  for (const t of ctx.towns) {
-    if (x >= t.x0 - margin && x <= t.x1 + margin && y >= t.y0 - margin && y <= t.y1 + margin) {
-      return true;
-    }
-  }
+  for (const t of ctx.towns) if (inRect(t, x, y, margin)) return true;
+  for (const a of ctx.arenas) if (inRect(a, x, y, margin)) return true;
   return false;
 }
 
-/** A town's columns (widened by `margin`) — surface features keep out of them. */
+/**
+ * A surface town's or surface arena's columns (widened by `margin`) — surface features keep out
+ * of them. (Underground towns count too: the Citadel's tunnel opens above it.)
+ */
 export function inTownColumns(ctx: GenContext, x: number, margin = 0): boolean {
-  return ctx.towns.some((t) => x >= t.x0 - margin && x <= t.x1 + margin);
+  const over = (t: PlacedTown) => x >= t.x0 - margin && x <= t.x1 + margin;
+  return ctx.towns.some(over) || ctx.arenas.some((a) => a.surface === true && over(a));
 }
 
 /**

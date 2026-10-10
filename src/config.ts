@@ -118,6 +118,13 @@ export const WORLDGEN = {
    */
   /** Towns (M11): caves, pools and features keep this many tiles clear of a town's prefab. */
   townMargin: 3,
+  /**
+   * Boss arenas (M12): rows kept between an arena and its layer's top (below a ward) or bottom,
+   * columns kept from the world's sides, and candidate places tried.
+   */
+  arenaLayerGap: 8,
+  arenaEdgeMargin: 4,
+  arenaAttempts: 60,
   /** The ground eases into a surface town's level over this many columns each side. */
   townBlendWidth: 24,
   /** Giant trees, ruins and fairy rings keep this many columns clear of a surface town. */
