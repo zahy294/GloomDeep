@@ -57,11 +57,33 @@ Running log per `CLAUDE.md`. Newest milestone at the top.
 
 ### Reviewer pass
 
-(see below)
+No blockers. Fixed:
+- **Must-fix: autosave could run during photo mode** and store the photo's time of day; autosaves now wait for photo mode to end.
+- **Photo mode:**
+  - Dragging the panel's slider or clicking its buttons no longer pans the camera.
+  - The tile cursor no longer comes back over the world (it would have been in the saved PNG).
+  - Tab no longer also moves browser focus.
+  - The hotbar keys and wheel no longer queue commands that applied on leaving.
+  - Filter presets now work on Low quality too.
+- **Settings:**
+  - Quality comes from the live settings, not a re-read of localStorage (which may be blocked in an iframe).
+  - A stored `null` or junk no longer stops the game from booting.
+  - Controls have three key slots, so jump's third default key (Up) shows and can be cleared.
+  - A key may now serve several controls (W both jumps and climbs, as by default); it's only kept from appearing twice on one.
+  - Letters are named by what the key types, so rebinding works on AZERTY and other layouts.
+  - Tab is reserved.
+  - Sliders no longer rebind every key on each tick.
+- **The world-select text fields lost letters after quitting a world:** Phaser's key captures are global. They are now cleared when the game scene shuts down.
+- **The debug key T** (jump to the next time of day) only works while the F3 overlay is open.
+- **The ending card released no pointer guard** when closed under the cursor (M12); it does now.
+- **Smaller:** holding a UI key no longer toggles it repeatedly; `aria-pressed` and `aria-label`s on the settings tabs, choices, key buttons and photo presets; the display-scale hint explains that ×N means screen pixels.
+
+Not changed (logged): on-screen key hints (game hint, guide, photo panel) don't follow rebinding; the photo pan keys are fixed WASD/arrows; "Photo saved" shows after leaving photo mode; TitleScene has a few inline animation constants; Esc in the settings resumes the game rather than going back to the pause menu.
 
 ### Known issues
 
 - FPS on a real integrated GPU is unmeasured (see above).
+- Not verifiable here: the PNG download and IndexedDB/localStorage inside itch.io's sandboxed iframe. Check them after the upload.
 - The world-select screen dims the animated title backdrop heavily (the panel's backdrop alpha).
 - Key rebinding covers the keyboard only (the mouse buttons and wheel are fixed).
 

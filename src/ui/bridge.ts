@@ -101,7 +101,7 @@ export interface PhotoView {
   dayFraction: number;
   /** Filter preset key (PHOTO.presets). */
   preset: string;
-  /** The panel is hidden (only a small hint shows). */
+  /** The panel is hidden (nothing shows; Tab brings it back). */
   panelHidden: boolean;
 }
 

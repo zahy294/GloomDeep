@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   keyLabel,
   keyName,
+  KEY_SLOTS,
   MAX_SCALE_CHOICE,
   rebind,
   RESERVED_KEYS,
@@ -23,6 +24,7 @@ const VOLUMES: readonly { key: keyof Volumes; label: string }[] = [
 ];
 
 const PERCENT = 100;
+const SLOTS = Array.from({ length: KEY_SLOTS }, (_, i) => i);
 
 /**
  * Settings (plan 5, M13): quality, display scale, volumes and key bindings. Every change is sent
@@ -48,7 +50,7 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopImmediatePropagation();
-      const name = keyName(e.code);
+      const name = keyName(e.code, e.key);
       if (e.code === 'Escape') {
         setListening(null);
         return;
@@ -74,6 +76,7 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
           {(['video', 'audio', 'controls'] as const).map((t) => (
             <button
               key={t}
+              aria-pressed={tab === t}
               class={`guide-tab${tab === t ? ' active' : ''}`}
               onClick={() => setTab(t)}
             >
@@ -90,6 +93,7 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
                   {(['low', 'medium', 'high'] as const).map((q) => (
                     <button
                       key={q}
+                      aria-pressed={settings.quality === q}
                       class={`menu-button small${settings.quality === q ? ' primary' : ''}`}
                       onClick={() => change({ ...settings, quality: q })}
                     >
@@ -110,6 +114,7 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
                   ).map((s) => (
                     <button
                       key={String(s)}
+                      aria-pressed={settings.scale === s}
                       class={`menu-button small${settings.scale === s ? ' primary' : ''}`}
                       onClick={() => change({ ...settings, scale: s })}
                     >
@@ -119,8 +124,8 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
                 </div>
               </div>
               <div class="panel-hint">
-                Pixels are always scaled by whole numbers. Auto picks the largest that fits the
-                window; a smaller one shows the game smaller.
+                Pixels are always scaled by whole numbers (screen pixels, so ×2 looks smaller on a
+                high-DPI screen). Auto picks the largest that fits the window.
               </div>
             </>
           )}
@@ -153,13 +158,14 @@ export function SettingsPanel({ bridge, onClose }: { bridge: UiBridge; onClose: 
                   {BINDABLES.map(({ key, label }) => (
                     <tr key={key}>
                       <td>{label}</td>
-                      {[0, 1].map((slot) => {
+                      {SLOTS.map((slot) => {
                         const bound = settings.keys[key][slot];
                         const waiting = listening?.what === key && listening.slot === slot;
                         return (
                           <td key={slot}>
                             <button
                               class={`key-button${waiting ? ' listening' : ''}`}
+                              aria-label={`${label}, key ${slot + 1}: ${bound ? keyLabel(bound) : 'none'}`}
                               onClick={() => setListening({ what: key, slot })}
                               onContextMenu={(e) => {
                                 e.preventDefault();

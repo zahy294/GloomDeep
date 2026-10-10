@@ -26,7 +26,7 @@ import { createEnemy } from '../../sim/entities/Enemy';
 import { NAMED_TIMES } from '../../data/dayCycle';
 import { DEBUG_KITS, itemById, STARTER_KIT } from '../../data/items';
 import { lensByKey } from '../../data/lenses';
-import { loadSettings, qualityFeatures } from '../../settings';
+import { qualityFeatures } from '../../settings';
 import { LANTERN_HAND } from '../../sim/systems/LightSystem';
 import {
   createLightWorker,
@@ -224,6 +224,8 @@ export class GameScene extends Phaser.Scene {
   private welcome = false;
   private guideOpen = false;
   private photo!: PhotoMode;
+  /** The key bindings the input mapper was last given (M13 settings). */
+  private boundKeys: unknown = null;
 
   constructor(
     private readonly bridge: UiBridge,
@@ -283,9 +285,8 @@ export class GameScene extends Phaser.Scene {
     // a transparent background, so the multiply light map only darkens what the world draws.
     this.cameras.main.setForceComposite(true);
     // Sky is registered before Game in main.ts, so it renders first (underneath).
-    const quality = loadSettings(
-      this.params.quality ? { quality: this.params.quality } : {},
-    ).quality;
+    // The live settings (storage may be unavailable); `?quality=` wins for this session.
+    const quality = this.params.quality ?? this.bridge.state.settings.quality;
     this.visual = new VisualState(qualityFeatures(quality));
     this.visual.update(this.sim, this.cameras.main, 0, 0, 0);
     // Before the Sky and Front scenes launch: they attach their cameras through CameraGrade.of.
@@ -452,6 +453,8 @@ export class GameScene extends Phaser.Scene {
       if (!this.debugOpen) this.bridge.set({ debug: null });
     });
     this.input.keyboard?.on(`keydown-${DEBUG_KEYS.cycleTime}`, () => {
+      // A debug key: only while the F3 overlay is open (and never in photo mode).
+      if (!this.debugOpen || this.photo.active) return;
       const times = Object.values(NAMED_TIMES);
       const next = times.find((t) => t > sim.dayFraction + 1e-3) ?? times[0] ?? 0;
       sim.enqueue({ type: 'setDayFraction', value: next });
@@ -466,13 +469,17 @@ export class GameScene extends Phaser.Scene {
     });
     // The rebindable UI keys (M13 settings): matched by the key's name on every key press.
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      const name = keyName(event.code);
+      if (event.repeat) return;
+      const name = keyName(event.code, event.key);
       if (!name) return;
       const keys = this.bridge.state.settings.keys;
       const is = (what: UiKey) => keys[what].includes(name);
       if (this.photo.active) {
         if (is('togglePhoto')) this.setPhoto(false);
-        else if (name === UI_KEYS.photoPanel) this.setPhotoPanel(!this.photo.panelHidden);
+        else if (name === UI_KEYS.photoPanel) {
+          event.preventDefault(); // or the browser moves focus
+          this.setPhotoPanel(!this.photo.panelHidden);
+        }
         return;
       }
       if (is('togglePhoto')) {
@@ -535,7 +542,11 @@ export class GameScene extends Phaser.Scene {
       this.bridge.commands.on('closeEnding', () => this.bossUi.closeEnding()),
       // M13: settings apply at once (quality on the next world), and photo mode's controls.
       this.bridge.commands.on('changeSettings', ({ settings }) => {
-        this.inputMapper.setKeys(settings.keys);
+        // Rebind only when the keys changed (sliders send many changes).
+        if (settings.keys !== this.boundKeys) {
+          this.boundKeys = settings.keys;
+          this.inputMapper.setKeys(settings.keys);
+        }
         this.audio?.setVolumes(settings.volume);
       }),
       this.bridge.commands.on('photoExit', () => this.setPhoto(false)),
@@ -567,6 +578,8 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      // Key captures are global: release them, or the menus' text fields lose those letters.
+      this.input.keyboard?.clearCaptures();
       document.removeEventListener('visibilitychange', onVisibility);
       for (const off of offCommands) off();
       this.chunks.destroy();
@@ -837,6 +850,7 @@ export class GameScene extends Phaser.Scene {
       this.cursor.visible = true;
       this.bridge.set({ photo: null });
     }
+    this.inputMapper.commandsBlocked = on;
     this.sim.input.releaseAll();
   }
 
@@ -928,7 +942,8 @@ export class GameScene extends Phaser.Scene {
     if (this.meta) {
       this.sessionSeconds += delta / 1000;
       this.autosaveTimer += delta / 1000;
-      if (this.autosaveTimer >= SAVE.autosaveSeconds && !this.saving) {
+      // Never while photo mode has the clock (it would save the photo's time of day).
+      if (this.autosaveTimer >= SAVE.autosaveSeconds && !this.saving && !this.photo.active) {
         this.saveNow().catch((error: unknown) => console.error('Autosave failed', error));
       }
     }
@@ -941,7 +956,13 @@ export class GameScene extends Phaser.Scene {
       // Photo mode: nothing moves but the camera, and the light follows the chosen time.
       const cam = this.cameras.main;
       const world = this.sim.world;
-      this.photo.update(delta / 1000, cam.zoom, world.width * TILE_SIZE, world.height * TILE_SIZE);
+      this.photo.update(
+        delta / 1000,
+        cam.zoom,
+        world.width * TILE_SIZE,
+        world.height * TILE_SIZE,
+        this.inputMapper.pointerEnabled,
+      );
       this.sim.relight(delta / 1000);
     } else {
       this.inputMapper.update();
@@ -1163,7 +1184,7 @@ export class GameScene extends Phaser.Scene {
 
   private setPointerOverUi(over: boolean): void {
     this.inputMapper.pointerEnabled = !over;
-    this.cursor.visible = !over;
+    this.cursor.visible = !over && !this.photo.active;
   }
 
   /** Starts a fresh CPU-time measurement window (e.g. after the initial world load). */

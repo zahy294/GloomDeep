@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Credits } from './Credits';
 import type { BossBarView, EndingView, TitleCardView, UiBridge } from './bridge';
 import { pointerGuard } from './ItemIcon';
@@ -58,6 +58,8 @@ export function TitleCard({ card }: { card: TitleCardView }) {
 /** The ending: shown once the final boss falls; "Keep playing" closes it. */
 export function EndingCard({ bridge, ending }: { bridge: UiBridge; ending: EndingView }) {
   const [credits, setCredits] = useState(false);
+  // Unmounting under the cursor fires no mouseleave: release the pointer guard explicitly.
+  useEffect(() => () => bridge.commands.emit('pointerOverUi', { over: false }), [bridge]);
   if (credits) return <Credits onClose={() => setCredits(false)} />;
   return (
     <div class="ending-card interactive" {...pointerGuard(bridge)}>

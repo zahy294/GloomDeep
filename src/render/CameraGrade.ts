@@ -164,7 +164,9 @@ export class CameraGrade {
     }
     gradeMatrix(p, this.matrix);
 
-    const needed = enabled && !isIdentity(this.matrix, GRADE.matrixEpsilon);
+    // A photo preset grades even on Low quality (photo mode is a still frame).
+    const graded = enabled || visual.photoPreset !== 'none';
+    const needed = graded && !isIdentity(this.matrix, GRADE.matrixEpsilon);
     const changed = this.pending || matrixChanged(this.matrix, this.applied, GRADE.matrixEpsilon);
     for (const filter of this.colourFilters) {
       if (filter.active !== needed) filter.setActive(needed);

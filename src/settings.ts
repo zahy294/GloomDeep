@@ -44,8 +44,9 @@ export const BINDABLES: readonly { key: Bindable; label: string }[] = [
   { key: 'togglePhoto', label: 'Photo mode' },
 ];
 
-/** Keys that can't be bound: Esc (menus), the hotbar digits and the debug keys. */
+/** Keys that can't be bound: Esc (menus), Tab (photo panel), the hotbar digits and F3. */
 export const RESERVED_KEYS: readonly string[] = [
+  'TAB',
   'ESC',
   'ZERO',
   'ONE',
@@ -59,6 +60,9 @@ export const RESERVED_KEYS: readonly string[] = [
   'NINE',
   'F3',
 ];
+
+/** Keys each control can have (the settings menu shows this many slots). */
+export const KEY_SLOTS = 3;
 
 /** The largest display scale offered (×1 … ×this). */
 export const MAX_SCALE_CHOICE = 6;
@@ -83,13 +87,18 @@ const STORAGE_KEY = 'gloamdeep.settings';
 
 /** Saved settings over the defaults (missing or broken fields fall back to the defaults). */
 export function mergeSettings(
-  saved: Partial<Settings>,
+  stored: Partial<Settings> | null,
   override: Partial<Settings> = {},
 ): Settings {
+  // Anything not an object (null, a number, an array) counts as nothing saved.
+  const saved: Partial<Settings> =
+    stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
   const keys = { ...DEFAULT_SETTINGS.keys };
   for (const { key } of BINDABLES) {
     const list = saved.keys?.[key];
-    if (Array.isArray(list) && list.every((k) => typeof k === 'string')) keys[key] = [...list];
+    if (Array.isArray(list) && list.every((k) => typeof k === 'string' && k.length > 0)) {
+      keys[key] = list.slice(0, KEY_SLOTS);
+    }
   }
   const volume = { ...DEFAULT_SETTINGS.volume };
   for (const k of Object.keys(volume) as (keyof Volumes)[]) {
@@ -128,7 +137,10 @@ export function saveSettings(settings: Settings): void {
   }
 }
 
-/** Binds `key` to `what` in slot 0 or 1, taking it away from anything else that had it. */
+/**
+ * Binds `key` to `what` in a slot (or clears the slot). A key may serve several controls (W both
+ * jumps and climbs by default); it is only kept from appearing twice on the same control.
+ */
 export function rebind(
   keys: Record<Bindable, string[]>,
   what: Bindable,
@@ -136,11 +148,7 @@ export function rebind(
   key: string | null,
 ): Record<Bindable, string[]> {
   const out = { ...keys };
-  if (key) {
-    for (const { key: other } of BINDABLES)
-      out[other] = (out[other] ?? []).filter((k) => k !== key);
-  }
-  const list = [...(out[what] ?? [])];
+  const list = (out[what] ?? []).map((k, i) => (k === key && i !== slot ? '' : k));
   if (key) list[slot] = key;
   else list.splice(slot, 1);
   out[what] = list.filter((k): k is string => typeof k === 'string' && k.length > 0);
@@ -181,7 +189,9 @@ const DIGITS = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', '
  * The Phaser key name (Phaser.Input.Keyboard.KeyCodes) for a DOM key event's physical key, or
  * null for keys the game doesn't bind.
  */
-export function keyName(code: string): string | null {
+export function keyName(code: string, key = ''): string | null {
+  // Letters by what the key types (AZERTY's Z is Z), as Phaser's keys match the layout's keyCode.
+  if (/^[a-z]$/i.test(key)) return key.toUpperCase();
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return DIGITS[Number(code.slice(5))] ?? null;
   if (/^F([1-9]|1[0-2])$/.test(code)) return code;

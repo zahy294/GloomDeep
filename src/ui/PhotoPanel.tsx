@@ -44,6 +44,7 @@ export function PhotoPanel({ bridge, photo }: { bridge: UiBridge; photo: PhotoVi
         {Object.entries(PHOTO.presets).map(([key, p]) => (
           <button
             key={key}
+            aria-pressed={photo.preset === key}
             class={`menu-button small${photo.preset === key ? ' primary' : ''}`}
             onClick={() => bridge.commands.emit('photoPreset', { preset: key })}
           >

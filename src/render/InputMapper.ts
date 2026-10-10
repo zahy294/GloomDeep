@@ -21,6 +21,8 @@ export class InputMapper {
   pointerEnabled = true;
   /** Set by the scene while a click in the world means something else (throwing a held stack). */
   mouseBlocked = false;
+  /** While true (photo mode) the hotbar keys and the wheel send nothing. */
+  commandsBlocked = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -34,10 +36,12 @@ export class InputMapper {
     const keyboard = scene.input.keyboard;
 
     HOTBAR_KEYS.forEach((name, slot) => {
-      keyboard.on(`keydown-${name}`, () => enqueue({ type: 'selectSlot', slot }));
+      keyboard.on(`keydown-${name}`, () => {
+        if (!this.commandsBlocked) enqueue({ type: 'selectSlot', slot });
+      });
     });
     const onWheel = (_p: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
-      if (dy !== 0) enqueue({ type: 'cycleSlot', delta: Math.sign(dy) });
+      if (dy !== 0 && !this.commandsBlocked) enqueue({ type: 'cycleSlot', delta: Math.sign(dy) });
     };
     scene.input.on(Phaser.Input.Events.POINTER_WHEEL, onWheel);
 

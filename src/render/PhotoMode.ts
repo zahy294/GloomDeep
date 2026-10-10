@@ -61,15 +61,21 @@ export class PhotoMode {
   }
 
   /** Moves the viewpoint (keys and mouse drag), kept inside the world. */
-  update(dt: number, zoom: number, worldWidthPx: number, worldHeightPx: number): void {
-    const held = (list: Phaser.Input.Keyboard.Key[]) => list.some((k) => k.isDown);
+  update(
+    dt: number,
+    zoom: number,
+    worldWidthPx: number,
+    worldHeightPx: number,
+    /** False while the mouse is over the panel: its slider and buttons must not drag the view. */
+    pointerOnWorld: boolean,
+  ): void {
     const speed = PHOTO.panSpeed * (this.fast.isDown ? PHOTO.fastFactor : 1) * dt;
     if (held(this.keys.left)) this.x -= speed;
     if (held(this.keys.right)) this.x += speed;
     if (held(this.keys.up)) this.y -= speed;
     if (held(this.keys.down)) this.y += speed;
     const pointer = this.scene.input.activePointer;
-    if (pointer.isDown && !pointer.rightButtonDown()) {
+    if (pointerOnWorld && pointer.isDown && !pointer.rightButtonDown()) {
       if (this.dragX !== null) {
         this.x -= (pointer.x - this.dragX) / zoom;
         this.y -= (pointer.y - this.dragY) / zoom;
@@ -82,6 +88,11 @@ export class PhotoMode {
     this.x = Math.max(0, Math.min(worldWidthPx, this.x));
     this.y = Math.max(0, Math.min(worldHeightPx, this.y));
   }
+}
+
+function held(list: readonly Phaser.Input.Keyboard.Key[]): boolean {
+  for (let i = 0; i < list.length; i++) if (list[i]?.isDown) return true;
+  return false;
 }
 
 /** Saves an image's pixels scaled up by a whole number, crisp, as a PNG download. */
