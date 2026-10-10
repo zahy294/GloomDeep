@@ -24,6 +24,8 @@ export const Depth = {
    * darkness still shows (faintly pulsing) where no light reaches.
    */
   gloam: 13.5,
+  /** Things that are their own light (festival lanterns, firework sparks): never darkened. */
+  selfLit: 13.8,
   /** Additive halos above the light map, so glows stay bright in the dark (layer 14). */
   glow: 14,
   debug: 100,

@@ -90,14 +90,14 @@ export class TownRenderer {
   ) {
     this.glint = scene.add
       .image(0, 0, TextureKey.sprites, spriteFrame(PARTICLE_SHEET, PARTICLE_FRAME.spark))
-      .setDepth(Depth.particles)
+      .setDepth(Depth.selfLit)
       .setVisible(false);
     this.glintHalo = this.makeHalo(TOWN_VIEW.glintColor);
     for (let i = 0; i < TOWN_VIEW.lanternMax; i++) {
       this.lanterns.push({
         image: scene.add
           .image(0, 0, TextureKey.sprites, spriteFrame(PARTICLE_SHEET, PARTICLE_FRAME.skyLantern))
-          .setDepth(Depth.particles)
+          .setDepth(Depth.selfLit)
           .setVisible(false),
         halo: this.makeHalo(TOWN_VIEW.lanternColor),
         active: false,
@@ -113,7 +113,7 @@ export class TownRenderer {
       this.sparks.push({
         image: scene.add
           .image(0, 0, TextureKey.sprites, spriteFrame(PARTICLE_SHEET, PARTICLE_FRAME.spark))
-          .setDepth(Depth.particles)
+          .setDepth(Depth.selfLit)
           .setVisible(false),
         halo: this.makeHalo(0xffffff),
         active: false,
@@ -258,7 +258,11 @@ export class TownRenderer {
       this.lanternTimer[i] = (this.lanternTimer[i] ?? 0) - dt;
       if ((this.lanternTimer[i] ?? 0) <= 0) {
         this.lanternTimer[i] = 1 / TOWN_VIEW.lanternRate;
-        this.spawnLantern(town, left, right);
+        this.spawnLantern(
+          town,
+          Math.max(left, view.x - m),
+          Math.min(right, view.x + view.width + m),
+        );
       }
       this.fireworkTimer[i] = (this.fireworkTimer[i] ?? 0) - dt;
       if ((this.fireworkTimer[i] ?? 0) <= 0) {
@@ -266,9 +270,12 @@ export class TownRenderer {
           TOWN_VIEW.fireworkIntervalMin,
           TOWN_VIEW.fireworkIntervalMax,
         );
+        // Over the part of the town in view, at a height above its ground there.
+        const fx = between(Math.max(left, view.x), Math.min(right, view.x + view.width));
+        const ground = this.sim.world.groundRow(Math.floor(fx / TILE_SIZE)) * TILE_SIZE;
         this.fireworkBurst(
-          between(left, right),
-          top - between(TOWN_VIEW.fireworkHeightMin, TOWN_VIEW.fireworkHeightMax),
+          fx,
+          Math.max(top, ground - between(TOWN_VIEW.fireworkHeightMin, TOWN_VIEW.fireworkHeightMax)),
         );
       }
     }

@@ -1722,7 +1722,7 @@ export const TOWN_VIEW = {
   /** Festivals only draw for towns within this many px of the view. */
   festivalMarginPx: 160,
   /** Sky lanterns: spawns per second per town, rise speed (px/s min..max), sway (px, rad/s), lifetime (s), cap. */
-  lanternRate: 1.2,
+  lanternRate: 2.5,
   lanternRiseMin: 10,
   lanternRiseMax: 20,
   lanternSwayPx: 8,
@@ -1734,11 +1734,11 @@ export const TOWN_VIEW = {
   lanternHaloPx: 40,
   lanternHaloAlpha: 0.6,
   lanternColor: 0xffb050,
-  /** Fireworks: seconds between bursts (min..max), height above the town top (px, min..max), sparks per burst, speed, lifetime, gravity, cap. */
-  fireworkIntervalMin: 3,
-  fireworkIntervalMax: 7,
-  fireworkHeightMin: 40,
-  fireworkHeightMax: 110,
+  /** Fireworks: seconds between bursts (min..max), height above the ground under the burst (px, min..max), sparks per burst, speed, lifetime, gravity, cap. */
+  fireworkIntervalMin: 1.5,
+  fireworkIntervalMax: 4,
+  fireworkHeightMin: 140,
+  fireworkHeightMax: 300,
   fireworkSparks: 18,
   fireworkSpeedMin: 40,
   fireworkSpeedMax: 80,

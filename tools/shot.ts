@@ -926,7 +926,7 @@ const TOWN_SHOTS: Shot[] = [
     prepare: async (page) => {
       await waitForPlayerReady(page);
       await talkTo(page, 'child');
-      await page.locator('text=Accept').first().click();
+      await page.locator('button', { hasText: 'Accept' }).first().click();
       await waitForProbe(page, (q) => q.quests.length > 0, 'the quest to start');
       await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
       await page.keyboard.press('j');
@@ -941,7 +941,7 @@ const TOWN_SHOTS: Shot[] = [
     prepare: async (page) => {
       await waitForPlayerReady(page);
       await talkTo(page, 'merchant');
-      await page.locator('text=Trade').first().click();
+      await page.locator('button', { hasText: 'Trade' }).first().click();
       await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height / 5);
       await page.waitForFunction(() => window.gloamdeep?.bridge.state.shop !== null, undefined, {
         timeout: TIMEOUT_MS,

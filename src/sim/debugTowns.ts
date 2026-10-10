@@ -62,7 +62,8 @@ export function lightRoads(sim: Simulation): void {
     for (let x = road.x0; x <= road.x1; x += ROAD.litRadius) {
       if (sim.towns.townAt(x, world.groundRow(x) - 1)) continue;
       const y = world.groundRow(x) - 1;
-      if (world.get(x, y) === AIR) world.set(x, y, TORCH);
+      // Over grass tufts and flowers too (a road is walked, not grown over).
+      if (world.get(x, y) === AIR || TILES[world.get(x, y)]?.decor) world.set(x, y, TORCH);
     }
   }
 }
